@@ -6187,48 +6187,53 @@ public class WorldMapRenderer {
                 pngBmp.setPixels(bgRow, 0, bgRow.length, 0, py, bgRow.length, 1);
             }
         }
-        // v425：PNG 超过 ~2MB 时降采样（HTML 查看器 WebView 的
-        // data: URL 有大小限制）。修复 v421 隐患：createScaledBitmap
-        // OOM 返回 null 导致 NPE 导出失败；recycle 逻辑统一在最后。
-        // v482：单次减半不够——大世界全图 PNG 减半后仍超 2MB，
-        // 图片在浏览器/HTML 查看器里不显示（用户反馈）。改成循环
-        // 降采样直到 ≤1.5MB（最小边长 256 停止，避免糊成色块）。
-        android.graphics.Bitmap forPng = pngBmp;
-        boolean downsampled = false;
-        java.io.ByteArrayOutputStream outBos = new java.io.ByteArrayOutputStream();
-        try {
-            forPng.compress(Bitmap.CompressFormat.PNG, 75, outBos);
-            while (outBos.size() > 1536 * 1024
-                    && forPng.getWidth() > 512
-                    && forPng.getHeight() > 512) {
-                int sw = Math.max(1, forPng.getWidth() / 2);
-                int sh = Math.max(1, forPng.getHeight() / 2);
-                android.graphics.Bitmap down =
-                        android.graphics.Bitmap.createScaledBitmap(forPng, sw, sh, true);
-                if (down == null) {
-                    break;
+        // v0.0.27：内置 canvas 渲染器 + 瓦片化——大地图不再降采样糊图
+        // （旧逻辑循环减半到 ≤1.5MB，大世界导出变模糊），改为切成
+        // 512px JPEG 瓦片内联进 HTML，浏览器只绘制可视区瓦片，
+        // 大世界也能流畅浏览
+        final int TILE = 512;
+        final int W = pngBmp.getWidth();
+        final int H = pngBmp.getHeight();
+        int cols = (W + TILE - 1) / TILE;
+        int rows = (H + TILE - 1) / TILE;
+        StringBuilder tilesJs = new StringBuilder("var TILES={");
+        int tCount = 0;
+        java.io.ByteArrayOutputStream tileBos =
+                new java.io.ByteArrayOutputStream(256 * 1024);
+        for (int ty = 0; ty < rows; ty++) {
+            for (int tx = 0; tx < cols; tx++) {
+                int sx = tx * TILE;
+                int sy = ty * TILE;
+                int tw = Math.min(TILE, W - sx);
+                int th = Math.min(TILE, H - sy);
+                android.graphics.Bitmap tile =
+                        android.graphics.Bitmap.createBitmap(pngBmp, sx, sy, tw, th);
+                tileBos.reset();
+                tile.compress(Bitmap.CompressFormat.JPEG, 82, tileBos);
+                tile.recycle();
+                if (tCount > 0) {
+                    tilesJs.append(',');
                 }
-                if (forPng != pngBmp) {
-                    forPng.recycle();
-                }
-                forPng = down;
-                downsampled = true;
-                outBos.reset();
-                forPng.compress(Bitmap.CompressFormat.PNG, 75, outBos);
-                Log.i(TAG, "导出 PNG 降采样: " + pngBmp.getWidth() + "x"
-                        + pngBmp.getHeight() + " → " + sw + "x" + sh
-                        + " (" + outBos.size() / 1024 + "KB)");
-            }
-        } finally {
-            if (downsampled) {
-                pngBmp.recycle(); // 降采样后原图不再使用
+                tilesJs.append('"').append(tx).append(',').append(ty)
+                        .append("\":\"data:image/jpeg;base64,")
+                        .append(android.util.Base64.encodeToString(
+                                tileBos.toByteArray(), android.util.Base64.NO_WRAP))
+                        .append('"');
+                tCount++;
             }
         }
-        String b64 = android.util.Base64.encodeToString(outBos.toByteArray(),
-                android.util.Base64.NO_WRAP);
-        outBos.close();
-        // 编码完成位图不再需要（未降采样时 forPng 即 pngBmp）
-        forPng.recycle();
+        tilesJs.append("};var TW=").append(TILE)
+                .append(";var COLS=").append(cols)
+                .append(";var ROWS=").append(rows)
+                .append(";var IMGW=").append(W)
+                .append(";var IMGH=").append(H).append(';');
+        try {
+            tileBos.close();
+        } catch (java.io.IOException ignored) {
+        }
+        Log.i(TAG, "导出瓦片化: " + W + "x" + H + " → " + cols + "x" + rows
+                + " 瓦片 (" + tCount + " 张)");
+        pngBmp.recycle();
 
         // 2) 世界范围（[Z,X] 顺序：lat=Z、lng=X）
         int minX = map.minBlockX;
@@ -6236,20 +6241,15 @@ public class WorldMapRenderer {
         int maxX = minX + map.width;
         int maxZ = minZ + map.height;
         StringBuilder html = new StringBuilder(16384);
-        // Leaflet 库内联（assets/leaflet/）——此前走 unpkg CDN，平板离线/
-        // 网络不稳时 leaflet.js 加载失败，导出文件打开地图完全空白
-        // （"导出成功但地图不显示"的根因）
-        String leafletCss = readAssetSafely("leaflet/leaflet.css");
-        String leafletJs = readAssetSafely("leaflet/leaflet.js");
+        // v0.0.27：内置 canvas 渲染器（不再内联 Leaflet——HTML 体积
+        // 大幅下降，兼容性最好；大地图瓦片化按需绘制）
         html.append("<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">")
-                .append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
+                .append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,user-scalable=no\">")
                 .append("<title>").append(escapeHtml(title)).append("</title>")
-                .append("<style>").append(leafletCss).append("</style>")
-                .append("<script>").append(leafletJs).append("</script>")
                 .append("<style>")
-                .append("body{margin:0;background:#12141a;font-family:system-ui,sans-serif}")
-                .append("#map{position:absolute;top:0;bottom:0;width:100%}")
-                .append("#map img{image-rendering:pixelated}")
+                .append("body{margin:0;background:#12141a;font-family:system-ui,sans-serif;overflow:hidden;touch-action:none}")
+                .append("#cv{display:block;cursor:grab}")
+                .append("#cv:active{cursor:grabbing}")
                 .append("#panel{position:absolute;top:10px;right:10px;z-index:1000;background:rgba(20,24,32,.93);")
                 .append("color:#e8eaf0;border:1px solid #3a6b8a;border-radius:12px;padding:12px 14px;")
                 .append("max-width:300px;font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,.5)}")
@@ -6264,14 +6264,20 @@ public class WorldMapRenderer {
                 .append("#collapse{position:absolute;top:10px;right:10px;z-index:1001;background:rgba(20,24,32,.93);")
                 .append("color:#8ce0ff;border:1px solid #3a6b8a;border-radius:8px;padding:4px 10px;cursor:pointer}")
                 .append("#hint{margin-top:6px;color:#7a8aa0;font-size:11px}")
-                .append(".dist-label{background:rgba(20,24,32,.85);color:#8ce0ff;font:12px monospace;")
-                .append("padding:2px 8px;border-radius:10px;border:1px solid #3a6b8a}")
-                .append(".pt-popup b{color:#ffd54f}")
-                .append(".pt-popup .del{display:inline-block;margin-top:6px;color:#ff8a80;")
-                .append("cursor:pointer;text-decoration:underline}")
+                .append("#coord{position:absolute;left:10px;bottom:10px;z-index:1000;background:rgba(20,24,32,.85);")
+                .append("color:#8ce0ff;font:12px monospace;padding:3px 10px;border-radius:8px;border:1px solid #3a6b8a}")
+                .append("#zoomlab{position:absolute;left:10px;top:10px;z-index:1000;background:rgba(20,24,32,.85);")
+                .append("color:#8ce0ff;font:12px monospace;padding:3px 10px;border-radius:8px;border:1px solid #3a6b8a}")
+                .append("#pt-pop{position:absolute;z-index:2000;background:#20262e;color:#e8eaf0;padding:8px 12px;")
+                .append("border:1px solid #3a6b8a;border-radius:8px;font-size:13px;display:none;box-shadow:0 4px 16px rgba(0,0,0,.6)}")
+                .append("#pt-pop b{color:#ffd54f}")
+                .append("#pt-pop .del{color:#ff8a80;cursor:pointer;text-decoration:underline;margin-left:8px}")
                 .append("</style></head><body>")
-                .append("<div id=\"map\"></div>")
+                .append("<canvas id=\"cv\"></canvas>")
                 .append("<button id=\"collapse\" onclick=\"togglePanel()\">收起</button>")
+                .append("<div id=\"zoomlab\"></div>")
+                .append("<div id=\"coord\"></div>")
+                .append("<div id=\"pt-pop\"></div>")
                 .append("<div id=\"panel\"><h3>").append(escapeHtml(title)).append("</h3><table>")
                 .append("<tr><td>种子</td><td class=\"v\">").append(seed).append("</td></tr>")
                 .append("<tr><td>游戏版本</td><td class=\"v\">").append(escapeHtml(versionStr))
@@ -6287,123 +6293,227 @@ public class WorldMapRenderer {
         html.append("<tr><td>地图范围</td><td class=\"v\">").append(map.width).append(" × ")
                 .append(map.height).append(" 方块</td></tr>")
                 .append("</table><div id=\"layers\">")
-                // v482：只保留标点图层（连线/结构/实体/史莱姆区块
-                // 已删除——用户要求）
-                .append("<label><input type=\"checkbox\" id=\"ck-p\" checked onchange=\"tg('p')\">标点</label>")
+                .append("<label><input type=\"checkbox\" id=\"ck-p\" checked onchange=\"tg()\">标点</label>")
                 .append("</div>")
                 .append("<button onclick=\"exportJson()\">导出标点 JSON</button>")
                 .append("<button onclick=\"clearSaved()\">清空新增标点</button>")
                 .append("<div id=\"hint\">长按地图 = 添加标点；点击标点气泡内可删除</div></div>")
-                .append("<script>")
-                .append("var map=L.map('map',{crs:L.CRS.Simple,minZoom:-5,maxZoom:3});")
-                // Leaflet bounds = [[south, west], [north, east]]。v416：
-                // CRS.Simple 的 lat 轴向上、PNG 像素 z 轴向下——两者
-                // 方向相反，标记 z 不取反会上下偏移 2×|z-中心|（用户
-                // "出生点/玩家位置向下偏移很多"的根因）。统一 lat=-z
-                // v0.0.25：maxZ/minZ 为负时硬编码的 "[-" 前缀拼出
-                // "--480" 双负号 → JS 语法错误整个脚本崩掉、地图空白
-                // （用户"HTML 显示不了地图"根因）。改为拼接 -maxZ/-minZ
-                // 的计算值，变量自带符号不再叠加硬编码负号
-                .append("var BOUNDS=[[").append(-maxZ).append(',').append(minX).append("],[")
-                .append(-minZ).append(',').append(maxX).append("]];")
-                .append("L.imageOverlay('data:image/png;base64,").append(b64)
-                .append("',BOUNDS).addTo(map);")
-                .append("var FZ=map.getBoundsZoom(BOUNDS);")
-                // v425：恢复 L.circle（用户提供参考 HTML 同款写法——
-                // v413 的 divIcon 在部分 HTML 查看器 WebView 不兼容
-                // "打不开"的根因）。radius 随 zoom 换算保持像素观感；
-                // lat=-z（v416 坐标对齐）
-                .append("function mkCircle(z,x,opts){var px=opts.px||8;delete opts.px;")
-                .append("var c=L.circle([-z,x],L.extend({radius:1},opts));")
-                .append("var up=function(){var s=Math.min(px,Math.max(3,px*Math.pow(2,map.getZoom()-FZ)));")
-                .append("c.setRadius(s/Math.pow(2,map.getZoom()));};")
-                .append("map.on('zoomend',up);up();return c;}")
-                .append("var groups={p:L.layerGroup()};")
-                .append("function tg(k){if(document.getElementById('ck-'+k).checked){groups[k].addTo(map);}")
-                .append("else{map.removeLayer(groups[k]);}}")
-                .append("function togglePanel(){var p=document.getElementById('panel');")
-                .append("var b=document.getElementById('collapse');")
-                .append("if(p.style.display==='none'){p.style.display='block';b.textContent='收起';}")
-                .append("else{p.style.display='none';b.textContent='信息';}}");
-        // 标点（数据库内标点固定；新增标点走 localStorage + 长按）
-        if (points != null && !points.isEmpty()) {
-            html.append("var pts=");
-            html.append(jsonArray(points));
-            html.append(";pts.forEach(function(p){groups.p.addLayer(mkCircle(p.z,p.x,")
-                    .append("{px:8,color:p.c,weight:2,fillOpacity:.85})")
-                    .append(".bindPopup('<b>'+p.n+'</b><br>X:'+p.x+' Z:'+p.z));});");
-        }
-        // v482：连线/结构/实体/史莱姆图层已删除（用户要求只保留标点）
-        // 玩家/出生点
-        if (playerX != Integer.MIN_VALUE) {
-            html.append("mkCircle(").append(playerZ).append(',').append(playerX)
-                    .append(",{px:7,color:'#4ade80',weight:2,fillOpacity:.95}).addTo(map)")
-                    .append(".bindPopup('<b>玩家</b><br>X:").append(playerX).append(" Z:")
-                    .append(playerZ).append("');");
-        }
-        if (spawnX != Integer.MIN_VALUE) {
-            html.append("mkCircle(").append(spawnZ).append(',').append(spawnX)
-                    .append(",{px:7,color:'#5b9cf6',weight:2,fillOpacity:.95}).addTo(map)")
-                    .append(".bindPopup('<b>出生点</b><br>X:").append(spawnX).append(" Z:")
-                    .append(spawnZ).append("');");
-        }
-        // 标点编辑（localStorage 持久化：长按地图添加、气泡内删除、导出 JSON。
-        // 移动端长按 = contextmenu 事件，桌面端右键同样触发——不能用 Shift+点击，
-        // 安卓浏览器没有 Shift）
-        html.append("var SAVED_KEY='levip_").append(escapeHtml(title)).append("';")
-                .append("var savedPts=[];try{savedPts=JSON.parse(localStorage.getItem(SAVED_KEY))||[];}catch(e){}")
-                .append("var ptRecs=[];")
-                .append("function redrawPts(){ptRecs.forEach(function(r){groups.p.removeLayer(r.c);});ptRecs=[];")
-                .append("savedPts.forEach(function(p){var c=mkCircle(p.z,p.x,")
-                .append("{px:8,color:p.c||'#ffd54f',weight:2,fillOpacity:.85});")
-                .append("c.bindPopup('<div class=\"pt-popup\"><b>'+p.n+'</b><br>X:'+p.x+' Z:'+p.z")
-                .append("+'<span class=\"del\">删除</span></div>');")
-                .append("c.on('popupopen',function(ev){var el=ev.popup.getElement().querySelector('.del');")
-                .append("if(el){el.onclick=function(){delPt(ptRecs.indexOf(c));c.closePopup();};}});")
-                .append("groups.p.addLayer(c);ptRecs.push(c);});}")
-                .append("function delPt(i){var c=ptRecs[i];if(!c)return;")
-                .append("savedPts.splice(i,1);localStorage.setItem(SAVED_KEY,JSON.stringify(savedPts));redrawPts();}")
-                .append("var pendingPt=null;")
-                .append("function cancelPt(){var b=document.getElementById('pt-dlg');if(b){b.remove();}pendingPt=null;}")
-                .append("function savePt(){var i=document.getElementById('pt-name');")
-                .append("var n=i?i.value.trim():'';if(!n||!pendingPt){return;}")
-                .append("savedPts.push({n:n,x:Math.round(pendingPt.lng),z:Math.round(pendingPt.lat),c:'#ffd54f'});")
-                .append("localStorage.setItem(SAVED_KEY,JSON.stringify(savedPts));cancelPt();redrawPts();}")
-                .append("map.on('contextmenu',function(e){if(e.originalEvent){e.originalEvent.preventDefault();}")
-                .append("var ll=e.latlng||(e.originalEvent?map.mouseEventToLatLng(e.originalEvent):null);")
-                .append("if(!ll){return;}pendingPt=ll;")
-                .append("var d=document.createElement('div');d.id='pt-dlg';")
-                .append("d.style.cssText='position:fixed;left:50%;top:35%;transform:translate(-50%,-50%);")
-                .append("z-index:2000;background:#20262e;color:#e8eaf0;padding:14px;border:1px solid #3a6b8a;")
-                .append("border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.6)';")
-                .append("d.innerHTML='<div style=\"margin-bottom:8px;color:#8ce0ff\">添加标点</div>")
-                .append("<input id=\"pt-name\" placeholder=\"标点名称\" style=\"width:220px;padding:6px;")
-                .append("background:#12141a;color:#fff;border:1px solid #3a6b8a;border-radius:6px\">")
-                .append("<div style=\"margin-top:10px;text-align:right\">")
-                .append("<button id=\"pt-cancel\" style=\"margin-right:8px;background:#2a3342;color:#a8b4c4;")
-                .append("border:1px solid #3a6b8a;border-radius:6px;padding:5px 12px\">取消</button>")
-                .append("<button id=\"pt-save\" style=\"background:#5b9cf6;color:#fff;border:none;")
-                .append("border-radius:6px;padding:5px 12px\">保存</button></div>';")
-                .append("document.body.appendChild(d);")
-                .append("var inp=document.getElementById('pt-name');")
-                .append("var cbtn=document.getElementById('pt-cancel');")
-                .append("var sbtn=document.getElementById('pt-save');")
-                .append("if(cbtn){cbtn.onclick=cancelPt;}")
-                .append("if(sbtn){sbtn.onclick=function(){if(inp){inp.blur();}setTimeout(savePt,120);}}")
-                .append("if(inp){inp.focus();}});")
-                .append("function exportJson(){var a=document.createElement('a');")
-                .append("a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(savedPts,null,2));")
-                .append("a.download='points.json';a.click();}")
-                .append("function clearSaved(){if(!confirm('清空所有新增标点？'))return;")
-                .append("savedPts=[];localStorage.removeItem(SAVED_KEY);redrawPts();}")
-                .append("redrawPts();")
-                .append("groups.p.addTo(map);groups.l.addTo(map);groups.s.addTo(map);")
-                .append("map.fitBounds(BOUNDS);</script></body></html>");
+                .append("<script>");
+        // v0.0.27：世界范围与标记数据（JS 变量直接传数字，
+        // 不再拼字符串——v0.0.25 双负号一类问题从根上消失）
+        html.append(tilesJs)
+                .append("var MINX=").append(minX).append(",MINZ=").append(minZ)
+                .append(",MAXX=").append(maxX).append(",MAXZ=").append(maxZ).append(';')
+                .append("var FIXED_PTS=")
+                .append(points == null || points.isEmpty() ? "[]" : jsonArray(points))
+                .append(";var PPLAYER=")
+                .append(playerX == Integer.MIN_VALUE ? "null" : "[" + playerX + "," + playerZ + "]")
+                .append(";var PSPAWN=")
+                .append(spawnX == Integer.MIN_VALUE ? "null" : "[" + spawnX + "," + spawnZ + "]")
+                .append(";var TITLE=").append(jsString(title)).append(';')
+                .append(RENDERER_JS)
+                .append("</script></body></html>");
         File out = new File(outDir, fileName);
         try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
             fos.write(html.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
         return out;
+    }
+
+    /**
+     * v0.0.27：内置 canvas 渲染器（无第三方依赖）。瓦片化大地图
+     * 按需绘制，小地图（单瓦片）同路径。功能：拖拽平移/滚轮缩放/
+     * 双指捏合/标点（长按添加、点击删除、localStorage 持久化、
+     * 导出 JSON）/玩家与出生点标记/坐标与缩放 HUD。
+     */
+    private static final String RENDERER_JS = """
+// ===== 内置渲染器 =====
+var dpr=window.devicePixelRatio||1;
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+var k=1,offX=0,offY=0,showPts=true;
+var TI={},TC=0,MAXCACHE=64,BG='#0d0f14';
+var SAVED_KEY='levip_'+TITLE;
+var savedPts=[];try{savedPts=JSON.parse(localStorage.getItem(SAVED_KEY))||[];}catch(e){}
+function getTile(tx,ty){var key=tx+','+ty;var im=TI[key];if(im)return im;
+ var src=TILES[key];if(src==null)return null;
+ im=new Image();im.src=src;TI[key]=im;TC++;
+ if(TC>MAXCACHE){for(var fk in TI){delete TI[fk];TC--;break;}}
+ return im;}
+function resize(){cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;
+ cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';
+ ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+window.addEventListener('resize',resize);
+function w2sx(x){return (x-MINX)*k+offX;}
+function w2sy(z){return (z-MINZ)*k+offY;}
+function s2wx(px){return (px-offX)/k+MINX;}
+function s2wz(py){return (py-offY)/k+MINZ;}
+function fit(){k=Math.min((innerWidth-16)/IMGW,(innerHeight-16)/IMGH);
+ k=Math.max(k,0.02);offX=(innerWidth-IMGW*k)/2;offY=(innerHeight-IMGH*k)/2;draw();}
+function allPts(){return FIXED_PTS.concat(savedPts);}
+function updHud(){document.getElementById('zoomlab').textContent='缩放 '+k.toFixed(2)+'x';}
+function drawPt(p,label,color){
+ var sx=w2sx(p[0]),sy=w2sy(p[1]);
+ if(sx<-30||sx>innerWidth+30||sy<-30||sy>innerHeight+30)return;
+ ctx.beginPath();ctx.arc(sx,sy,6,0,6.2832);
+ ctx.fillStyle=color||'#ffd54f';ctx.fill();
+ ctx.lineWidth=2;ctx.strokeStyle='rgba(0,0,0,.65)';ctx.stroke();
+ if(label){ctx.font='12px system-ui';ctx.fillStyle='#fff';
+  ctx.strokeStyle='rgba(0,0,0,.75)';ctx.lineWidth=3;
+  ctx.strokeText(label,sx+9,sy-7);ctx.fillText(label,sx+9,sy-7);}}
+function draw(){
+ ctx.fillStyle=BG;ctx.fillRect(0,0,innerWidth,innerHeight);
+ var sx0=offX,sy0=offY,sx1=offX+IMGW*k,sy1=offY+IMGH*k;
+ var vx0=Math.max(0,sx0),vy0=Math.max(0,sy0),
+     vx1=Math.min(innerWidth,sx1),vy1=Math.min(innerHeight,sy1);
+ if(vx1>vx0&&vy1>vy0){
+  var t0x=Math.max(0,Math.floor((vx0-sx0)/(TW*k)));
+  var t0y=Math.max(0,Math.floor((vy0-sy0)/(TW*k)));
+  var t1x=Math.min(COLS-1,Math.floor((vx1-sx0-0.001)/(TW*k)));
+  var t1y=Math.min(ROWS-1,Math.floor((vy1-sy0-0.001)/(TW*k)));
+  ctx.imageSmoothingEnabled=(k<1.2);
+  for(var ty=t0y;ty<=t1y;ty++)for(var tx=t0x;tx<=t1x;tx++){
+   var im=getTile(tx,ty);
+   if(im&&im.complete&&im.naturalWidth>0){
+    ctx.drawImage(im,sx0+tx*TW*k,sy0+ty*TW*k,TW*k,TW*k);}}}
+ if(showPts){var pts=allPts();
+  for(var i=0;i<pts.length;i++){var p=pts[i];
+   drawPt([p.x,p.z],p.n,p.c);}}
+ if(PPLAYER)drawPt(PPLAYER,'玩家','#4ade80');
+ if(PSPAWN)drawPt(PSPAWN,'出生点','#5b9cf6');
+ updHud();}
+function zoomAt(px,py,f){
+ var nk=k*f;nk=Math.max(0.03,Math.min(32,nk));
+ if(nk===k)return;
+ var wx=s2wx(px),wz=s2wz(py);
+ k=nk;offX=px-(wx-MINX)*k;offY=py-(wz-MINZ)*k;
+ draw();}
+// 拖拽（pointer 事件，鼠标/触摸统一）
+var drag=null;
+cv.addEventListener('pointerdown',function(e){
+ if(e.pointerType==='mouse'&&e.button!==0)return;
+ hidePop();drag={x:e.clientX,y:e.clientY,moved:false,t:Date.now()};
+ try{cv.setPointerCapture(e.pointerId);}catch(err){}});
+cv.addEventListener('pointermove',function(e){
+ if(drag){var dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;
+  offX+=dx;offY+=dy;drag.x=e.clientX;drag.y=e.clientY;draw();}
+ document.getElementById('coord').textContent=
+  'X:'+Math.round(s2wx(e.clientX))+'  Z:'+Math.round(s2wz(e.clientY));});
+cv.addEventListener('pointerup',function(e){
+ if(!drag)return;
+ var wasClick=!drag.moved&&(Date.now()-drag.t)<600;
+ drag=null;
+ if(wasClick)onTap(e.clientX,e.clientY);});
+cv.addEventListener('wheel',function(e){e.preventDefault();
+ zoomAt(e.clientX,e.clientY,e.deltaY<0?1.25:0.8);},{passive:false});
+// 双指捏合
+var pinch=null;
+function tdist(a,b){var dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;
+ return Math.sqrt(dx*dx+dy*dy);}
+cv.addEventListener('touchstart',function(e){
+ if(e.touches.length===2){pinch={d:tdist(e.touches[0],e.touches[1])};drag=null;}});
+cv.addEventListener('touchmove',function(e){
+ if(pinch&&e.touches.length===2){
+  var d=tdist(e.touches[0],e.touches[1]);
+  if(pinch.d>0&&d>0){
+   zoomAt((e.touches[0].clientX+e.touches[1].clientX)/2,
+          (e.touches[0].clientY+e.touches[1].clientY)/2,d/pinch.d);
+   pinch.d=d;}
+  e.preventDefault();}},{passive:false});
+cv.addEventListener('touchend',function(){pinch=null;});
+// 长按添加标点（移动端）；右键同样触发
+var lpTimer=null,lpPos=null;
+cv.addEventListener('touchstart',function(e){
+ if(e.touches.length===1){
+  var t=e.touches[0];lpPos={x:t.clientX,y:t.clientY};
+  lpTimer=setTimeout(function(){lpTimer=null;drag=null;addPtAt(lpPos.x,lpPos.y);},650);}});
+cv.addEventListener('touchmove',function(e){
+ if(lpTimer){var t=e.touches[0];
+  if(Math.abs(t.clientX-lpPos.x)+Math.abs(t.clientY-lpPos.y)>10){
+   clearTimeout(lpTimer);lpTimer=null;}}});
+cv.addEventListener('touchend',function(){if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();addPtAt(e.clientX,e.clientY);});
+// 点击标点弹气泡（saved 可删除）
+function ptAt(px,py){var pts=allPts();
+ for(var i=pts.length-1;i>=0;i--){var p=pts[i];
+  var sx=w2sx(p.x),sy=w2sy(p.z),dx=sx-px,dy=sy-py;
+  if(dx*dx+dy*dy<400)return i;}
+ return -1;}
+var popIdx=-1,popEl=document.getElementById('pt-pop');
+function showPop(idx,px,py){
+ var pts=allPts();if(idx<0||idx>=pts.length)return;
+ var p=pts[idx];popIdx=idx;
+ popEl.style.display='block';
+ popEl.innerHTML='<b>'+p.n+'</b> X:'+Math.round(p.x)+' Z:'+Math.round(p.z)
+  +(idx>=FIXED_PTS.length?'<span class="del">删除</span>':'');
+ popEl.style.left=Math.min(px+14,innerWidth-180)+'px';
+ popEl.style.top=Math.min(py+14,innerHeight-60)+'px';
+ var delEl=popEl.querySelector('.del');
+ if(delEl){delEl.onclick=function(e){
+  e.stopPropagation();
+  savedPts.splice(idx-FIXED_PTS.length,1);
+  localStorage.setItem(SAVED_KEY,JSON.stringify(savedPts));
+  hidePop();draw();};}}
+function hidePop(){popEl.style.display='none';popIdx=-1;}
+function onTap(px,py){
+ var i=ptAt(px,py);
+ if(i>=0){showPop(i,px,py);}
+ else{hidePop();}}
+// 添加标点弹窗
+function addPtAt(px,py){
+ var wx=Math.round(s2wx(px)),wz=Math.round(s2wz(py));
+ var d=document.createElement('div');d.id='pt-dlg';
+ d.style.cssText='position:fixed;left:50%;top:35%;transform:translate(-50%,-50%);'
+  +'z-index:2000;background:#20262e;color:#e8eaf0;padding:14px;border:1px solid #3a6b8a;'
+  +'border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.6)';
+ d.innerHTML='<div style="margin-bottom:8px;color:#8ce0ff">添加标点 X:'+wx+' Z:'+wz+'</div>'
+  +'<input id="pt-name" placeholder="标点名称" style="width:220px;padding:6px;'
+  +'background:#12141a;color:#fff;border:1px solid #3a6b8a;border-radius:6px">'
+  +'<div style="margin-top:10px;text-align:right">'
+  +'<button id="pt-cancel" style="margin-right:8px;background:#2a3342;color:#a8b4c4;'
+  +'border:1px solid #3a6b8a;border-radius:6px;padding:5px 12px">取消</button>'
+  +'<button id="pt-save" style="background:#5b9cf6;color:#fff;border:none;'
+  +'border-radius:6px;padding:5px 12px">保存</button></div>';
+ document.body.appendChild(d);
+ var inp=document.getElementById('pt-name');
+ document.getElementById('pt-cancel').onclick=function(){d.remove();};
+ document.getElementById('pt-save').onclick=function(){
+  var n=inp.value.trim();if(!n){return;}
+  savedPts.push({n:n,x:wx,z:wz,c:'#ffd54f'});
+  localStorage.setItem(SAVED_KEY,JSON.stringify(savedPts));
+  d.remove();draw();};
+ inp.focus();}
+// 面板/图层/导出
+function togglePanel(){var p=document.getElementById('panel');
+ var b=document.getElementById('collapse');
+ if(p.style.display==='none'){p.style.display='block';b.textContent='收起';}
+ else{p.style.display='none';b.textContent='信息';}}
+function tg(){showPts=document.getElementById('ck-p').checked;draw();}
+function exportJson(){var a=document.createElement('a');
+ a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(savedPts,null,2));
+ a.download='points.json';a.click();}
+function clearSaved(){if(!confirm('清空所有新增标点？'))return;
+ savedPts=[];localStorage.removeItem(SAVED_KEY);draw();}
+resize();fit();
+""";
+
+    private static String jsString(String s) {
+        if (s == null) {
+            return "\"\"";
+        }
+        StringBuilder sb = new StringBuilder("\"");
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '"' || c == '\\') {
+                sb.append('\\');
+            }
+            if (c < 0x20 || c > 0x7E) {
+                sb.append(String.format("\\u%04x", (int) c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.append('"').toString();
     }
 
     private static String escapeHtml(String s) {
