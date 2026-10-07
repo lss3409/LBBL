@@ -6166,10 +6166,18 @@ public class WorldMapRenderer {
         // 区域 colors 是透明的，视图里由 onDraw 单独铺背景；导出
         // PNG 保持透明在浏览器/HTML 查看器里地图一片空白
         // （"导出不显示图片"根因，v481 修复）
-        int exportBg = 0xFFF8FFF0;
+        // v0.0.28：透明像素合成到深色背景（与 HTML 渲染器页面底色
+        // 0xFF101318 一致）。此前用浅色主题 R.color.background（米白
+        // F8FFF0），新 canvas 渲染器直接露出 PNG 白底（用户反馈）。
+        int exportBg = 0xFF101318;
         try {
             if (appContext != null) {
-                exportBg = 0xFF000000 | (appContext.getColor(R.color.background) & 0xFFFFFF);
+                int themeBg = appContext.getColor(R.color.background) & 0xFFFFFF;
+                // 浅色主题背景改深色；深色主题背景保持
+                int lum = ((themeBg >> 16) & 0xFF) * 299
+                        + ((themeBg >> 8) & 0xFF) * 587
+                        + (themeBg & 0xFF) * 114;
+                exportBg = lum > 400 * 1000 ? 0xFF101318 : (0xFF000000 | themeBg);
             }
         } catch (Throwable ignored) {
         }
@@ -6247,7 +6255,7 @@ public class WorldMapRenderer {
                 .append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1,user-scalable=no\">")
                 .append("<title>").append(escapeHtml(title)).append("</title>")
                 .append("<style>")
-                .append("body{margin:0;background:#12141a;font-family:system-ui,sans-serif;overflow:hidden;touch-action:none}")
+                .append("html,body{margin:0;background:#101318;height:100%;font-family:system-ui,sans-serif;overflow:hidden;touch-action:none}")
                 .append("#cv{display:block;cursor:grab}")
                 .append("#cv:active{cursor:grabbing}")
                 .append("#panel{position:absolute;top:10px;right:10px;z-index:1000;background:rgba(20,24,32,.93);")
@@ -6327,127 +6335,143 @@ public class WorldMapRenderer {
      * 导出 JSON）/玩家与出生点标记/坐标与缩放 HUD。
      */
     private static final String RENDERER_JS = """
-// ===== 内置渲染器 =====
+// ============ 内置地图渲染器 v0.0.28（全新实现） ============
+// 坐标系：世界方块坐标 (x,z)。PNG 像素 (0,0) 对应世界 (MINX,MINZ)，
+// 像素向右 = x 增大，像素向下 = z 增大。
+// 屏幕变换：sx=(x-MINX)*zoom+panX，sy=(z-MINZ)*zoom+panY。
+// 地图由 TW 大小瓦片网格拼成；边缘瓦片按实际像素尺寸绘制，绝不拉伸。
 var dpr=window.devicePixelRatio||1;
 var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-var k=1,offX=0,offY=0,showPts=true;
-var TI={},TC=0,MAXCACHE=64,BG='#0d0f14';
-var SAVED_KEY='levip_'+TITLE;
+var zoom=1,panX=0,panY=0,showPts=true;
+var TILE_CACHE={},CACHE_N=0,CACHE_MAX=64;
+var SAVED_KEY='levimc_map_'+TITLE;
 var savedPts=[];try{savedPts=JSON.parse(localStorage.getItem(SAVED_KEY))||[];}catch(e){}
-function getTile(tx,ty){var key=tx+','+ty;var im=TI[key];if(im)return im;
+function tileImg(tx,ty){
+ var key=tx+','+ty,im=TILE_CACHE[key];
+ if(im)return im;
  var src=TILES[key];if(src==null)return null;
- im=new Image();im.src=src;TI[key]=im;TC++;
- if(TC>MAXCACHE){for(var fk in TI){delete TI[fk];TC--;break;}}
+ im=new Image();im.src=src;TILE_CACHE[key]=im;CACHE_N++;
+ if(CACHE_N>CACHE_MAX){for(var k2 in TILE_CACHE){delete TILE_CACHE[k2];CACHE_N--;break;}}
  return im;}
-function resize(){cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;
+function w2x(x){return (x-MINX)*zoom+panX;}
+function w2y(z){return (z-MINZ)*zoom+panY;}
+function x2w(sx){return (sx-panX)/zoom+MINX;}
+function y2w(sy){return (sy-panY)/zoom+MINZ;}
+function resize(){
+ cv.width=Math.round(innerWidth*dpr);cv.height=Math.round(innerHeight*dpr);
  cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';
  ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
 window.addEventListener('resize',resize);
-function w2sx(x){return (x-MINX)*k+offX;}
-function w2sy(z){return (z-MINZ)*k+offY;}
-function s2wx(px){return (px-offX)/k+MINX;}
-function s2wz(py){return (py-offY)/k+MINZ;}
-function fit(){k=Math.min((innerWidth-16)/IMGW,(innerHeight-16)/IMGH);
- k=Math.max(k,0.02);offX=(innerWidth-IMGW*k)/2;offY=(innerHeight-IMGH*k)/2;draw();}
-function allPts(){return FIXED_PTS.concat(savedPts);}
-function updHud(){document.getElementById('zoomlab').textContent='缩放 '+k.toFixed(2)+'x';}
-function drawPt(p,label,color){
- var sx=w2sx(p[0]),sy=w2sy(p[1]);
- if(sx<-30||sx>innerWidth+30||sy<-30||sy>innerHeight+30)return;
- ctx.beginPath();ctx.arc(sx,sy,6,0,6.2832);
- ctx.fillStyle=color||'#ffd54f';ctx.fill();
- ctx.lineWidth=2;ctx.strokeStyle='rgba(0,0,0,.65)';ctx.stroke();
- if(label){ctx.font='12px system-ui';ctx.fillStyle='#fff';
-  ctx.strokeStyle='rgba(0,0,0,.75)';ctx.lineWidth=3;
-  ctx.strokeText(label,sx+9,sy-7);ctx.fillText(label,sx+9,sy-7);}}
-function draw(){
- ctx.fillStyle=BG;ctx.fillRect(0,0,innerWidth,innerHeight);
- var sx0=offX,sy0=offY,sx1=offX+IMGW*k,sy1=offY+IMGH*k;
- var vx0=Math.max(0,sx0),vy0=Math.max(0,sy0),
-     vx1=Math.min(innerWidth,sx1),vy1=Math.min(innerHeight,sy1);
- if(vx1>vx0&&vy1>vy0){
-  var t0x=Math.max(0,Math.floor((vx0-sx0)/(TW*k)));
-  var t0y=Math.max(0,Math.floor((vy0-sy0)/(TW*k)));
-  var t1x=Math.min(COLS-1,Math.floor((vx1-sx0-0.001)/(TW*k)));
-  var t1y=Math.min(ROWS-1,Math.floor((vy1-sy0-0.001)/(TW*k)));
-  ctx.imageSmoothingEnabled=(k<1.2);
-  for(var ty=t0y;ty<=t1y;ty++)for(var tx=t0x;tx<=t1x;tx++){
-   var im=getTile(tx,ty);
-   if(im&&im.complete&&im.naturalWidth>0){
-    ctx.drawImage(im,sx0+tx*TW*k,sy0+ty*TW*k,TW*k,TW*k);}}}
- if(showPts){var pts=allPts();
-  for(var i=0;i<pts.length;i++){var p=pts[i];
-   drawPt([p.x,p.z],p.n,p.c);}}
- if(PPLAYER)drawPt(PPLAYER,'玩家','#4ade80');
- if(PSPAWN)drawPt(PSPAWN,'出生点','#5b9cf6');
- updHud();}
-function zoomAt(px,py,f){
- var nk=k*f;nk=Math.max(0.03,Math.min(32,nk));
- if(nk===k)return;
- var wx=s2wx(px),wz=s2wz(py);
- k=nk;offX=px-(wx-MINX)*k;offY=py-(wz-MINZ)*k;
+function fitView(){
+ var mw=innerWidth/IMGW,mh=innerHeight/IMGH;
+ zoom=Math.min(mw,mh);
+ panX=(innerWidth-IMGW*zoom)/2;panY=(innerHeight-IMGH*zoom)/2;
  draw();}
-// 拖拽（pointer 事件，鼠标/触摸统一）
-var drag=null;
+function draw(){
+ // 画布底色与页面底色统一深色
+ ctx.fillStyle='#101318';ctx.fillRect(0,0,innerWidth,innerHeight);
+ var mx0=panX,my0=panY,mx1=panX+IMGW*zoom,my1=panY+IMGH*zoom;
+ var vx0=Math.max(0,mx0),vy0=Math.max(0,my0);
+ var vx1=Math.min(innerWidth,mx1),vy1=Math.min(innerHeight,my1);
+ if(vx1>vx0&&vy1>vy0){
+  var t0x=Math.max(0,Math.floor((vx0-mx0)/(TW*zoom)));
+  var t0y=Math.max(0,Math.floor((vy0-my0)/(TW*zoom)));
+  var t1x=Math.min(COLS-1,Math.floor((vx1-mx0-0.001)/(TW*zoom)));
+  var t1y=Math.min(ROWS-1,Math.floor((vy1-my0-0.001)/(TW*zoom)));
+  ctx.imageSmoothingEnabled=zoom<1.2;
+  for(var ty=t0y;ty<=t1y;ty++)for(var tx=t0x;tx<=t1x;tx++){
+   var im=tileImg(tx,ty);
+   if(!im||!im.complete||!im.naturalWidth)continue;
+   var pw=Math.min(TW,IMGW-tx*TW),ph=Math.min(TW,IMGH-ty*TW);
+   ctx.drawImage(im,mx0+tx*TW*zoom,my0+ty*TW*zoom,pw*zoom,ph*zoom);}}
+ if(showPts){
+  var pts=allPts(),i;
+  for(i=0;i<pts.length;i++)drawMark(pts[i].x,pts[i].z,pts[i].n,pts[i].c||'#ffd54f',6);}
+ if(PPLAYER)drawMark(PPLAYER[0],PPLAYER[1],'玩家','#4ade80',6);
+ if(PSPAWN)drawMark(PSPAWN[0],PSPAWN[1],'出生点','#5b9cf6',6);
+ document.getElementById('zoomlab').textContent='缩放 '+zoom.toFixed(2)+'x';}
+function drawMark(x,z,label,color,r){
+ var sx=w2x(x),sy=w2y(z);
+ if(sx<-40||sx>innerWidth+40||sy<-40||sy>innerHeight+40)return;
+ ctx.beginPath();ctx.arc(sx,sy,r,0,6.2832);
+ ctx.fillStyle=color;ctx.fill();
+ ctx.lineWidth=2;ctx.strokeStyle='rgba(0,0,0,.7)';ctx.stroke();
+ if(label){
+  ctx.font='12px system-ui';ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.8)';
+  ctx.strokeText(label,sx+r+3,sy-r-3);ctx.fillStyle='#ffffff';
+  ctx.fillText(label,sx+r+3,sy-r-3);}}
+function allPts(){return FIXED_PTS.concat(savedPts);}
+function zoomAt(sx,sy,factor){
+ var nz=zoom*factor;nz=Math.max(0.02,Math.min(64,nz));
+ if(nz===zoom)return;
+ var wx=x2w(sx),wz=y2w(sy);
+ zoom=nz;
+ panX=sx-(wx-MINX)*zoom;panY=sy-(wz-MINZ)*zoom;
+ draw();}
+// ---------- 交互 ----------
+var drag=null,dragStartX=0,dragStartY=0;
 cv.addEventListener('pointerdown',function(e){
  if(e.pointerType==='mouse'&&e.button!==0)return;
  hidePop();drag={x:e.clientX,y:e.clientY,moved:false,t:Date.now()};
+ dragStartX=e.clientX;dragStartY=e.clientY;
  try{cv.setPointerCapture(e.pointerId);}catch(err){}});
 cv.addEventListener('pointermove',function(e){
- if(drag){var dx=e.clientX-drag.x,dy=e.clientY-drag.y;
-  if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;
-  offX+=dx;offY+=dy;drag.x=e.clientX;drag.y=e.clientY;draw();}
+ if(drag){
+  panX+=e.clientX-drag.x;panY+=e.clientY-drag.y;
+  drag.x=e.clientX;drag.y=e.clientY;
+  if(Math.abs(e.clientX-dragStartX)+Math.abs(e.clientY-dragStartY)>4)drag.moved=true;
+  draw();}
  document.getElementById('coord').textContent=
-  'X:'+Math.round(s2wx(e.clientX))+'  Z:'+Math.round(s2wz(e.clientY));});
+  'X:'+Math.round(x2w(e.clientX))+'  Z:'+Math.round(y2w(e.clientY));});
 cv.addEventListener('pointerup',function(e){
  if(!drag)return;
- var wasClick=!drag.moved&&(Date.now()-drag.t)<600;
- drag=null;
- if(wasClick)onTap(e.clientX,e.clientY);});
+ var click=!drag.moved&&(Date.now()-drag.t)<600;
+ var px=drag.x,py=drag.y;drag=null;
+ if(click)onTap(px,py);});
 cv.addEventListener('wheel',function(e){e.preventDefault();
  zoomAt(e.clientX,e.clientY,e.deltaY<0?1.25:0.8);},{passive:false});
-// 双指捏合
 var pinch=null;
-function tdist(a,b){var dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;
+function twoDist(a,b){var dx=a.clientX-b.clientX,dy=a.clientY-b.clientY;
  return Math.sqrt(dx*dx+dy*dy);}
 cv.addEventListener('touchstart',function(e){
- if(e.touches.length===2){pinch={d:tdist(e.touches[0],e.touches[1])};drag=null;}});
+ if(e.touches.length===2){pinch={d:twoDist(e.touches[0],e.touches[1])};drag=null;}});
 cv.addEventListener('touchmove',function(e){
  if(pinch&&e.touches.length===2){
-  var d=tdist(e.touches[0],e.touches[1]);
+  var d=twoDist(e.touches[0],e.touches[1]);
   if(pinch.d>0&&d>0){
    zoomAt((e.touches[0].clientX+e.touches[1].clientX)/2,
           (e.touches[0].clientY+e.touches[1].clientY)/2,d/pinch.d);
    pinch.d=d;}
   e.preventDefault();}},{passive:false});
 cv.addEventListener('touchend',function(){pinch=null;});
-// 长按添加标点（移动端）；右键同样触发
-var lpTimer=null,lpPos=null;
+// 长按添加标点
+var lpTimer=null,lpAt=null;
 cv.addEventListener('touchstart',function(e){
  if(e.touches.length===1){
-  var t=e.touches[0];lpPos={x:t.clientX,y:t.clientY};
-  lpTimer=setTimeout(function(){lpTimer=null;drag=null;addPtAt(lpPos.x,lpPos.y);},650);}});
+  var t=e.touches[0];lpAt={x:t.clientX,y:t.clientY};
+  lpTimer=setTimeout(function(){lpTimer=null;drag=null;addPtAt(lpAt.x,lpAt.y);},650);}});
 cv.addEventListener('touchmove',function(e){
  if(lpTimer){var t=e.touches[0];
-  if(Math.abs(t.clientX-lpPos.x)+Math.abs(t.clientY-lpPos.y)>10){
+  if(Math.abs(t.clientX-lpAt.x)+Math.abs(t.clientY-lpAt.y)>10){
    clearTimeout(lpTimer);lpTimer=null;}}});
 cv.addEventListener('touchend',function(){if(lpTimer){clearTimeout(lpTimer);lpTimer=null;}});
 cv.addEventListener('contextmenu',function(e){e.preventDefault();addPtAt(e.clientX,e.clientY);});
-// 点击标点弹气泡（saved 可删除）
-function ptAt(px,py){var pts=allPts();
- for(var i=pts.length-1;i>=0;i--){var p=pts[i];
-  var sx=w2sx(p.x),sy=w2sy(p.z),dx=sx-px,dy=sy-py;
-  if(dx*dx+dy*dy<400)return i;}
+// 标点命中与气泡
+function hitPt(sx,sy){
+ var pts=allPts(),i;
+ for(i=pts.length-1;i>=0;i--){var p=pts[i];
+  var dx=w2x(p.x)-sx,dy=w2y(p.z)-sy;
+  if(dx*dx+dy*dy<144)return i;}
  return -1;}
 var popIdx=-1,popEl=document.getElementById('pt-pop');
-function showPop(idx,px,py){
+function showPop(idx,sx,sy){
  var pts=allPts();if(idx<0||idx>=pts.length)return;
  var p=pts[idx];popIdx=idx;
  popEl.style.display='block';
  popEl.innerHTML='<b>'+p.n+'</b> X:'+Math.round(p.x)+' Z:'+Math.round(p.z)
   +(idx>=FIXED_PTS.length?'<span class="del">删除</span>':'');
- popEl.style.left=Math.min(px+14,innerWidth-180)+'px';
- popEl.style.top=Math.min(py+14,innerHeight-60)+'px';
+ popEl.style.left=Math.min(sx+14,innerWidth-180)+'px';
+ popEl.style.top=Math.min(sy+14,innerHeight-60)+'px';
  var delEl=popEl.querySelector('.del');
  if(delEl){delEl.onclick=function(e){
   e.stopPropagation();
@@ -6455,14 +6479,12 @@ function showPop(idx,px,py){
   localStorage.setItem(SAVED_KEY,JSON.stringify(savedPts));
   hidePop();draw();};}}
 function hidePop(){popEl.style.display='none';popIdx=-1;}
-function onTap(px,py){
- var i=ptAt(px,py);
- if(i>=0){showPop(i,px,py);}
- else{hidePop();}}
-// 添加标点弹窗
-function addPtAt(px,py){
- var wx=Math.round(s2wx(px)),wz=Math.round(s2wz(py));
- var d=document.createElement('div');d.id='pt-dlg';
+function onTap(sx,sy){
+ var i=hitPt(sx,sy);
+ if(i>=0)showPop(i,sx,sy);else hidePop();}
+function addPtAt(sx,sy){
+ var wx=Math.round(x2w(sx)),wz=Math.round(y2w(sy));
+ var d=document.createElement('div');
  d.style.cssText='position:fixed;left:50%;top:35%;transform:translate(-50%,-50%);'
   +'z-index:2000;background:#20262e;color:#e8eaf0;padding:14px;border:1px solid #3a6b8a;'
   +'border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.6)';
@@ -6478,12 +6500,11 @@ function addPtAt(px,py){
  var inp=document.getElementById('pt-name');
  document.getElementById('pt-cancel').onclick=function(){d.remove();};
  document.getElementById('pt-save').onclick=function(){
-  var n=inp.value.trim();if(!n){return;}
+  var n=inp.value.trim();if(!n)return;
   savedPts.push({n:n,x:wx,z:wz,c:'#ffd54f'});
   localStorage.setItem(SAVED_KEY,JSON.stringify(savedPts));
   d.remove();draw();};
  inp.focus();}
-// 面板/图层/导出
 function togglePanel(){var p=document.getElementById('panel');
  var b=document.getElementById('collapse');
  if(p.style.display==='none'){p.style.display='block';b.textContent='收起';}
@@ -6494,7 +6515,7 @@ function exportJson(){var a=document.createElement('a');
  a.download='points.json';a.click();}
 function clearSaved(){if(!confirm('清空所有新增标点？'))return;
  savedPts=[];localStorage.removeItem(SAVED_KEY);draw();}
-resize();fit();
+resize();fitView();
 """;
 
     private static String jsString(String s) {
