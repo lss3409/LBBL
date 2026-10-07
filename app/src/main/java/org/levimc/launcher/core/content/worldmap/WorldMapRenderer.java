@@ -6383,7 +6383,7 @@ function draw(){
    var im=tileImg(tx,ty);
    if(!im||!im.complete||!im.naturalWidth)continue;
    var pw=Math.min(TW,IMGW-tx*TW),ph=Math.min(TW,IMGH-ty*TW);
-   ctx.drawImage(im,mx0+tx*TW*zoom,my0+ty*TW*zoom,pw*zoom,ph*zoom);}}
+   ctx.drawImage(im,Math.round(mx0+tx*TW*zoom),Math.round(my0+ty*TW*zoom),Math.max(1,Math.round(pw*zoom)),Math.max(1,Math.round(ph*zoom)));}}
  if(showPts){
   var pts=allPts(),i;
   for(i=0;i<pts.length;i++)drawMark(pts[i].x,pts[i].z,pts[i].n,pts[i].c||'#ffd54f',6);}
