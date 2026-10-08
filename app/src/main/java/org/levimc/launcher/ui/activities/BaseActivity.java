@@ -56,6 +56,8 @@ public class BaseActivity extends AppCompatActivity {
     private int appliedThemeGeneration = -1;
     private int appliedPersonalizationGeneration = -1;
     private boolean navBarInjected = false;
+    /** v0.2.0：手柄摇杆方向去抖时间戳。 */
+    private long lastGamepadNav;
     private final OkHttpClient navAvatarClient = new OkHttpClient();
     private final ExecutorService navAccountExecutor = Executors.newSingleThreadExecutor();
     private ActivityResultLauncher<Intent> navAccountLoginLauncher;
@@ -67,6 +69,84 @@ public class BaseActivity extends AppCompatActivity {
             onNewsChanged();
         }
     };
+
+    // ---------- v0.2.0：手柄支持 ----------
+    // D-pad/摇杆移动焦点，A 键确认（performClick 焦点视图），B 键返回。
+    // Android 在非触摸输入后会自动退出 touch mode，焦点高亮由系统绘制。
+
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+            switch (event.getKeyCode()) {
+                case android.view.KeyEvent.KEYCODE_DPAD_UP:
+                    return moveGamepadFocus(View.FOCUS_UP);
+                case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
+                    return moveGamepadFocus(View.FOCUS_DOWN);
+                case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
+                    return moveGamepadFocus(View.FOCUS_LEFT);
+                case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
+                    return moveGamepadFocus(View.FOCUS_RIGHT);
+                case android.view.KeyEvent.KEYCODE_BUTTON_A:
+                    return clickGamepadFocused();
+                case android.view.KeyEvent.KEYCODE_BUTTON_B:
+                    getOnBackPressedDispatcher().onBackPressed();
+                    return true;
+                default:
+                    break;
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(android.view.MotionEvent event) {
+        if (event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+            float hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X);
+            float hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
+            float stickX = event.getAxisValue(android.view.MotionEvent.AXIS_X);
+            float stickY = event.getAxisValue(android.view.MotionEvent.AXIS_Y);
+            float dx = Math.abs(hatX) >= Math.abs(stickX) ? hatX : stickX;
+            float dy = Math.abs(hatY) >= Math.abs(stickY) ? hatY : stickY;
+            int dir = -1;
+            if (Math.abs(dx) > 0.5f || Math.abs(dy) > 0.5f) {
+                dir = Math.abs(dx) > Math.abs(dy)
+                        ? (dx > 0 ? View.FOCUS_RIGHT : View.FOCUS_LEFT)
+                        : (dy > 0 ? View.FOCUS_DOWN : View.FOCUS_UP);
+            }
+            if (dir >= 0) {
+                long now = android.os.SystemClock.uptimeMillis();
+                if (now - lastGamepadNav >= 220) { // 摇杆去抖：220ms 一步
+                    lastGamepadNav = now;
+                    moveGamepadFocus(dir);
+                }
+                return true; // 吞掉摇杆事件，避免系统重复处理
+            }
+        }
+        return super.dispatchGenericMotionEvent(event);
+    }
+
+    private boolean moveGamepadFocus(int direction) {
+        View current = getCurrentFocus();
+        View next = current != null ? current.focusSearch(direction) : null;
+        if (next == null) {
+            View root = getWindow().getDecorView().findViewById(android.R.id.content);
+            next = root != null ? root.focusSearch(direction) : null;
+        }
+        if (next != null && next != current) {
+            next.requestFocus();
+            return true;
+        }
+        return false;
+    }
+
+    private boolean clickGamepadFocused() {
+        View current = getCurrentFocus();
+        if (current != null) {
+            current.performClick();
+            return true;
+        }
+        return false;
+    }
 
     @Override
     protected void attachBaseContext(Context newBase) {
