@@ -303,20 +303,21 @@ public class PersonalizationManager {
                         ViewGroup.LayoutParams.MATCH_PARENT));
                 rootView.addView(video, 0);
             }
+            final android.widget.VideoView fVideo = video;
             File vf = new File(getBackgroundImagePath());
             if (vf.exists()) {
-                video.setVideoPath(vf.getAbsolutePath());
-                video.setOnPreparedListener(mp -> {
+                fVideo.setVideoPath(vf.getAbsolutePath());
+                fVideo.setOnPreparedListener(mp -> {
                     mp.setLooping(true);
                     try {
                         mp.setVolume(0f, 0f);
                     } catch (Throwable ignored) {
                     }
-                    video.start();
+                    fVideo.start();
                 });
-                video.setOnErrorListener((mp, what, extra) -> true);
+                fVideo.setOnErrorListener((mp, what, extra) -> true);
             }
-            bgView = video;
+            bgView = fVideo;
         } else {
             ImageView img = rootView.findViewWithTag("personalization_bg");
             if (img == null) {
