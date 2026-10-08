@@ -30,6 +30,7 @@ import org.levimc.launcher.core.content.ResourcePackManager;
 import org.levimc.launcher.core.content.ServerItem;
 import org.levimc.launcher.core.content.StructureExtractor;
 import org.levimc.launcher.core.content.WorldItem;
+import org.levimc.launcher.core.content.PackActivator;
 import org.levimc.launcher.core.content.WorldManager;
 import org.levimc.launcher.core.versions.GameVersion;
 import org.levimc.launcher.core.versions.VersionManager;
@@ -593,6 +594,11 @@ public class ContentListActivity extends BaseActivity {
             @Override
             public void onResourcePackPreloadChanged(ResourcePackItem pack, boolean preloaded) {
                 // 预加载状态已持久化，启动游戏时会复制到目标版本并写入全局资源
+            }
+
+            @Override
+            public void onResourcePackActivate(ResourcePackItem pack) {
+                showActivatePackDialog(pack);
             }
         });
         packsAdapter.setOnSelectionChangedListener(count -> updateSelectionToolbar());
@@ -1290,6 +1296,48 @@ public class ContentListActivity extends BaseActivity {
                     transferWorldTo(world, targetDir);
                 })
                 .setNegativeButton(getString(R.string.cancel), null)
+                .show();
+    }
+
+    /** v0.1.0：激活包到指定存档——弹存档选择菜单，写入
+     *  world_resource_packs.json / world_behavior_packs.json（不复制包文件）。 */
+    private void showActivatePackDialog(ResourcePackItem pack) {
+        List<WorldItem> worlds = new ArrayList<>();
+        List<WorldItem> live = contentManager.getWorldsLiveData().getValue();
+        if (live != null) {
+            worlds.addAll(live);
+        }
+        if (worlds.isEmpty()) {
+            Toast.makeText(this, R.string.no_worlds_available, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] names = new String[worlds.size()];
+        for (int i = 0; i < worlds.size(); i++) {
+            names[i] = worlds.get(i).getWorldName();
+        }
+        new org.levimc.launcher.ui.dialogs.CustomAlertDialog(this)
+                .setTitleText(getString(R.string.activate_to_world))
+                .setItems(names, (dialog, which) -> {
+                    WorldItem world = worlds.get(which);
+                    PackActivator.Result r = PackActivator.activate(
+                            world.getFile(), pack.getUuid(), pack.getVersion(),
+                            pack.isBehaviorPack());
+                    int msgRes;
+                    switch (r) {
+                        case OK:
+                            msgRes = R.string.pack_activate_ok;
+                            break;
+                        case ALREADY:
+                            msgRes = R.string.pack_activate_already;
+                            break;
+                        default:
+                            msgRes = R.string.pack_activate_failed;
+                            break;
+                    }
+                    Toast.makeText(ContentListActivity.this,
+                            getString(msgRes, pack.getPackName(), world.getWorldName()),
+                            Toast.LENGTH_SHORT).show();
+                })
                 .show();
     }
 

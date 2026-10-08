@@ -1919,4 +1919,11 @@ Invite code: P/%1$s
 <string name="fm_ui_editor_unsaved_msg">Unsaved changes. Save them?</string>
 <string name="fm_ui_editor_save_exit">Save and Exit</string>
 <string name="fm_ui_editor_discard">Discard Changes</string>
+
+    <!-- v0.1.0: 激活包到存档 -->
+    <string name="activate_to_world">Activate to World</string>
+    <string name="pack_activate_ok">%1$s activated for world %2$s</string>
+    <string name="pack_activate_already">%1$s is already active in world %2$s</string>
+    <string name="pack_activate_failed">Failed to activate %1$s</string>
+    <string name="no_worlds_available">No worlds available</string>
 </resources>

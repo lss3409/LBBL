@@ -575,11 +575,16 @@ public final class UpdateChecker {
             byte[] buf = new byte[65536];
             int n;
             long downloaded = 0;
+            // v0.0.30：进度汇报阈值节流——此前用 (downloaded & 0x7FFFF)==0
+            // 判断「每 512KB」，但累加字节数几乎不会恰好命中 512KB 整数
+            // 倍（读块大小不规律），进度条全程卡 0%（用户实测）。
+            long lastReport = 0;
             while ((n = is.read(buf)) > 0) {
                 fos.write(buf, 0, n);
                 downloaded += n;
-                if (listener != null && (downloaded & 0x7FFFF) == 0) { // 每 512KB 汇报
+                if (listener != null && downloaded - lastReport >= 256 * 1024) {
                     listener.onProgress(downloaded, total);
+                    lastReport = downloaded;
                 }
             }
             fos.close();

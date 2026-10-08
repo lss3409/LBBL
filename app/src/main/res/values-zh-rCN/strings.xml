@@ -1756,4 +1756,11 @@
 <string name="fm_ui_editor_unsaved_msg">有未保存的修改，是否保存？</string>
 <string name="fm_ui_editor_save_exit">保存并退出</string>
 <string name="fm_ui_editor_discard">放弃修改</string>
+
+    <!-- v0.1.0: 激活包到存档 -->
+    <string name="activate_to_world">激活到存档</string>
+    <string name="pack_activate_ok">已激活 %1$s 到存档 %2$s</string>
+    <string name="pack_activate_already">存档 %2$s 已启用 %1$s</string>
+    <string name="pack_activate_failed">激活 %1$s 失败</string>
+    <string name="no_worlds_available">没有可用存档</string>
 </resources>

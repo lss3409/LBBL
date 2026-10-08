@@ -44,6 +44,8 @@ public class ResourcePacksAdapter extends RecyclerView.Adapter<ResourcePacksAdap
         void onResourcePackExport(ResourcePackItem pack);
         void onResourcePackLocate(ResourcePackItem pack);
         void onResourcePackPreloadChanged(ResourcePackItem pack, boolean preloaded);
+        /** v0.1.0：激活包到指定存档（写入 world_*_packs.json）。 */
+        void onResourcePackActivate(ResourcePackItem pack);
     }
 
     public interface OnSelectionChangedListener {
@@ -209,7 +211,7 @@ public class ResourcePacksAdapter extends RecyclerView.Adapter<ResourcePacksAdap
     }
 
     private void showOverflow(View anchor, ResourcePackItem pack) {
-        ContentActionPopup.show(anchor, pack.getPackName(), Arrays.asList(
+        java.util.List<ContentActionPopup.Action> actions = new java.util.ArrayList<>(Arrays.asList(
                 new ContentActionPopup.Action(R.drawable.ic_export, R.string.export, false, () -> {
                     if (onResourcePackActionListener != null) onResourcePackActionListener.onResourcePackExport(pack);
                 }),
@@ -223,6 +225,16 @@ public class ResourcePacksAdapter extends RecyclerView.Adapter<ResourcePacksAdap
                     if (onResourcePackActionListener != null) onResourcePackActionListener.onResourcePackDelete(pack);
                 })
         ));
+        // v0.1.0：激活到存档（仅带 uuid 的包可用）
+        if (pack.getUuid() != null && !pack.getUuid().isEmpty()) {
+            actions.add(1, new ContentActionPopup.Action(
+                    R.drawable.ic_check, R.string.activate_to_world, false, () -> {
+                if (onResourcePackActionListener != null) {
+                    onResourcePackActionListener.onResourcePackActivate(pack);
+                }
+            }));
+        }
+        ContentActionPopup.show(anchor, pack.getPackName(), actions);
     }
 
     private int fallbackIcon(ResourcePackItem pack) {
