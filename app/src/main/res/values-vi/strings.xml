@@ -1873,4 +1873,12 @@ Mã mời: P/%1$s
     <string name="nbt_export_failed">Xuất không thành công: %1$s</string>
     <string name="nbt_export_progress">Đang xuất… %1$s%%</string>
     <string name="nbt_export_done">Đã xuất xong: %1$s</string>
+
+    <string name="activate_to_world">Kích hoạt vào thế giới</string>
+    <string name="pack_activate_ok">Đã kích hoạt %1$s vào thế giới %2$s</string>
+    <string name="pack_activate_already">%1$s đã được kích hoạt trong thế giới %2$s</string>
+    <string name="pack_activate_failed">Kích hoạt %1$s thất bại</string>
+    <string name="no_worlds_available">Không có thế giới nào</string>
+    <string name="fm_ui_open_internal">Mở trong launcher</string>
+    <string name="fm_ui_open_system">Mở bằng...</string>
 </resources>

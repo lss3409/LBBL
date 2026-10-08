@@ -1763,4 +1763,7 @@
     <string name="pack_activate_already">存档 %2$s 已启用 %1$s</string>
     <string name="pack_activate_failed">激活 %1$s 失败</string>
     <string name="no_worlds_available">没有可用存档</string>
+
+    <string name="fm_ui_open_internal">启动器内打开</string>
+    <string name="fm_ui_open_system">系统打开方式</string>
 </resources>

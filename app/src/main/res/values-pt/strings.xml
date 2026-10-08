@@ -1844,4 +1844,12 @@ Código de convite: P/%1$s
     <string name="nbt_export_failed">Falha ao exportar: %1$s</string>
     <string name="nbt_export_progress">Exportando… %1$s%%</string>
     <string name="nbt_export_done">Exportação concluída: %1$s</string>
+
+    <string name="activate_to_world">Ativar no mundo</string>
+    <string name="pack_activate_ok">%1$s ativado no mundo %2$s</string>
+    <string name="pack_activate_already">%1$s já está ativo no mundo %2$s</string>
+    <string name="pack_activate_failed">Falha ao ativar %1$s</string>
+    <string name="no_worlds_available">Nenhum mundo disponível</string>
+    <string name="fm_ui_open_internal">Abrir no launcher</string>
+    <string name="fm_ui_open_system">Abrir com...</string>
 </resources>

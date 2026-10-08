@@ -1867,4 +1867,12 @@ Kode undangan: P/%1$s
     <string name="nbt_export_failed">Ekspor gagal: %1$s</string>
     <string name="nbt_export_progress">Mengekspor… %1$s%%</string>
     <string name="nbt_export_done">Ekspor selesai: %1$s</string>
+
+    <string name="activate_to_world">Aktifkan ke dunia</string>
+    <string name="pack_activate_ok">%1$s diaktifkan di dunia %2$s</string>
+    <string name="pack_activate_already">%1$s sudah aktif di dunia %2$s</string>
+    <string name="pack_activate_failed">Gagal mengaktifkan %1$s</string>
+    <string name="no_worlds_available">Tidak ada dunia tersedia</string>
+    <string name="fm_ui_open_internal">Buka di launcher</string>
+    <string name="fm_ui_open_system">Buka dengan...</string>
 </resources>

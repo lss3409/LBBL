@@ -1926,4 +1926,7 @@ Invite code: P/%1$s
     <string name="pack_activate_already">%1$s is already active in world %2$s</string>
     <string name="pack_activate_failed">Failed to activate %1$s</string>
     <string name="no_worlds_available">No worlds available</string>
+
+    <string name="fm_ui_open_internal">Open in launcher</string>
+    <string name="fm_ui_open_system">Open with...</string>
 </resources>

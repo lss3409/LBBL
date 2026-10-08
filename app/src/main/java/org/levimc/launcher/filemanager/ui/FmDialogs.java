@@ -216,13 +216,14 @@ public class FmDialogs {
                                      Runnable refresh, Runnable onOpen) {
         List<String> items = new java.util.ArrayList<>();
         List<Runnable> actions = new java.util.ArrayList<>();
-        // 打开（分发逻辑在 Activity：文件夹进入/图片预览/音频播放/文本编辑/系统打开）
-        items.add(entry.isDirectory() ? a.getString(R.string.fm_ui_open) : a.getString(R.string.fm_ui_open_with));
-        actions.add(onOpen != null ? onOpen : () -> {
-            if (entry.isDirectory()) {
-                vm.enterDirectory(entry);
-            }
-        });
+        // 打开（文件夹直接进入；文件「打开方式」弹二级选择：启动器内预览 / 系统打开方式）
+        if (entry.isDirectory()) {
+            items.add(a.getString(R.string.fm_ui_open));
+            actions.add(onOpen != null ? onOpen : () -> vm.enterDirectory(entry));
+        } else {
+            items.add(a.getString(R.string.fm_ui_open_with));
+            actions.add(() -> showOpenWithChoices(a, entry, onOpen));
+        }
         items.add(a.getString(R.string.fm_ui_copy));
         actions.add(() -> vm.copyEntry(entry));
         items.add(a.getString(R.string.fm_ui_cut));
@@ -251,6 +252,28 @@ public class FmDialogs {
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(entry.getName())
                 .setItems(items.toArray(new String[0]), (d, which) -> actions.get(which).run())
+                .setNegativeButton(a.getString(R.string.cancel), null)
+                ;
+                trackShow(dialog);
+    }
+
+    /** v0.3.0：「打开方式」二级选择——启动器内预览 / 系统打开方式选择器。 */
+    private static void showOpenWithChoices(BaseActivity a, FmEntry entry, Runnable onOpen) {
+        String[] ways = new String[]{
+                a.getString(R.string.fm_ui_open_internal),
+                a.getString(R.string.fm_ui_open_system)};
+        CustomAlertDialog dialog = new CustomAlertDialog(a)
+                .setTitleText(entry.getName())
+                .setItems(ways, (d, which) -> {
+                    if (which == 0) {
+                        if (onOpen != null) {
+                            onOpen.run();
+                        }
+                    } else {
+                        org.levimc.launcher.filemanager.logic.FmCompatKt.openWithSystem(
+                                a, new File(entry.getPath().toString()));
+                    }
+                })
                 .setNegativeButton(a.getString(R.string.cancel), null)
                 ;
                 trackShow(dialog);

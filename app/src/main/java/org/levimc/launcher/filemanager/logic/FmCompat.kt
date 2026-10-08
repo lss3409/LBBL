@@ -68,9 +68,33 @@ fun checkFilenameValidity(name: String) {
 /** 分享文件（ACTION_SEND；无 FileProvider 配置时回退直接 file uri）。 */
 fun shareFile(context: Context, file: File) {
     runCatching {
+        // v0.3.0：Uri.fromFile 在 Android 7.0+ 抛 FileUriExposedException
+        // 被 runCatching 吞掉导致分享点击无反应——改 FileProvider
+        val uri = runCatching {
+            androidx.core.content.FileProvider.getUriForFile(
+                context, context.packageName + ".fileprovider", file)
+        }.getOrElse { android.net.Uri.fromFile(file) }
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "*/*"
-            putExtra(Intent.EXTRA_STREAM, android.net.Uri.fromFile(file))
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, null))
+    }
+}
+
+/** 系统「打开方式」选择器（FileProvider uri）。 */
+fun openWithSystem(context: Context, file: File) {
+    runCatching {
+        val uri = runCatching {
+            androidx.core.content.FileProvider.getUriForFile(
+                context, context.packageName + ".fileprovider", file)
+        }.getOrElse { android.net.Uri.fromFile(file) }
+        val mime = runCatching {
+            context.contentResolver.getType(uri)
+        }.getOrNull() ?: "*/*"
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mime)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, null))

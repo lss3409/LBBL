@@ -1871,4 +1871,12 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="nbt_export_failed">निर्यात विफल: %1$s</string>
     <string name="nbt_export_progress">निर्यात हो रहा है… %1$s%%</string>
     <string name="nbt_export_done">निर्यात पूर्ण: %1$s</string>
+
+    <string name="activate_to_world">वर्ल्ड में सक्रिय करें</string>
+    <string name="pack_activate_ok">%1$s वर्ल्ड %2$s में सक्रिय हुआ</string>
+    <string name="pack_activate_already">%1$s वर्ल्ड %2$s में पहले से सक्रिय है</string>
+    <string name="pack_activate_failed">%1$s सक्रिय करने में विफल</string>
+    <string name="no_worlds_available">कोई वर्ल्ड उपलब्ध नहीं</string>
+    <string name="fm_ui_open_internal">लॉन्चर में खोलें</string>
+    <string name="fm_ui_open_system">इसके साथ खोलें...</string>
 </resources>

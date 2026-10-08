@@ -1870,4 +1870,12 @@ Davet kodu: P/%1$s
     <string name="nbt_export_failed">Dışa aktarma başarısız: %1$s</string>
     <string name="nbt_export_progress">Dışa aktarılıyor… %1$s%%</string>
     <string name="nbt_export_done">Dışa aktarma tamamlandı: %1$s</string>
+
+    <string name="activate_to_world">Dünyada etkinleştir</string>
+    <string name="pack_activate_ok">%1$s, %2$s dünyasında etkinleştirildi</string>
+    <string name="pack_activate_already">%1$s, %2$s dünyasında zaten etkin</string>
+    <string name="pack_activate_failed">%1$s etkinleştirilemedi</string>
+    <string name="no_worlds_available">Kullanılabilir dünya yok</string>
+    <string name="fm_ui_open_internal">Başlatıcıda aç</string>
+    <string name="fm_ui_open_system">Birlikte aç...</string>
 </resources>

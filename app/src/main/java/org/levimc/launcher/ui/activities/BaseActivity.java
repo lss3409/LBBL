@@ -70,9 +70,9 @@ public class BaseActivity extends AppCompatActivity {
         }
     };
 
-    // ---------- v0.2.0：手柄支持 ----------
-    // D-pad/摇杆移动焦点，A 键确认（performClick 焦点视图），B 键返回。
-    // Android 在非触摸输入后会自动退出 touch mode，焦点高亮由系统绘制。
+    // ---------- v0.2.0/v0.3.0：手柄支持 ----------
+    // D-pad/左摇杆=焦点导航；右摇杆=虚拟光标（类似鼠标，A 键点击光标处）；
+    // A=确认；B=返回；LB/RB=切换底部导航栏位（子类覆盖 onGamepadTabSwitch）。
 
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent event) {
@@ -87,10 +87,20 @@ public class BaseActivity extends AppCompatActivity {
                 case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
                     return moveGamepadFocus(View.FOCUS_RIGHT);
                 case android.view.KeyEvent.KEYCODE_BUTTON_A:
-                    return clickGamepadFocused();
+                    // 光标可见 → 点击光标位置；否则确认焦点视图
+                    if (isGamepadCursorVisible()) {
+                        clickAtGamepadCursor();
+                    } else {
+                        clickGamepadFocused();
+                    }
+                    return true;
                 case android.view.KeyEvent.KEYCODE_BUTTON_B:
                     getOnBackPressedDispatcher().onBackPressed();
                     return true;
+                case android.view.KeyEvent.KEYCODE_BUTTON_L1:
+                    return onGamepadTabSwitch(-1);
+                case android.view.KeyEvent.KEYCODE_BUTTON_R1:
+                    return onGamepadTabSwitch(1);
                 default:
                     break;
             }
@@ -101,6 +111,13 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     public boolean dispatchGenericMotionEvent(android.view.MotionEvent event) {
         if (event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+            // v0.3.0：右摇杆（AXIS_Z/AXIS_RZ）移动虚拟光标
+            float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
+            float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
+            if (Math.abs(rx) > 0.15f || Math.abs(ry) > 0.15f) {
+                moveGamepadCursor(rx, ry);
+                return true;
+            }
             float hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X);
             float hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
             float stickX = event.getAxisValue(android.view.MotionEvent.AXIS_X);
@@ -146,6 +163,130 @@ public class BaseActivity extends AppCompatActivity {
             return true;
         }
         return false;
+    }
+
+    // ---------- v0.3.0：虚拟光标（右摇杆，类鼠标引导） ----------
+    private android.view.View gamepadCursor;
+    private float cursorX = -1, cursorY = -1;
+
+    private void ensureGamepadCursor() {
+        if (gamepadCursor != null) {
+            return;
+        }
+        gamepadCursor = new View(this) {
+            @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                super.onDraw(canvas);
+                android.graphics.Paint p = new android.graphics.Paint(
+                        android.graphics.Paint.ANTI_ALIAS_FLAG);
+                float d = getResources().getDisplayMetrics().density;
+                int accent = 0xFF5B9CF6;
+                try {
+                    int a = new PersonalizationManager(getContext()).getAccentColor();
+                    if (a != 0) {
+                        accent = a;
+                    }
+                } catch (Throwable ignored) {
+                }
+                float c = getWidth() / 2f;
+                p.setStyle(android.graphics.Paint.Style.STROKE);
+                p.setStrokeWidth(2.5f * d);
+                p.setColor(0xCCFFFFFF);
+                canvas.drawCircle(c, c, c - 2 * d, p);
+                p.setColor(accent);
+                canvas.drawCircle(c, c, c - 2 * d, p);
+                p.setStyle(android.graphics.Paint.Style.FILL);
+                canvas.drawCircle(c, c, 2.5f * d, p);
+            }
+        };
+        int size = (int) (26 * getResources().getDisplayMetrics().density);
+        gamepadCursor.setLayoutParams(new ViewGroup.LayoutParams(size, size));
+        gamepadCursor.setVisibility(View.GONE);
+        ViewGroup decor = (ViewGroup) getWindow().getDecorView();
+        decor.addView(gamepadCursor);
+    }
+
+    private void moveGamepadCursor(float rx, float ry) {
+        ensureGamepadCursor();
+        if (cursorX < 0) {
+            cursorX = getResources().getDisplayMetrics().widthPixels / 2f;
+            cursorY = getResources().getDisplayMetrics().heightPixels / 2f;
+        }
+        float speed = 16f;
+        cursorX = Math.max(12, Math.min(
+                getResources().getDisplayMetrics().widthPixels - 12, cursorX + rx * speed));
+        cursorY = Math.max(12, Math.min(
+                getResources().getDisplayMetrics().heightPixels - 12, cursorY + ry * speed));
+        gamepadCursor.setX(cursorX - gamepadCursor.getWidth() / 2f);
+        gamepadCursor.setY(cursorY - gamepadCursor.getHeight() / 2f);
+        gamepadCursor.setVisibility(View.VISIBLE);
+    }
+
+    private boolean isGamepadCursorVisible() {
+        return gamepadCursor != null && gamepadCursor.getVisibility() == View.VISIBLE;
+    }
+
+    /** A 键：在光标位置模拟一次触摸点击。 */
+    private void clickAtGamepadCursor() {
+        ViewGroup root = getWindow().getDecorView().findViewById(android.R.id.content);
+        if (root == null) {
+            return;
+        }
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.MotionEvent down = android.view.MotionEvent.obtain(
+                now, now, android.view.MotionEvent.ACTION_DOWN, cursorX, cursorY, 0);
+        android.view.MotionEvent up = android.view.MotionEvent.obtain(
+                now, now + 60, android.view.MotionEvent.ACTION_UP, cursorX, cursorY, 0);
+        try {
+            root.dispatchTouchEvent(down);
+            root.dispatchTouchEvent(up);
+        } finally {
+            down.recycle();
+            up.recycle();
+        }
+        hideGamepadCursor();
+    }
+
+    private void hideGamepadCursor() {
+        if (gamepadCursor != null) {
+            gamepadCursor.setVisibility(View.GONE);
+        }
+    }
+
+    /** v0.3.0：LB(-1)/RB(+1) 切换底部导航栏位（4 tab 循环）。 */
+    protected boolean onGamepadTabSwitch(int delta) {
+        if (!navBarInjected) {
+            return false;
+        }
+        int cur = -1;
+        if (this instanceof MainActivity) {
+            cur = 0;
+        } else if (this instanceof InstancesActivity) {
+            cur = 1;
+        } else if (this instanceof OnlineActivity) {
+            cur = 2;
+        } else if (this instanceof SettingsActivity) {
+            cur = 3;
+        }
+        if (cur < 0) {
+            return false;
+        }
+        int next = (cur + delta + 4) % 4;
+        switch (next) {
+            case 0:
+                startActivity(new Intent(this, MainActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                return true;
+            case 1:
+                startActivity(new Intent(this, InstancesActivity.class));
+                return true;
+            case 2:
+                startActivity(new Intent(this, OnlineActivity.class));
+                return true;
+            default:
+                startActivity(new Intent(this, SettingsActivity.class));
+                return true;
+        }
     }
 
     @Override

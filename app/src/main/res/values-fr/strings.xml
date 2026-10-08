@@ -1844,4 +1844,12 @@ Code d\'invitation : P/%1$s
     <string name="nbt_export_failed">Échec de l\'exportation : %1$s</string>
     <string name="nbt_export_progress">Exportation… %1$s%%</string>
     <string name="nbt_export_done">Exportation terminée : %1$s</string>
+
+    <string name="activate_to_world">Activer dans le monde</string>
+    <string name="pack_activate_ok">%1$s activé dans le monde %2$s</string>
+    <string name="pack_activate_already">%1$s est déjà actif dans le monde %2$s</string>
+<string name="pack_activate_failed">Échec de l\'activation de %1$s</string>
+    <string name="no_worlds_available">Aucun monde disponible</string>
+    <string name="fm_ui_open_internal">Ouvrir dans le launcher</string>
+    <string name="fm_ui_open_system">Ouvrir avec...</string>
 </resources>

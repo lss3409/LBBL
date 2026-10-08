@@ -1841,4 +1841,12 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="nbt_export_failed">エクスポートに失敗しました：%1$s</string>
     <string name="nbt_export_progress">エクスポート中… %1$s%%</string>
     <string name="nbt_export_done">エクスポート完了：%1$s</string>
+
+    <string name="activate_to_world">ワールドに適用</string>
+    <string name="pack_activate_ok">%1$s をワールド %2$s に適用しました</string>
+    <string name="pack_activate_already">%1$s はワールド %2$s で既に有効です</string>
+    <string name="pack_activate_failed">%1$s の適用に失敗しました</string>
+    <string name="no_worlds_available">利用可能なワールドがありません</string>
+    <string name="fm_ui_open_internal">ランチャーで開く</string>
+    <string name="fm_ui_open_system">他のアプリで開く</string>
 </resources>
