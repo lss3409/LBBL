@@ -580,6 +580,11 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         hideSystemUI();
+        // v0.2.0：离开页面暂停视频背景（省电）
+        try {
+            new PersonalizationManager(this).pauseVideoBackground(this);
+        } catch (Throwable ignored) {
+        }
         super.onPause();
     }
 

@@ -141,6 +141,30 @@ public class PersonalizationManager {
         try {
             File destDir = new File(context.getFilesDir(), "personalization");
             if (!destDir.exists()) destDir.mkdirs();
+            // v0.2.0：GIF/视频直接拷贝原文件（保留动图/视频特性），
+            // 静态图走原有缩放压缩 JPEG 流程
+            String mime = activityContext.getContentResolver().getType(sourceUri);
+            String name = sourceUri.getLastPathSegment() == null
+                    ? "" : sourceUri.getLastPathSegment().toLowerCase(java.util.Locale.US);
+            boolean isGif = "image/gif".equals(mime) || name.endsWith(".gif");
+            boolean isVideo = mime != null && mime.startsWith("video/");
+            if (isGif || isVideo) {
+                File destFile = new File(destDir, isGif ? "background.gif" : "background.mp4");
+                InputStream is = activityContext.getContentResolver().openInputStream(sourceUri);
+                if (is == null) return;
+                FileOutputStream fos = new FileOutputStream(destFile);
+                byte[] buf = new byte[65536];
+                int n;
+                while ((n = is.read(buf)) > 0) {
+                    fos.write(buf, 0, n);
+                }
+                fos.close();
+                is.close();
+                prefs.edit().putString(KEY_BG_IMAGE_PATH, destFile.getAbsolutePath()).apply();
+                sChangeGeneration++;
+                return;
+            }
+
             File destFile = new File(destDir, "background.jpg");
 
             InputStream is = activityContext.getContentResolver().openInputStream(sourceUri);
@@ -266,17 +290,50 @@ public class PersonalizationManager {
     }
 
     private void applyBackgroundImage(Activity activity, ViewGroup rootView) {
-        ImageView bgView = rootView.findViewWithTag("personalization_bg");
-        if (bgView == null) {
-            bgView = new ImageView(activity);
-            bgView.setTag("personalization_bg");
-            bgView.setLayoutParams(new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT));
-            bgView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            rootView.addView(bgView, 0);
+        // v0.2.0：视频背景走 VideoView（循环静音），图片/GIF 走 ImageView
+        boolean isVideo = isVideoBackground();
+        View bgView;
+        if (isVideo) {
+            android.widget.VideoView video = rootView.findViewWithTag("personalization_bg_video");
+            if (video == null) {
+                video = new android.widget.VideoView(activity);
+                video.setTag("personalization_bg_video");
+                video.setLayoutParams(new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+                rootView.addView(video, 0);
+            }
+            File vf = new File(getBackgroundImagePath());
+            if (vf.exists()) {
+                video.setVideoPath(vf.getAbsolutePath());
+                video.setOnPreparedListener(mp -> {
+                    mp.setLooping(true);
+                    try {
+                        mp.setVolume(0f, 0f);
+                    } catch (Throwable ignored) {
+                    }
+                    video.start();
+                });
+                video.setOnErrorListener((mp, what, extra) -> true);
+            }
+            bgView = video;
+        } else {
+            ImageView img = rootView.findViewWithTag("personalization_bg");
+            if (img == null) {
+                img = new ImageView(activity);
+                img.setTag("personalization_bg");
+                img.setLayoutParams(new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT));
+                img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                rootView.addView(img, 0);
+            }
+            if (!applyBackgroundImageToView(img)) {
+                // 视频/图片都加载失败时把残留 view 清掉
+                return;
+            }
+            bgView = img;
         }
-        if (!applyBackgroundImageToView(bgView)) return;
 
         View overlayView = rootView.findViewWithTag("personalization_overlay");
         if (overlayView == null) {
@@ -294,6 +351,28 @@ public class PersonalizationManager {
         overlayView.setVisibility(View.VISIBLE);
 
         makeChildBackgroundsTranslucent(rootView, activity);
+    }
+
+    /** v0.2.0：当前背景是否为视频（按扩展名判断）。 */
+    public boolean isVideoBackground() {
+        String path = getBackgroundImagePath();
+        return path != null && path.toLowerCase(java.util.Locale.US).endsWith(".mp4");
+    }
+
+    /** v0.2.0：当前背景是否为 GIF。 */
+    public boolean isGifBackground() {
+        String path = getBackgroundImagePath();
+        return path != null && path.toLowerCase(java.util.Locale.US).endsWith(".gif");
+    }
+
+    /** v0.2.0：Activity onPause 时暂停视频背景（省电）。 */
+    public void pauseVideoBackground(Activity activity) {
+        ViewGroup root = activity.findViewById(android.R.id.content);
+        if (root == null) return;
+        android.widget.VideoView video = root.findViewWithTag("personalization_bg_video");
+        if (video != null && video.isPlaying()) {
+            video.pause();
+        }
     }
 
     public void refreshBackgroundEffects(Activity activity) {
@@ -319,6 +398,20 @@ public class PersonalizationManager {
     }
 
     public boolean applyBackgroundImageToView(ImageView bgView) {
+        // v0.2.0：GIF 走 Glide（动图播放），静态图走原有 Bitmap 流程
+        if (isGifBackground()) {
+            try {
+                File gifFile = new File(getBackgroundImagePath());
+                com.bumptech.glide.Glide.with(bgView.getContext())
+                        .asGif()
+                        .load(gifFile)
+                        .into(bgView);
+                applyBackgroundImageEffects(bgView);
+                return true;
+            } catch (Throwable t) {
+                return false;
+            }
+        }
         Bitmap bmp = loadBackgroundBitmap();
         if (bmp == null) return false;
 

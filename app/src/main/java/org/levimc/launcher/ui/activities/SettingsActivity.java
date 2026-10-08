@@ -854,7 +854,10 @@ public class SettingsActivity extends BaseActivity {
 
         btnSelectImage.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_PICK);
-            intent.setType("image/*");
+            // v0.2.0：背景支持 GIF 动图与视频
+            intent.setType("*/*");
+            intent.putExtra(Intent.EXTRA_MIME_TYPES,
+                    new String[]{"image/*", "video/*"});
             bgImagePickerLauncher.launch(intent);
         });
 
