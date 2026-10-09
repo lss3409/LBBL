@@ -114,8 +114,12 @@ public class BaseActivity extends AppCompatActivity {
             // v0.3.0：右摇杆（AXIS_Z/AXIS_RZ）移动虚拟光标
             float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
             float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
+            // v0.4.3：无条件记录方向——归中事件必须清零，否则帧回调
+            // 读到陈旧值光标持续漂移
+            cursorRx = rx;
+            cursorRy = ry;
             if (Math.abs(rx) > 0.15f || Math.abs(ry) > 0.15f) {
-                moveGamepadCursor(rx, ry);
+                moveGamepadCursor();
                 return true;
             }
             float hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X);
@@ -168,88 +172,84 @@ public class BaseActivity extends AppCompatActivity {
     // ---------- v0.3.0：虚拟光标（右摇杆，类鼠标引导） ----------
     private android.view.View gamepadCursor;
     private float cursorX = -1, cursorY = -1;
-    private long cursorLastMove;
+    /** 摇杆最新方向（轴事件只更新这两个值，位置由 vsync 帧回调推进）。 */
+    private float cursorRx, cursorRy;
+    private boolean cursorFramePosted;
+    private long cursorLastFrameNanos;
+    /** v0.4.3：帧驱动光标——事件驱动受轴事件到达间隔抖动影响（蓝牙
+     *  8~32ms 随机），16ms 节流后更新间隔 16~32ms 跳格。改为
+     *  Choreographer 每 vsync 推进一次，与屏幕刷新严格同步；位移按
+     *  帧间隔换算（约 1375px/s，帧率波动时速度恒定）。 */
+    private final android.view.Choreographer.FrameCallback cursorFrame =
+            new android.view.Choreographer.FrameCallback() {
+                @Override
+                public void doFrame(long frameTimeNanos) {
+                    if (gamepadCursor == null) {
+                        cursorFramePosted = false;
+                        return;
+                    }
+                    boolean active = Math.abs(cursorRx) > 0.15f
+                            || Math.abs(cursorRy) > 0.15f;
+                    if (!active) {
+                        cursorFramePosted = false; // 摇杆回中：停
+                        cursorLastFrameNanos = 0;
+                        return;
+                    }
+                    if (cursorX < 0) {
+                        cursorX = getResources().getDisplayMetrics().widthPixels / 2f;
+                        cursorY = getResources().getDisplayMetrics().heightPixels / 2f;
+                    }
+                    long dt = cursorLastFrameNanos == 0
+                            ? 16_666_666L : frameTimeNanos - cursorLastFrameNanos;
+                    cursorLastFrameNanos = frameTimeNanos;
+                    float step = 1375f * (dt / 1e9f);
+                    float d = getResources().getDisplayMetrics().density;
+                    cursorX = Math.max(0, Math.min(
+                            getResources().getDisplayMetrics().widthPixels,
+                            cursorX + cursorRx * step));
+                    cursorY = Math.max(0, Math.min(
+                            getResources().getDisplayMetrics().heightPixels,
+                            cursorY + cursorRy * step));
+                    // 尖端锚定：贴图箭头尖端在 viewport (357,70)/1820×1024
+                    gamepadCursor.setTranslationX(cursorX - 4.7f * d);
+                    gamepadCursor.setTranslationY(cursorY - 0.9f * d);
+                    if (gamepadCursor.getVisibility() != android.view.View.VISIBLE) {
+                        gamepadCursor.setVisibility(android.view.View.VISIBLE);
+                    }
+                    android.view.Choreographer.getInstance().postFrameCallback(this);
+                }
+            };
 
     private void ensureGamepadCursor() {
         if (gamepadCursor != null) {
             return;
         }
-        gamepadCursor = new View(this) {
-            @Override
-            protected void onDraw(android.graphics.Canvas canvas) {
-                super.onDraw(canvas);
-                float d = getResources().getDisplayMetrics().density;
-                int accent = 0xFF5B9CF6;
-                try {
-                    int a = new PersonalizationManager(getContext()).getAccentColor();
-                    if (a != 0) {
-                        accent = a;
-                    }
-                } catch (Throwable ignored) {
-                }
-                // v0.3.0：鼠标指针样式——经典斜箭头（白描边 + 强调色填充）
-                android.graphics.Path arrow = new android.graphics.Path();
-                arrow.moveTo(2 * d, 2 * d);
-                arrow.lineTo(16 * d, 11 * d);
-                arrow.lineTo(10 * d, 12.5f * d);
-                arrow.lineTo(12.5f * d, 17.5f * d);
-                arrow.lineTo(9 * d, 16 * d);
-                arrow.lineTo(6.5f * d, 12 * d);
-                arrow.close();
-                android.graphics.Paint stroke = new android.graphics.Paint(
-                        android.graphics.Paint.ANTI_ALIAS_FLAG);
-                stroke.setStyle(android.graphics.Paint.Style.FILL);
-                stroke.setColor(0xFFFFFFFF);
-                canvas.drawPath(arrow, stroke);
-                android.graphics.Paint fill = new android.graphics.Paint(
-                        android.graphics.Paint.ANTI_ALIAS_FLAG);
-                fill.setStyle(android.graphics.Paint.Style.FILL);
-                fill.setColor(accent);
-                float inset = 1.2f * d;
-                android.graphics.Path inner = new android.graphics.Path();
-                inner.moveTo(2 * d + inset, 2 * d + inset);
-                inner.lineTo(14 * d, 11 * d);
-                inner.lineTo(9.6f * d, 12.3f * d);
-                inner.lineTo(11.8f * d, 16.3f * d);
-                inner.lineTo(9 * d, 15.2f * d);
-                inner.lineTo(6.9f * d, 12 * d);
-                inner.close();
-                canvas.drawPath(inner, fill);
-            }
-        };
-        int size = (int) (22 * getResources().getDisplayMetrics().density);
-        gamepadCursor.setLayoutParams(new ViewGroup.LayoutParams(size, size));
-        // v0.3.0：图层修复——高 elevation 盖过按钮阴影/FAB，
-        // 硬件层减少每帧重绘开销
-        gamepadCursor.setElevation(80 * getResources().getDisplayMetrics().density);
-        gamepadCursor.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        gamepadCursor.setVisibility(View.GONE);
+        // v0.4.3：用户提供 SVG 贴图（白箭头 + 黑描边，drawable/gamepad_cursor）
+        android.widget.ImageView iv = new android.widget.ImageView(this);
+        iv.setImageResource(R.drawable.gamepad_cursor);
+        float d = getResources().getDisplayMetrics().density;
+        int w = (int) (24 * d);
+        int h = (int) (13.5f * d);
+        iv.setLayoutParams(new ViewGroup.LayoutParams(w, h));
+        // 高 elevation 保证图层排序盖过按钮/FAB；outline 置空不画系统
+        // 阴影（贴图自带黑描边）。translation 每帧变化时系统阴影区域
+        // 整块重绘是卡顿来源之一
+        iv.setElevation(80 * d);
+        iv.setOutlineProvider(null);
+        iv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        iv.setVisibility(View.GONE);
         ViewGroup decor = (ViewGroup) getWindow().getDecorView();
-        decor.addView(gamepadCursor);
+        decor.addView(iv);
+        gamepadCursor = iv;
     }
 
-    private void moveGamepadCursor(float rx, float ry) {
+    /** 右摇杆轴事件：启动帧回调（方向值已在 dispatch 处更新）。 */
+    private void moveGamepadCursor() {
         ensureGamepadCursor();
-        // v0.3.0：16ms 节流（对齐一帧）——高频轴事件下不再堆叠重绘，
-        // 消除拖影
-        long now = android.os.SystemClock.uptimeMillis();
-        if (now - cursorLastMove < 16) {
-            return;
+        if (!cursorFramePosted) {
+            cursorFramePosted = true;
+            android.view.Choreographer.getInstance().postFrameCallback(cursorFrame);
         }
-        cursorLastMove = now;
-        if (cursorX < 0) {
-            cursorX = getResources().getDisplayMetrics().widthPixels / 2f;
-            cursorY = getResources().getDisplayMetrics().heightPixels / 2f;
-        }
-        float speed = 22f;
-        cursorX = Math.max(12, Math.min(
-                getResources().getDisplayMetrics().widthPixels - 12, cursorX + rx * speed));
-        cursorY = Math.max(12, Math.min(
-                getResources().getDisplayMetrics().heightPixels - 12, cursorY + ry * speed));
-        // translation 不触发父布局重排，仅视图自身重绘
-        gamepadCursor.setTranslationX(cursorX - gamepadCursor.getWidth() / 2f);
-        gamepadCursor.setTranslationY(cursorY - gamepadCursor.getHeight() / 2f);
-        gamepadCursor.setVisibility(View.VISIBLE);
     }
 
     private boolean isGamepadCursorVisible() {
