@@ -77,15 +77,23 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent event) {
         if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
+            // 手柄任何按键：退出触屏模式，恢复焦点描边（触屏时被隐藏）
+            onGamepadInputResume();
             switch (event.getKeyCode()) {
                 case android.view.KeyEvent.KEYCODE_DPAD_UP:
-                    return moveGamepadFocus(View.FOCUS_UP);
                 case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
-                    return moveGamepadFocus(View.FOCUS_DOWN);
                 case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
-                    return moveGamepadFocus(View.FOCUS_LEFT);
                 case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
-                    return moveGamepadFocus(View.FOCUS_RIGHT);
+                    // 光标活跃时输入只信任光标，D-pad 焦点导航让位
+                    if (isGamepadCursorVisible()) {
+                        return true;
+                    }
+                    return moveGamepadFocus(event.getKeyCode()
+                            == android.view.KeyEvent.KEYCODE_DPAD_UP ? View.FOCUS_UP
+                            : event.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+                            ? View.FOCUS_DOWN
+                            : event.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                            ? View.FOCUS_LEFT : View.FOCUS_RIGHT);
                 case android.view.KeyEvent.KEYCODE_BUTTON_A:
                     // 光标可见 → 点击光标位置；否则确认焦点视图
                     if (isGamepadCursorVisible()) {
@@ -101,6 +109,11 @@ public class BaseActivity extends AppCompatActivity {
                     return onGamepadTabSwitch(-1);
                 case android.view.KeyEvent.KEYCODE_BUTTON_R1:
                     return onGamepadTabSwitch(1);
+                // v0.4.4：X=上滚 Y=下滚（页面内容超出屏幕时专用滚动键）
+                case android.view.KeyEvent.KEYCODE_BUTTON_X:
+                    return scrollGamepadContent(-1);
+                case android.view.KeyEvent.KEYCODE_BUTTON_Y:
+                    return scrollGamepadContent(1);
                 default:
                     break;
             }
@@ -122,6 +135,12 @@ public class BaseActivity extends AppCompatActivity {
                 moveGamepadCursor();
                 return true;
             }
+            // v0.4.4：光标活跃时输入只信任光标——左摇杆焦点导航让位，
+            // 避免「光标在动、焦点描边还在跳」的误触
+            if (isGamepadCursorVisible()) {
+                return true;
+            }
+            onGamepadInputResume();
             float hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X);
             float hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
             float stickX = event.getAxisValue(android.view.MotionEvent.AXIS_X);
@@ -148,14 +167,96 @@ public class BaseActivity extends AppCompatActivity {
 
     private boolean moveGamepadFocus(int direction) {
         View current = getCurrentFocus();
-        View next = current != null ? current.focusSearch(direction) : null;
-        if (next == null) {
-            View root = getWindow().getDecorView().findViewById(android.R.id.content);
-            next = root != null ? root.focusSearch(direction) : null;
+        if (current == null) {
+            // v0.4.4：无焦点（刚切 tab/触屏清焦后）→ 落到子类指定首页
+            // 视图（底部 tab 按钮）或第一个可聚焦项，恢复可导航状态
+            // （此前 focusSearch 从 null 出发找不到方向项=切 tab 后
+            // 摇杆失灵根因）
+            View first = gamepadFirstFocusView();
+            if (first == null) {
+                first = findFirstFocusable();
+            }
+            if (first != null && first.isShown()) {
+                first.requestFocus();
+                return true;
+            }
+            return false;
         }
+        View next = current.focusSearch(direction);
         if (next != null && next != current) {
             next.requestFocus();
             return true;
+        }
+        // v0.4.4：方向到头（列表底部/顶部）→ 滚动内容翻页，
+        // 「底部还有信息往下翻」由这里与 X/Y 键共同保证
+        return scrollGamepadContent(direction == View.FOCUS_DOWN || direction == View.FOCUS_RIGHT
+                ? 1 : -1);
+    }
+
+    /** 手柄导航的首页焦点视图（当前底部 tab 按钮）；子类可覆盖。
+     *  v0.4.4：切 tab 后焦点落这里+描边，恢复摇杆可导航状态。 */
+    protected View gamepadFirstFocusView() {
+        int id = -1;
+        if (this instanceof MainActivity) {
+            id = R.id.nav_tab_launch;
+        } else if (this instanceof InstancesActivity) {
+            id = R.id.nav_tab_instances;
+        } else if (this instanceof OnlineActivity) {
+            id = R.id.nav_tab_online;
+        } else if (this instanceof SettingsActivity) {
+            id = R.id.nav_tab_settings;
+        }
+        return id > 0 ? findViewById(id) : null;
+    }
+
+    /** 深度优先找第一个可聚焦且可见的 View（兜底初始焦点）。 */
+    private View findFirstFocusable() {
+        View content = getWindow().getDecorView().findViewById(android.R.id.content);
+        if (!(content instanceof ViewGroup)) {
+            return null;
+        }
+        return findFirstFocusableIn((ViewGroup) content);
+    }
+
+    private View findFirstFocusableIn(ViewGroup group) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (!child.isShown()) {
+                continue;
+            }
+            if (child.isFocusable()) {
+                return child;
+            }
+            if (child instanceof ViewGroup) {
+                View found = findFirstFocusableIn((ViewGroup) child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** v0.4.4：滚动当前焦点所在的可滚动容器（X=上滚/Y=下滚 与
+     *  焦点导航到边界时共用）。向上/下滚动约 1/3 屏。 */
+    private boolean scrollGamepadContent(int direction) {
+        View anchor = getCurrentFocus();
+        if (anchor == null) {
+            anchor = getWindow().getDecorView().findViewById(android.R.id.content);
+        }
+        if (anchor == null) {
+            return false;
+        }
+        android.graphics.Point size = new android.graphics.Point();
+        getWindowManager().getDefaultDisplay().getSize(size);
+        int step = Math.max(160, size.y / 3);
+        for (android.view.ViewParent p = anchor.getParent();
+                p instanceof View; p = p.getParent()) {
+            View pv = (View) p;
+            if (pv.canScrollVertically(direction)) {
+                pv.scrollBy(0, direction * step);
+                return true;
+            }
         }
         return false;
     }
@@ -171,11 +272,23 @@ public class BaseActivity extends AppCompatActivity {
 
     // ---------- v0.3.0：虚拟光标（右摇杆，类鼠标引导） ----------
     private android.view.View gamepadCursor;
-    private float cursorX = -1, cursorY = -1;
+    /** v0.4.4：光标位置进程级静态——切 tab=切 Activity，实例字段会归
+     *  初始值导致光标回屏幕中心；static 跨 Activity 保留。 */
+    private static float cursorX = -1, cursorY = -1;
     /** 摇杆最新方向（轴事件只更新这两个值，位置由 vsync 帧回调推进）。 */
     private float cursorRx, cursorRy;
     private boolean cursorFramePosted;
     private long cursorLastFrameNanos;
+    /** 光标可见期间焦点描边被压制（避免「光标在动、描边还在跳」的
+     *  双指示器冲突），隐藏后恢复。 */
+    private boolean outlineSuppressedByCursor;
+    /** 摇杆归中 600ms 后自动隐藏光标（恢复焦点导航）。 */
+    private final Runnable cursorHideTask = new Runnable() {
+        @Override
+        public void run() {
+            hideGamepadCursor();
+        }
+    };
     /** v0.4.3：帧驱动光标——事件驱动受轴事件到达间隔抖动影响（蓝牙
      *  8~32ms 随机），16ms 节流后更新间隔 16~32ms 跳格。改为
      *  Choreographer 每 vsync 推进一次，与屏幕刷新严格同步；位移按
@@ -191,10 +304,15 @@ public class BaseActivity extends AppCompatActivity {
                     boolean active = Math.abs(cursorRx) > 0.15f
                             || Math.abs(cursorRy) > 0.15f;
                     if (!active) {
-                        cursorFramePosted = false; // 摇杆回中：停
+                        // 摇杆回中：停帧，600ms 后自动隐藏（光标让位
+                        // 焦点导航）；期间再动摇杆则取消隐藏
+                        cursorFramePosted = false;
                         cursorLastFrameNanos = 0;
+                        gamepadCursor.removeCallbacks(cursorHideTask);
+                        gamepadCursor.postDelayed(cursorHideTask, 600);
                         return;
                     }
+                    gamepadCursor.removeCallbacks(cursorHideTask);
                     if (cursorX < 0) {
                         cursorX = getResources().getDisplayMetrics().widthPixels / 2f;
                         cursorY = getResources().getDisplayMetrics().heightPixels / 2f;
@@ -215,6 +333,12 @@ public class BaseActivity extends AppCompatActivity {
                     gamepadCursor.setTranslationY(cursorY - 0.9f * d);
                     if (gamepadCursor.getVisibility() != android.view.View.VISIBLE) {
                         gamepadCursor.setVisibility(android.view.View.VISIBLE);
+                        // 光标出现：压制焦点描边，输入只信任光标
+                        View f = getCurrentFocus();
+                        if (f != null) {
+                            clearFocusOutline(f);
+                            outlineSuppressedByCursor = true;
+                        }
                     }
                     android.view.Choreographer.getInstance().postFrameCallback(this);
                 }
@@ -284,8 +408,59 @@ public class BaseActivity extends AppCompatActivity {
 
     private void hideGamepadCursor() {
         if (gamepadCursor != null) {
+            gamepadCursor.removeCallbacks(cursorHideTask);
             gamepadCursor.setVisibility(View.GONE);
         }
+        restoreOutlineAfterCursor();
+    }
+
+    /** 光标隐藏后恢复焦点描边（若期间被压制）。 */
+    private void restoreOutlineAfterCursor() {
+        if (!outlineSuppressedByCursor) {
+            return;
+        }
+        outlineSuppressedByCursor = false;
+        View f = getCurrentFocus();
+        if (f != null) {
+            applyFocusOutline(f);
+        }
+    }
+
+    /** v0.4.4：手柄任意输入（按键/摇杆）时退出触屏模式——触屏期间
+     *  被隐藏的焦点描边恢复显示。 */
+    private void onGamepadInputResume() {
+        if (!outlineSuppressedByTouch) {
+            return;
+        }
+        outlineSuppressedByTouch = false;
+        if (isGamepadCursorVisible()) {
+            return; // 光标还活跃：继续压制
+        }
+        View f = getCurrentFocus();
+        if (f != null) {
+            applyFocusOutline(f);
+        }
+    }
+
+    /** 触屏期间描边被隐藏（用户转用手指）。 */
+    private boolean outlineSuppressedByTouch;
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        // v0.4.4：手指触摸屏幕 → 光标与焦点描边立刻消失（切回触屏模式）。
+        // clickAtGamepadCursor 的模拟事件走 root.dispatchTouchEvent，
+        // 不经过 Activity 层，不会误触发
+        if (ev.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+            if (isGamepadCursorVisible()) {
+                hideGamepadCursor();
+            }
+            View f = getCurrentFocus();
+            if (f != null) {
+                clearFocusOutline(f);
+                outlineSuppressedByTouch = true;
+            }
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     // ---------- v0.4.0：手柄焦点描边 ----------
@@ -294,7 +469,10 @@ public class BaseActivity extends AppCompatActivity {
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(
                 (oldFocus, newFocus) -> {
                     clearFocusOutline(oldFocus);
-                    applyFocusOutline(newFocus);
+                    // v0.4.4：触屏/光标压制期间不描边（恢复时主动补描）
+                    if (!outlineSuppressedByTouch && !outlineSuppressedByCursor) {
+                        applyFocusOutline(newFocus);
+                    }
                 });
     }
 
@@ -349,21 +527,28 @@ public class BaseActivity extends AppCompatActivity {
             return false;
         }
         int next = (cur + delta + 4) % 4;
+        // v0.4.4：标记手柄切 tab 来源——新 Activity 自动把焦点落到
+        // 当前 tab 按钮并描边（此前切 tab 后无焦点无描边，
+        // 摇杆导航失灵）
+        Intent target = null;
         switch (next) {
             case 0:
-                startActivity(new Intent(this, MainActivity.class)
-                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
-                return true;
+                target = new Intent(this, MainActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                break;
             case 1:
-                startActivity(new Intent(this, InstancesActivity.class));
-                return true;
+                target = new Intent(this, InstancesActivity.class);
+                break;
             case 2:
-                startActivity(new Intent(this, OnlineActivity.class));
-                return true;
+                target = new Intent(this, OnlineActivity.class);
+                break;
             default:
-                startActivity(new Intent(this, SettingsActivity.class));
-                return true;
+                target = new Intent(this, SettingsActivity.class);
+                break;
         }
+        target.putExtra("gamepad_tab_nav", true);
+        startActivity(target);
+        return true;
     }
 
     @Override
@@ -539,6 +724,9 @@ public class BaseActivity extends AppCompatActivity {
             tab.setTextColor(color);
             tab.setTypeface(tab.getTypeface(), android.graphics.Typeface.NORMAL);
             TextViewCompat.setCompoundDrawableTintList(tab, ColorStateList.valueOf(color));
+            // v0.4.4：tab 可聚焦——切 tab 后焦点落到当前 tab 并描边
+            tab.setFocusable(true);
+            tab.setFocusableInTouchMode(true);
         }
 
         if (pm.hasBackgroundImage()) {
@@ -794,6 +982,19 @@ public class BaseActivity extends AppCompatActivity {
         hideSystemUI();
         refreshNavAccountUI();
         refreshNewsBadge();
+        // v0.4.4：手柄 LB/RB 切 tab 到达 → 焦点落到当前 tab 按钮并描边
+        if (getIntent().getBooleanExtra("gamepad_tab_nav", false)) {
+            getIntent().removeExtra("gamepad_tab_nav");
+            View tab = gamepadFirstFocusView();
+            if (tab != null) {
+                tab.postDelayed(() -> {
+                    if (!isFinishing() && !isDestroyed() && tab.isShown()) {
+                        tab.requestFocus();
+                        applyFocusOutline(tab);
+                    }
+                }, 150);
+            }
+        }
     }
 
     @Override
