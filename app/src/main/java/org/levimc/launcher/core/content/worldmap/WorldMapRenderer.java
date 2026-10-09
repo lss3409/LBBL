@@ -2108,7 +2108,8 @@ public class WorldMapRenderer {
     // v22：v0.4.2 下界地表渲染语义变化——默认穿透列表去掉 netherrack
     //      （下界岩地表可见，说明书卫星图语义）。旧缓存是穿透渲染，
     //      必须失效
-    private static final int MAP_CACHE_VERSION = 22;
+    // v23：v0.4.5 下界高度图无数据列透明化 + 四段彩色渐变
+    private static final int MAP_CACHE_VERSION = 23;
 
     /** 缓存根目录（应用私有，卸载即清——缓存可再生）。null 时回退旧路径。 */
     private static java.io.File sCacheBase;
@@ -2315,14 +2316,31 @@ public class WorldMapRenderer {
     /** v0.4.0：下界海拔伪彩色——Y30（熔岩海）暗红紫 → Y120（近天花板）
      *  米黄白，线性插值（说明书 5.4）。 */
     private static int netherHeightColor(int y) {
-        int lo = 30, hi = 122;
-        float t = (y - lo) / (float) (hi - lo);
-        t = Math.max(0f, Math.min(1f, t));
-        // 低：暗红紫 0xFF3A1E2E；高：米黄白 0xFFF0E6C8
-        int r = (int) (0x3A + (0xF0 - 0x3A) * t);
-        int g = (int) (0x1E + (0xE6 - 0x1E) * t);
-        int b = (int) (0x2E + (0xC8 - 0x2E) * t);
-        return 0xFF000000 | (r << 16) | (g << 8) | b;
+        // v0.4.5：四段彩色渐变——v0.4.2 两段线性插值中段是灰棕
+        // （0xFF81736F），下界地表大多 y 60-90 → 整图灰扑扑"没刷色"
+        // 用户实测反馈。改为 熔岩海深红紫 → 低地橙红 → 高地金黄 →
+        // 近天花板米黄白，中段是饱满的橙→黄
+        float[] stops = {30f, 62f, 92f, 122f};
+        int[] cols = {0xFF3A1E2E, 0xFFB04A28, 0xFFE0A040, 0xFFF0E6C8};
+        if (y <= stops[0]) {
+            return cols[0];
+        }
+        if (y >= stops[3]) {
+            return cols[3];
+        }
+        for (int i = 0; i < 3; i++) {
+            if (y <= stops[i + 1]) {
+                float t = (y - stops[i]) / (stops[i + 1] - stops[i]);
+                int r = (int) (((cols[i] >> 16) & 0xFF)
+                        + (((cols[i + 1] >> 16) & 0xFF) - ((cols[i] >> 16) & 0xFF)) * t);
+                int g = (int) (((cols[i] >> 8) & 0xFF)
+                        + (((cols[i + 1] >> 8) & 0xFF) - ((cols[i] >> 8) & 0xFF)) * t);
+                int b = (int) ((cols[i] & 0xFF)
+                        + ((cols[i + 1] & 0xFF) - (cols[i] & 0xFF)) * t);
+                return 0xFF000000 | (r << 16) | (g << 8) | b;
+            }
+        }
+        return cols[3];
     }
 
     /** v0.4.2：下界某列表面 y（说明书 5.1）：从最高 subchunk 顶向下找
@@ -2416,7 +2434,9 @@ public class WorldMapRenderer {
     // v4：v0.4.2 下界地表渲染语义变化——默认穿透列表去掉 netherrack
     //      （下界岩地表可见，说明书卫星图语义）。旧缓存是穿透渲染，
     //      必须失效
-    private static final int SMALL_CACHE_VERSION = 4;
+    // v5：v0.4.5 下界高度图无数据列透明化 + 四段彩色渐变（旧缓存是
+    //      预测值米黄白/灰棕两段渐变渲染，必须失效）
+    private static final int SMALL_CACHE_VERSION = 5;
 
     /** 小世界全图缓存文件（v395 新结构：<世界>/<维度>/small<suffix>.bin）。
      *  v413：阴影开关进文件名——切换后小世界缓存也作废。
@@ -5368,8 +5388,13 @@ public class WorldMapRenderer {
         // v0.4.0：下界高度图模式——海拔伪彩色渐变（低处熔岩海暗红紫，
         // 高处近天花板米黄白），跳过方块取色直接返回。
         // v0.4.2：海拔按实际方块数据扫描（官方高度图是生成器预测值，
-        // 说明书 5.1 要求自行验证）；整列无表面 → 透明
+        // 说明书 5.1 要求自行验证）；整列无表面 → 透明。
+        // v0.4.5：无方块数据的列直接透明——此前 fallback 到官方高度图
+        // 预测值（127+）→ 渲成米黄白，阴影一压=大片灰白"没刷色"根因
         if (dimension == DIM_NETHER && netherHeightmapMode) {
+            if (subs == null || subs.isEmpty()) {
+                return COLOR_BACKGROUND;
+            }
             int surfY = netherSurfaceY(subs, lx, lz, height);
             return surfY < 0 ? COLOR_BACKGROUND : netherHeightColor(surfY);
         }
