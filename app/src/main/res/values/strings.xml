@@ -1929,4 +1929,8 @@ Invite code: P/%1$s
 
     <string name="fm_ui_open_internal">Open in launcher</string>
     <string name="fm_ui_open_system">Open with...</string>
+
+    <string name="nether_mode_title">Display Mode</string>
+    <string name="nether_mode_satellite">Satellite</string>
+    <string name="nether_mode_height">Height Map</string>
 </resources>

@@ -96,9 +96,12 @@ public class SettingsActivity extends BaseActivity {
 
         personalizationManager = new PersonalizationManager(this);
 
-        // v0.0.6：不再恢复上次停留的 tab——每次打开设置页默认「基础设置」
-        // （含语言切换），避免用户切到别的 tab 后找不到语言入口（用户反馈）
-        selectedTabIndex = 0;
+        // v0.0.6：首次打开默认「基础设置」（含语言切换），避免用户切到
+        // 别的 tab 后找不到语言入口（用户反馈）。
+        // v0.4.0：recreate（界面缩放等）时恢复停留的 tab——否则缩放后
+        // 从个性化跳回基础设置（用户反馈，此前出现过的老问题）
+        selectedTabIndex = savedInstanceState != null
+                ? savedInstanceState.getInt("selected_tab", 0) : 0;
 
         permissionsHandler = PermissionsHandler.getInstance();
         permissionResultLauncher = registerForActivityResult(
@@ -1185,6 +1188,13 @@ public class SettingsActivity extends BaseActivity {
     private void setupNavBar() {
         setActiveNavTab(R.id.nav_tab_settings);
         findViewById(R.id.nav_tab_settings).setOnClickListener(v -> {});
+    }
+
+    @Override
+    protected void onSaveInstanceState(@androidx.annotation.NonNull android.os.Bundle outState) {
+        // v0.4.0：recreate（界面缩放等）时保存停留的 tab
+        outState.putInt("selected_tab", selectedTabIndex);
+        super.onSaveInstanceState(outState);
     }
 
 }

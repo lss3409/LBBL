@@ -1766,4 +1766,8 @@
 
     <string name="fm_ui_open_internal">启动器内打开</string>
     <string name="fm_ui_open_system">系统打开方式</string>
+
+    <string name="nether_mode_title">显示模式</string>
+    <string name="nether_mode_satellite">卫星图</string>
+    <string name="nether_mode_height">高度图</string>
 </resources>

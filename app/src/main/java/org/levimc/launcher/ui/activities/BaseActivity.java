@@ -256,7 +256,7 @@ public class BaseActivity extends AppCompatActivity {
         return gamepadCursor != null && gamepadCursor.getVisibility() == View.VISIBLE;
     }
 
-    /** A 键：在光标位置模拟一次触摸点击。 */
+    /** A 键：在光标位置模拟一次触摸点击（带按下动画反馈）。 */
     private void clickAtGamepadCursor() {
         ViewGroup root = getWindow().getDecorView().findViewById(android.R.id.content);
         if (root == null) {
@@ -267,6 +267,11 @@ public class BaseActivity extends AppCompatActivity {
                 now, now, android.view.MotionEvent.ACTION_DOWN, cursorX, cursorY, 0);
         android.view.MotionEvent up = android.view.MotionEvent.obtain(
                 now, now + 60, android.view.MotionEvent.ACTION_UP, cursorX, cursorY, 0);
+        // v0.4.0：按下反馈——箭头缩小再回弹，模拟鼠标点击手感
+        gamepadCursor.animate().scaleX(0.7f).scaleY(0.7f).setDuration(60)
+                .withEndAction(() -> gamepadCursor.animate()
+                        .scaleX(1f).scaleY(1f).setDuration(90).start())
+                .start();
         try {
             root.dispatchTouchEvent(down);
             root.dispatchTouchEvent(up);
@@ -274,12 +279,54 @@ public class BaseActivity extends AppCompatActivity {
             down.recycle();
             up.recycle();
         }
-        hideGamepadCursor();
+        gamepadCursor.postDelayed(this::hideGamepadCursor, 160);
     }
 
     private void hideGamepadCursor() {
         if (gamepadCursor != null) {
             gamepadCursor.setVisibility(View.GONE);
+        }
+    }
+
+    // ---------- v0.4.0：手柄焦点描边 ----------
+    /** 焦点变化时给当前焦点视图加强调色描边（手柄导航视觉引导）。 */
+    private void setupGamepadFocusOutline() {
+        getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(
+                (oldFocus, newFocus) -> {
+                    clearFocusOutline(oldFocus);
+                    applyFocusOutline(newFocus);
+                });
+    }
+
+    private void applyFocusOutline(View v) {
+        if (v == null) {
+            return;
+        }
+        try {
+            int accent = 0xFF5B9CF6;
+            try {
+                int a = new PersonalizationManager(this).getAccentColor();
+                if (a != 0) {
+                    accent = a;
+                }
+            } catch (Throwable ignored) {
+            }
+            float d = getResources().getDisplayMetrics().density;
+            android.graphics.drawable.GradientDrawable outline =
+                    new android.graphics.drawable.GradientDrawable();
+            outline.setStroke((int) (2.5f * d), accent);
+            outline.setCornerRadius(10 * d);
+            v.setForeground(outline);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private void clearFocusOutline(View v) {
+        if (v != null) {
+            try {
+                v.setForeground(null);
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -347,6 +394,7 @@ public class BaseActivity extends AppCompatActivity {
         hideSystemUI();
         getWindow().getDecorView().setOnSystemUiVisibilityChangeListener(
                 visibility -> getWindow().getDecorView().post(this::hideSystemUI));
+        setupGamepadFocusOutline();
     }
 
     /** 异形屏适配：内容允许延伸进 cutout 区域，避免系统强制留黑边/白边。 */

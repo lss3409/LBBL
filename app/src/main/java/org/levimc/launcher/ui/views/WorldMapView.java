@@ -1699,6 +1699,24 @@ public class WorldMapView extends View {
     }
 
     @Override
+    public boolean onGenericMotionEvent(MotionEvent event) {
+        // v0.4.0：鼠标滚轮缩放（外接鼠标/触控板），以光标位置为锚点
+        if (map != null && event.getAction() == MotionEvent.ACTION_SCROLL) {
+            float v = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
+            if (v != 0f) {
+                float factor = v > 0 ? 1.25f : 0.8f;
+                float newPpb = clampPixelsPerBlock(pixelsPerBlock * factor);
+                float applied = newPpb / pixelsPerBlock;
+                offsetX = event.getX() - (event.getX() - offsetX) * applied;
+                offsetY = event.getY() - (event.getY() - offsetY) * applied;
+                setPpb(newPpb);
+                return true;
+            }
+        }
+        return super.onGenericMotionEvent(event);
+    }
+
+    @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (map == null) {
             return super.onTouchEvent(event);

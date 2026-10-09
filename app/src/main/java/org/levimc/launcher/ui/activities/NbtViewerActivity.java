@@ -908,6 +908,46 @@ public class NbtViewerActivity extends BaseActivity {
                 binding.netherYMid, binding.netherYBottom}) {
             DynamicAnim.applyPressScale(t);
         }
+        // v0.4.0：下界显示模式切换（卫星图/高度图伪彩色）
+        setupNetherModeSegment();
+    }
+
+    /** v0.4.0：下界显示模式分段（卫星图/高度图），缓存后缀联动自动作废。 */
+    private void setupNetherModeSegment() {
+        final String PREFS = "nether_render_mode";
+        boolean saved = getSharedPreferences("nbt_viewer", MODE_PRIVATE)
+                .getBoolean(PREFS, false);
+        WorldMapRenderer.netherHeightmapMode = saved;
+        applyNetherMode(saved);
+        View.OnClickListener modeClick = v -> {
+            boolean hm = v == binding.netherModeHeight;
+            WorldMapRenderer.netherHeightmapMode = hm;
+            applyNetherMode(hm);
+            getSharedPreferences("nbt_viewer", MODE_PRIVATE).edit().putBoolean(PREFS, hm).apply();
+            // 当前在下界：重载（缓存后缀含 _hm，切换自动换缓存）
+            if ("nether".equals(mapDimension) && currentWorldDir != null) {
+                loadMapForDimension("nether");
+            }
+        };
+        binding.netherModeSatellite.setOnClickListener(modeClick);
+        binding.netherModeHeight.setOnClickListener(modeClick);
+        for (TextView t : new TextView[]{binding.netherModeSatellite,
+                binding.netherModeHeight}) {
+            DynamicAnim.applyPressScale(t);
+        }
+    }
+
+    private void applyNetherMode(boolean heightmap) {
+        int active = accentColor != 0 ? accentColor
+                : ContextCompat.getColor(this, R.color.primary);
+        int inactive = ContextCompat.getColor(this, R.color.text_secondary);
+        TextView[] segs = {binding.netherModeSatellite, binding.netherModeHeight};
+        for (int i = 0; i < segs.length; i++) {
+            boolean sel = (i == 1) == heightmap;
+            segs[i].setBackgroundResource(sel ? R.drawable.bg_tab_selected
+                    : R.drawable.bg_tab_unselected);
+            segs[i].setTextColor(sel ? active : inactive);
+        }
     }
 
     /** 应用下界 y 范围并刷新分段高亮（个性化主题色贯通）。 */

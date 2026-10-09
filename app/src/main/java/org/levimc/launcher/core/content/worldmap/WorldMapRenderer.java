@@ -2292,6 +2292,23 @@ public class WorldMapRenderer {
     }
 
     /** 按给定渲染参数算后缀（map.chunkCacheSuffix 的取值来源）。 */
+    /** v0.4.0：下界高度图模式（伪彩色海拔显示）。切换后缓存后缀变化
+     *  旧缓存自动作废。 */
+    public static volatile boolean netherHeightmapMode = false;
+
+    /** v0.4.0：下界海拔伪彩色——Y30（熔岩海）暗红紫 → Y120（近天花板）
+     *  米黄白，线性插值（说明书 5.4）。 */
+    private static int netherHeightColor(int y) {
+        int lo = 30, hi = 122;
+        float t = (y - lo) / (float) (hi - lo);
+        t = Math.max(0f, Math.min(1f, t));
+        // 低：暗红紫 0xFF3A1E2E；高：米黄白 0xFFF0E6C8
+        int r = (int) (0x3A + (0xF0 - 0x3A) * t);
+        int g = (int) (0x1E + (0xE6 - 0x1E) * t);
+        int b = (int) (0x2E + (0xC8 - 0x2E) * t);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
     public static String cacheSuffixFor(int dimension) {
         String suffix = "";
         if (dimension == DIM_NETHER && (netherYMin >= 0 || netherExcludeBlocks != null)) {
@@ -2310,6 +2327,10 @@ public class WorldMapRenderer {
         // 缓存 chunk 没重烘，屏幕显示的还是旧数据）
         if (!enableShading) {
             suffix += "_ns";
+        }
+        // v0.4.0：下界高度图模式进缓存后缀
+        if (dimension == DIM_NETHER && netherHeightmapMode) {
+            suffix += "_hm";
         }
         return suffix;
     }
@@ -5278,6 +5299,11 @@ public class WorldMapRenderer {
     /** 逐列表面色：从高度向下找第一个非空气方块；无 subchunk 数据时回退 biome 色。 */
     private static int surfaceColor(int height, int lx, int lz,
                                     Map<Integer, SubChunk> subs, byte[] biomes, int dimension) {
+        // v0.4.0：下界高度图模式——海拔伪彩色渐变（低处熔岩海暗红紫，
+        // 高处近天花板米黄白），跳过方块取色直接返回
+        if (dimension == DIM_NETHER && netherHeightmapMode) {
+            return netherHeightColor(height);
+        }
         int biomeId = biomes != null ? biomes[(lz << 4) | lx] & 0xFF : -1;
         int biomeColor = biomeId >= 0 ? biomeGrassColor(biomeId) : 0;
         if (subs != null && !subs.isEmpty()) {
@@ -5554,8 +5580,31 @@ public class WorldMapRenderer {
             return COLOR_WATER;
         }
         if (name.equals("minecraft:lava") || name.equals("minecraft:flowing_lava")) {
-            return 0xFFD45A12;
+            // v0.4.0：熔岩专用亮橙（说明书 5.5：0xFFFF5A00 附近）
+            return 0xFFFF5A00;
         }
+        // v0.4.0：下界表面常用方块补色（unmined 颜色表参考）
+        if (name.equals("minecraft:soul_soil")) return 0xFF4A352B;
+        if (name.equals("minecraft:crimson_nylium")) return 0xFF8A1E1E;
+        if (name.equals("minecraft:warped_nylium")) return 0xFF1E5A5A;
+        if (name.equals("minecraft:magma_block")) return 0xFF8A3A10;
+        if (name.equals("minecraft:nether_gold_ore")) return 0xFF8A6A3A;
+        if (name.equals("minecraft:nether_quartz_ore")) return 0xFFA89A8A;
+        if (name.equals("minecraft:ancient_debris")) return 0xFF6A5A4A;
+        if (name.equals("minecraft:bone_block")) return 0xFFD8D0B8;
+        if (name.equals("minecraft:blackstone")) return 0xFF2A2628;
+        if (name.equals("minecraft:gilded_blackstone")) return 0xFF5A4630;
+        if (name.equals("minecraft:basalt")) return 0xFF4A4A52;
+        if (name.equals("minecraft:polished_basalt")) return 0xFF5A5A62;
+        if (name.equals("minecraft:soul_sand")) return 0xFF5A4636;
+        if (name.equals("minecraft:glowstone")) return 0xFFD8B85A;
+        if (name.equals("minecraft:netherrack")) return 0xFF6E2A2A;
+        if (name.equals("minecraft:shroomlight")) return 0xFFD87A2A;
+        if (name.equals("minecraft:crying_obsidian")) return 0xFF2A1A4A;
+        if (name.equals("minecraft:obsidian")) return 0xFF14101E;
+        if (name.equals("minecraft:gravel")) return 0xFF7A7068;
+        if (name.equals("minecraft:nether_wart_block")) return 0xFF7A1E1E;
+        if (name.equals("minecraft:warped_wart_block")) return 0xFF1E7A7A;
         if (name.equals("minecraft:stone")) return 0xFF464646;
         if (name.equals("minecraft:granite")) return 0xFF8C7167;
         if (name.equals("minecraft:diorite")) return 0xFFC6C6C6;
