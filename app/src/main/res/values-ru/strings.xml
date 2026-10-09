@@ -1503,7 +1503,7 @@
 <string name="nether_y_bottom">Низ</string>
 <string name="nether_exclude_title">Чёрный список</string>
 <string name="nether_exclude_dialog_title">Чёрный список · Исключённые блоки</string>
-<string name="nether_exclude_default">По умолчанию: бедрок + незерак</string>
+<string name="nether_exclude_default">По умолчанию: бедрок</string>
 <string name="layer_grid">Сетка чанков</string>
 <string name="layer_biome">Биомы</string>
 <string name="layer_ore">Метки руды (поиск руды)</string>

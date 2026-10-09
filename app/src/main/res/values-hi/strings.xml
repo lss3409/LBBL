@@ -1500,7 +1500,7 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="nether_y_bottom">नीचे</string>
 <string name="nether_exclude_title">ब्लैकलिस्ट</string>
 <string name="nether_exclude_dialog_title">ब्लैकलिस्ट · ब्लॉक बाहर करें</string>
-<string name="nether_exclude_default">डिफ़ॉल्ट: बेडरॉक + नेदररैक</string>
+<string name="nether_exclude_default">डिफ़ॉल्ट: बेडरॉक</string>
 <string name="layer_grid">चंक ग्रिड</string>
 <string name="layer_biome">बायोम</string>
 <string name="layer_ore">अयस्क चिह्न (अयस्क खोजें)</string>

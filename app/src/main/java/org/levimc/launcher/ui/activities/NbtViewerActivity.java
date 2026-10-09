@@ -689,7 +689,7 @@ public class NbtViewerActivity extends BaseActivity {
                 .setTitleText(getString(R.string.nether_exclude_dialog_title))
                 .setCustomView(panel)
                 .setPositiveButton(getString(R.string.nbt_edit_save), v2 -> {
-                    // null = 从未设置（默认剔除基岩+下界岩）；
+                    // null = 从未设置（v0.4.2 起默认只剔除基岩天花板）；
                     // 保存后按选择生效（空集 = 全不剔除）
                     WorldMapRenderer.netherExcludeBlocks = new java.util.HashSet<>(sel);
                     getSharedPreferences("nbt_viewer", MODE_PRIVATE).edit()

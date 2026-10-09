@@ -1473,7 +1473,7 @@ A migração deve ser concluída antes que o LeviLauncher continue.</string>
 <string name="nether_y_bottom">Fundo</string>
 <string name="nether_exclude_title">Lista de exclusão</string>
 <string name="nether_exclude_dialog_title">Lista de exclusão · Excluir blocos</string>
-<string name="nether_exclude_default">Padrão: bedrock + netherrack</string>
+<string name="nether_exclude_default">Padrão: bedrock</string>
 <string name="layer_grid">Grade de chunks</string>
 <string name="layer_biome">Biomas</string>
 <string name="layer_ore">Marcadores de minérios (encontrar minérios)</string>

@@ -64,7 +64,7 @@ public class WorldMapRenderer {
     public static volatile int netherYMin = -1;
     public static volatile int netherYMax = -1;
     /** 下界剔除方块黑名单（渲染时视为空气向下穿透；null = 默认
-     *  硬编码剔除 bedrock+netherrack）。 */
+     *  硬编码只剔除 bedrock——v0.4.2 起下界岩地表可见）。 */
     public static volatile java.util.Set<String> netherExcludeBlocks = null;
     /** 忽略光源方块（设置页开关）：火把等非固体光源俯视渲染成黄色杂点，
      *  开启后视为空气向下穿透显示地表。 */
@@ -968,9 +968,10 @@ public class WorldMapRenderer {
      * chunk 边界取自身高度——樱花树冠/山地的立体感来源）。 */
     /**
      * 无高度图 chunk 的合成高度图：逐列从顶向下找第一个"可见"方块 y
-     * （surfaceColor 同款规则：空气穿透、下界 bedrock/netherrack 剔除
-     * 穿透、水层计入）。1.26 下界/末地大部分 chunk 没有 0x2b/0x2d
-     * 高度图 key，只有 subchunk 数据——阴影/窗口裁剪需要高度值。
+     * （surfaceColor 同款规则：空气穿透、下界 bedrock 剔除穿透
+     * ——v0.4.2 起下界岩计入地表、水层计入）。1.26 下界/末地大部分
+     * chunk 没有 0x2b/0x2d 高度图 key，只有 subchunk 数据——阴影/
+     * 窗口裁剪需要高度值。
      */
     private static int[] synthesizeHeightMap(Map<Integer, SubChunk> subs, int dimension) {
         int[] hmap = new int[256];
@@ -1012,9 +1013,12 @@ public class WorldMapRenderer {
                 }
                 if (dimension == DIM_NETHER) {
                     if (ex == null) {
-                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")
-                                || name.equals("minecraft:netherrack")) {
-                            continue; // 与 surfaceColor 剔除一致：穿透
+                        // v0.4.2：默认只穿透基岩天花板（说明书 5.1：Y=127
+                        // 基岩排除，下界岩地表必须可见）。v270 老行为把
+                        // netherrack 也穿透，大面积下界岩地表被看穿，
+                        // 显示地下方块/回退色——"卫星图像高度图"的根因之一
+                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")) {
+                            continue;
                         }
                     } else if (ex.contains(name)) {
                         continue;
@@ -2101,7 +2105,10 @@ public class WorldMapRenderer {
     //      打开时 diff 找出新文件只重渲染变化 chunk，db 变化不再全量失效
     // v21：v466-v471 回退水色/河床混合修复（旧缓存是绿色回退/紫灰
     //      COLOR_WATER/沙床浅蓝渲染结果，必须失效重渲）
-    private static final int MAP_CACHE_VERSION = 21;
+    // v22：v0.4.2 下界地表渲染语义变化——默认穿透列表去掉 netherrack
+    //      （下界岩地表可见，说明书卫星图语义）。旧缓存是穿透渲染，
+    //      必须失效
+    private static final int MAP_CACHE_VERSION = 22;
 
     /** 缓存根目录（应用私有，卸载即清——缓存可再生）。null 时回退旧路径。 */
     private static java.io.File sCacheBase;
@@ -2278,6 +2285,15 @@ public class WorldMapRenderer {
             java.util.Collections.sort(names);
             sb.append("_x").append(Integer.toHexString(names.hashCode()));
         }
+        // v0.4.2：与 cacheSuffixFor 对齐——阴影/高度图模式也进后缀，
+        // fallback 才命中同模式的"全部"段缓存（此前 _hm 缺失：高度图
+        // 模式 fallback 命中卫星图旧缓存，模式串扰）
+        if (!enableShading) {
+            sb.append("_ns");
+        }
+        if (netherHeightmapMode) {
+            sb.append("_hm");
+        }
         return sb.toString();
     }
 
@@ -2307,6 +2323,50 @@ public class WorldMapRenderer {
         int g = (int) (0x1E + (0xE6 - 0x1E) * t);
         int b = (int) (0x2E + (0xC8 - 0x2E) * t);
         return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    /** v0.4.2：下界某列表面 y（说明书 5.1）：从最高 subchunk 顶向下找
+     *  第一个非空气非基岩方块（穿透规则与 satellite 模式一致：默认只
+     *  穿透基岩天花板，设置页自定义剔除列表同款穿透）。找不到回退
+     *  hmap 值——官方高度图是生成器预测值，只能兜底不能当真。 */
+    private static int netherSurfaceY(Map<Integer, SubChunk> subs, int lx, int lz,
+                                      int fallback) {
+        if (subs == null || subs.isEmpty()) {
+            return fallback;
+        }
+        int maxSubTop = Integer.MIN_VALUE;
+        for (Integer s : subs.keySet()) {
+            if (s > maxSubTop) {
+                maxSubTop = s;
+            }
+        }
+        if (maxSubTop == Integer.MIN_VALUE) {
+            return fallback;
+        }
+        java.util.Set<String> ex = netherExcludeBlocks;
+        int yStart = Math.min(maxSubTop * 16 + 15, 320);
+        for (int y = yStart; y >= -64; y--) {
+            int si = Math.floorDiv(y, 16);
+            SubChunk sub = subs.get(si);
+            if (sub == null) {
+                continue;
+            }
+            int ly = y - si * 16;
+            int idx = sub.getIndex(lx, ly, lz);
+            String name = idx < sub.palette.length ? sub.palette[idx] : null;
+            if (name == null || isAirName(name)) {
+                continue;
+            }
+            if (ex == null) {
+                if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")) {
+                    continue;
+                }
+            } else if (ex.contains(name)) {
+                continue;
+            }
+            return y;
+        }
+        return fallback;
     }
 
     public static String cacheSuffixFor(int dimension) {
@@ -2353,16 +2413,22 @@ public class WorldMapRenderer {
     //      它们被矿石流式扫描丢弃，沿海 chunk 海列走回退（v446 绿色
     //      块根因，用户回溯 v426 正常 v446 异常）。旧缓存海区是回退
     //      色渲染，必须失效
-    private static final int SMALL_CACHE_VERSION = 3;
+    // v4：v0.4.2 下界地表渲染语义变化——默认穿透列表去掉 netherrack
+    //      （下界岩地表可见，说明书卫星图语义）。旧缓存是穿透渲染，
+    //      必须失效
+    private static final int SMALL_CACHE_VERSION = 4;
 
-    /** 小世界全图缓存文件（v395 新结构：<世界>/<维度>/small.bin）。
-     *  v413：阴影开关进文件名——切换后小世界缓存也作废。 */
+    /** 小世界全图缓存文件（v395 新结构：<世界>/<维度>/small<suffix>.bin）。
+     *  v413：阴影开关进文件名——切换后小世界缓存也作废。
+     *  v0.4.2：改用 cacheSuffixFor(dimension)（含阴影/下界 y 段/剔除
+     *  列表/高度图模式后缀）——此前缺 _hm/_y 后缀，下界模式切换后
+     *  命中同名旧缓存从不重烘（"卫星图/高度图切换无效"的根因）。 */
     private static File smallCacheFile(File dbDir, int dimension) {
-        String ns = enableShading ? "" : "_ns";
+        String suffix = cacheSuffixFor(dimension);
         if (sCacheBase != null) {
-            return new File(dimCacheDir(dbDir, dimension), "small" + ns + ".bin");
+            return new File(dimCacheDir(dbDir, dimension), "small" + suffix + ".bin");
         }
-        return new File(dbDir.getParentFile(), "map_small_" + dimension + ns + ".bin");
+        return new File(dbDir.getParentFile(), "map_small_" + dimension + suffix + ".bin");
     }
 
     /** 保存小世界全图缓存（colors 数组调色板压缩——打开秒开的依据）。 */
@@ -5300,9 +5366,12 @@ public class WorldMapRenderer {
     private static int surfaceColor(int height, int lx, int lz,
                                     Map<Integer, SubChunk> subs, byte[] biomes, int dimension) {
         // v0.4.0：下界高度图模式——海拔伪彩色渐变（低处熔岩海暗红紫，
-        // 高处近天花板米黄白），跳过方块取色直接返回
+        // 高处近天花板米黄白），跳过方块取色直接返回。
+        // v0.4.2：海拔按实际方块数据扫描（官方高度图是生成器预测值，
+        // 说明书 5.1 要求自行验证）；整列无表面 → 透明
         if (dimension == DIM_NETHER && netherHeightmapMode) {
-            return netherHeightColor(height);
+            int surfY = netherSurfaceY(subs, lx, lz, height);
+            return surfY < 0 ? COLOR_BACKGROUND : netherHeightColor(surfY);
         }
         int biomeId = biomes != null ? biomes[(lz << 4) | lx] & 0xFF : -1;
         int biomeColor = biomeId >= 0 ? biomeGrassColor(biomeId) : 0;
@@ -5358,15 +5427,14 @@ public class WorldMapRenderer {
                 if (ignoreLightBlocks && isLightSourceName(name)) {
                     continue;
                 }
-                // 下界剔除黑名单（设置页可选）：视为空气向下穿透，
-                // 用于看穿下界岩/灵魂沙显示矿物与洞穴。
-                // null = 默认硬编码剔除 bedrock+netherrack（基岩天花板 + 大面
-                // 积深红下界岩盖住地形细节）
+                // 下界剔除黑名单（设置页可选）：视为空气向下穿透。
+                // v0.4.2：null 默认只穿透基岩天花板（说明书 5.1）——
+                // 下界岩地表可见（卫星图语义：地表覆盖物必须显示）。
+                // 看穿地下的需求走设置页自定义剔除列表
                 if (dimension == DIM_NETHER) {
                     java.util.Set<String> ex = netherExcludeBlocks;
                     if (ex == null) {
-                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")
-                                || name.equals("minecraft:netherrack")) {
+                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")) {
                             continue;
                         }
                     } else if (ex.contains(name)) {

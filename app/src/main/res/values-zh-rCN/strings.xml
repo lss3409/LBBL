@@ -1531,7 +1531,7 @@
 <string name="nether_y_bottom">下部</string>
 <string name="nether_exclude_title">黑名单</string>
 <string name="nether_exclude_dialog_title">黑名单 · 剔除方块</string>
-<string name="nether_exclude_default">默认：基岩 + 下界岩</string>
+<string name="nether_exclude_default">默认：基岩</string>
 <string name="layer_grid">区块网格</string>
 <string name="layer_biome">生物群系</string>
 <string name="layer_ore">矿石标点（找矿）</string>

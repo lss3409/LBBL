@@ -1470,7 +1470,7 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="nether_y_bottom">下</string>
 <string name="nether_exclude_title">ブラックリスト</string>
 <string name="nether_exclude_dialog_title">ブラックリスト · 除外するブロック</string>
-<string name="nether_exclude_default">デフォルト：岩盤 + ネザーラック</string>
+<string name="nether_exclude_default">デフォルト：岩盤</string>
 <string name="layer_grid">チャンクグリッド</string>
 <string name="layer_biome">バイオーム</string>
 <string name="layer_ore">鉱石マーカー（鉱石を探す）</string>

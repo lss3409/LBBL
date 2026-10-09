@@ -1473,7 +1473,7 @@ La migración debe completarse antes de continuar con LeviLauncher.</string>
 <string name="nether_y_bottom">Inferior</string>
 <string name="nether_exclude_title">Lista negra</string>
 <string name="nether_exclude_dialog_title">Lista negra · Excluir bloques</string>
-<string name="nether_exclude_default">Predeterminado: roca madre + netherrack</string>
+<string name="nether_exclude_default">Predeterminado: roca madre</string>
 <string name="layer_grid">Cuadrícula de chunks</string>
 <string name="layer_biome">Biomas</string>
 <string name="layer_ore">Marcadores de minerales (encontrar menas)</string>
