@@ -184,16 +184,6 @@ public class WorldMapView extends View {
         return map.biomeIdAtBlock(bx, bz);
     }
 
-    /** v0.4.7：屏幕坐标 → 方块坐标（悬停 HUD 显示用），map 为空返回 null。 */
-    public int[] screenToBlock(float sx, float sy) {
-        if (map == null) {
-            return null;
-        }
-        int bx = (int) ((sx - (double) offsetX) / (double) pixelsPerBlock) + map.minBlockX;
-        int bz = (int) ((sy - (double) offsetY) / (double) pixelsPerBlock) + map.minBlockZ;
-        return new int[]{bx, bz};
-    }
-
     /** 清空全部 chunk 渲染数据（渲染参数变化时调用——如忽略光源开关）：
      *  只清 chunkColors 不够——旧 tile/LOD 会残留旧渲染结果
      *  （"开了忽略光源还是显示黄色"的根因）。 */
@@ -392,8 +382,12 @@ public class WorldMapView extends View {
         return (float) ((double) offsetY + (worldBlockZ - map.minBlockZ) * (double) pixelsPerBlock);
     }
 
-    /** 屏幕坐标 → 世界 block 坐标（double 计算，同精度修复）。 */
+    /** 屏幕坐标 → 世界 block 坐标（double 计算，同精度修复）。
+     *  v0.4.7：map 为空返回 null（悬停 HUD 查询时防 NPE）。 */
     public int[] screenToBlock(float sx, float sy) {
+        if (map == null) {
+            return null;
+        }
         int bx = (int) ((sx - (double) offsetX) / (double) pixelsPerBlock) + map.minBlockX;
         int bz = (int) ((sy - (double) offsetY) / (double) pixelsPerBlock) + map.minBlockZ;
         return new int[]{bx, bz};
