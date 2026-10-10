@@ -131,6 +131,8 @@ public class WorldMapRenderer {
     private static final Map<String, Integer> blockColorTable = new HashMap<>();
     /** 半透明方块 alpha（仅 glass/ice 类，bedrockmap 色表语义）。 */
     private static final Map<String, Integer> blockAlphaTable = new HashMap<>();
+    /** v0.4.7：biome id → 英文名（biome_color.json 反向表，光标悬停显示群系名用）。 */
+    private static final Map<Integer, String> biomeIdNames = new HashMap<>();
 
     private WorldMapRenderer() {
     }
@@ -151,6 +153,7 @@ public class WorldMapRenderer {
                 org.json.JSONObject entry = biomes.getJSONObject(key);
                 if (entry.has("id") && entry.has("rgb")) {
                     int id = entry.getInt("id");
+                    biomeIdNames.put(id, key); // v0.4.7：id→名（悬停显示用）
                     int[] rgb = readRgb3(entry.optJSONArray("rgb"));
                     // bedrock-level color.cpp 语义：biome_grass_map 只存有 grass 键的条目，
                     // 找不到时 blend_with_biome 用 default_grass_color。不能回退 rgb——
@@ -1166,6 +1169,27 @@ public class WorldMapRenderer {
         /** 出生点位置（block 坐标，-1 = 无） */
         public int spawnBlockX = -1;
         public int spawnBlockZ = -1;
+
+        /** v0.4.7：方块坐标处的群系 id（手柄光标悬停显示群系名用）。
+         *  小世界走全图 biomeColors；大世界走 chunkBiomeColors。 */
+        public int biomeIdAtBlock(int bx, int bz) {
+            if (biomeColors != null) {
+                int lx = bx - minBlockX;
+                int lz = bz - minBlockZ;
+                if (lx >= 0 && lz >= 0 && lx < width && lz < height) {
+                    return biomeColors[lz * width + lx];
+                }
+                return -1;
+            }
+            if (chunkBiomeColors != null) {
+                int[] chunk = chunkBiomeColors.get(pack(Math.floorDiv(bx, 16), Math.floorDiv(bz, 16)));
+                if (chunk != null) {
+                    int idx = (bz & 15) << 4 | (bx & 15);
+                    return idx < chunk.length ? chunk[idx] : -1;
+                }
+            }
+            return -1;
+        }
 
         WorldMap(int minBlockX, int minBlockZ, int width, int height, int[] colors, int[] biomeColors) {
             this.minBlockX = minBlockX;
@@ -2390,6 +2414,11 @@ public class WorldMapRenderer {
             return y;
         }
         return fallback;
+    }
+
+    /** v0.4.7：biome id → 英文名（biome_color.json 反向表；未知返回 null）。 */
+    public static String biomeName(int id) {
+        return biomeIdNames.get(id);
     }
 
     public static String cacheSuffixFor(int dimension) {

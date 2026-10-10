@@ -109,13 +109,22 @@ public class BaseActivity extends AppCompatActivity {
                     return onGamepadTabSwitch(-1);
                 case android.view.KeyEvent.KEYCODE_BUTTON_R1:
                     return onGamepadTabSwitch(1);
-                // v0.4.4：X=上滚 Y=下滚（页面内容超出屏幕时专用滚动键）
+                // v0.4.7：R3 按住 = 拖拽模式（配合右摇杆拖动地图/视图）
+                case android.view.KeyEvent.KEYCODE_BUTTON_THUMBR:
+                    r3Held = true;
+                    return true;
+                // v0.4.7：X=缩小 Y=放大（地图页缩放卫星图；滚动改 LT/RT）
                 case android.view.KeyEvent.KEYCODE_BUTTON_X:
-                    return scrollGamepadContent(-1);
+                    return onGamepadZoom(1 / 1.25f);
                 case android.view.KeyEvent.KEYCODE_BUTTON_Y:
-                    return scrollGamepadContent(1);
+                    return onGamepadZoom(1.25f);
                 default:
                     break;
+            }
+        } else if (event.getAction() == android.view.KeyEvent.ACTION_UP) {
+            if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BUTTON_THUMBR) {
+                r3Held = false;
+                return true;
             }
         }
         return super.dispatchKeyEvent(event);
@@ -124,6 +133,8 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     public boolean dispatchGenericMotionEvent(android.view.MotionEvent event) {
         if (event.getAction() == android.view.MotionEvent.ACTION_MOVE) {
+            // v0.4.7：LT/RT 触发 = 上下滑动页面（替代 v0.4.4 的 X/Y 滚动键）
+            handleGamepadTriggers(event);
             // v0.3.0：右摇杆（AXIS_Z/AXIS_RZ）移动虚拟光标
             float rx = event.getAxisValue(android.view.MotionEvent.AXIS_Z);
             float ry = event.getAxisValue(android.view.MotionEvent.AXIS_RZ);
@@ -321,6 +332,17 @@ public class BaseActivity extends AppCompatActivity {
                             ? 16_666_666L : frameTimeNanos - cursorLastFrameNanos;
                     cursorLastFrameNanos = frameTimeNanos;
                     float step = 1375f * (dt / 1e9f);
+                    if (r3Held) {
+                        // v0.4.7：R3+右摇杆=拖拽视图（类似鼠标按住右键
+                        // 拖动），光标隐藏、位置不动
+                        if (gamepadCursor.getVisibility() == android.view.View.VISIBLE) {
+                            gamepadCursor.setVisibility(android.view.View.GONE);
+                        }
+                        onGamepadMapPan(cursorRx * step, cursorRy * step);
+                        android.view.Choreographer.getInstance()
+                                .postFrameCallback(this);
+                        return;
+                    }
                     float d = getResources().getDisplayMetrics().density;
                     cursorX = Math.max(0, Math.min(
                             getResources().getDisplayMetrics().widthPixels,
@@ -340,6 +362,8 @@ public class BaseActivity extends AppCompatActivity {
                             outlineSuppressedByCursor = true;
                         }
                     }
+                    // v0.4.7：悬停回调（地图页显示群系名）
+                    onGamepadCursorHover(cursorX, cursorY);
                     android.view.Choreographer.getInstance().postFrameCallback(this);
                 }
             };
@@ -374,6 +398,49 @@ public class BaseActivity extends AppCompatActivity {
             cursorFramePosted = true;
             android.view.Choreographer.getInstance().postFrameCallback(cursorFrame);
         }
+    }
+
+    // ---------- v0.4.7：地图操作组合键 ----------
+    /** R3 按住状态：按住 R3 时右摇杆从移动光标变为拖动视图
+     *  （类似鼠标按住右键拖动）。 */
+    private boolean r3Held;
+    private long lastGamepadScroll;
+    /** LT/RT 触发：滚动当前可滚动容器（上下滑页）。 */
+    private void handleGamepadTriggers(android.view.MotionEvent event) {
+        float lt = event.getAxisValue(android.view.MotionEvent.AXIS_BRAKE);
+        float rt = event.getAxisValue(android.view.MotionEvent.AXIS_GAS);
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastGamepadScroll < 220) {
+            return;
+        }
+        int dir = 0;
+        if (lt > 0.5f) {
+            dir = -1; // LT = 上滑
+        } else if (rt > 0.5f) {
+            dir = 1;  // RT = 下滑
+        }
+        if (dir != 0) {
+            lastGamepadScroll = now;
+            onGamepadScroll(dir);
+        }
+    }
+
+    /** 地图/视图缩放（X=缩小 Y=放大）；默认滚页面内容兜底。 */
+    protected boolean onGamepadZoom(float factor) {
+        return false;
+    }
+
+    /** LT/RT 滚动页面；默认 scrollGamepadContent。 */
+    protected boolean onGamepadScroll(int dir) {
+        return scrollGamepadContent(dir);
+    }
+
+    /** R3+右摇杆拖动视图（每帧 dx/dy 像素）；默认不处理。 */
+    protected void onGamepadMapPan(float dxPx, float dyPx) {
+    }
+
+    /** 光标位置悬停回调（显示群系名等）；默认不处理。 */
+    protected void onGamepadCursorHover(float x, float y) {
     }
 
     private boolean isGamepadCursorVisible() {
@@ -412,6 +479,11 @@ public class BaseActivity extends AppCompatActivity {
             gamepadCursor.setVisibility(View.GONE);
         }
         restoreOutlineAfterCursor();
+        onGamepadCursorHidden();
+    }
+
+    /** v0.4.7：光标隐藏回调（地图页恢复 HUD 坐标显示等）。 */
+    protected void onGamepadCursorHidden() {
     }
 
     /** 光标隐藏后恢复焦点描边（若期间被压制）。 */

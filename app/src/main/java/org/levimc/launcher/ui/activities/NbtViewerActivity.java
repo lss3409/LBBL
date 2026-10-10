@@ -35,6 +35,7 @@ import org.levimc.launcher.core.content.nbt.BedrockNbtReader;
 import org.levimc.launcher.core.content.nbt.BedrockNbtWriter;
 import org.levimc.launcher.core.content.nbt.NbtTag;
 import org.levimc.launcher.core.content.worldmap.WorldMapRenderer;
+import org.levimc.launcher.core.content.worldmap.BiomeNames;
 import org.levimc.launcher.databinding.ActivityNbtViewerBinding;
 import org.levimc.launcher.databinding.ItemNbtDbEntryBinding;
 import org.levimc.launcher.ui.animation.DynamicAnim;
@@ -1184,6 +1185,63 @@ public class NbtViewerActivity extends BaseActivity {
         binding.mapToolMenu.setVisibility(View.GONE);
         // 收起时 × 转回加号（若动画中途打断，直接复位）
         binding.mapFab.animate().rotation(0f).setDuration(180).start();
+    }
+
+    // ---------- v0.4.7：手柄地图操作（R3 拖动 / X Y 缩放）+ 群系悬停 ----------
+
+    /** R3+右摇杆：拖动卫星图（类似鼠标按住右键拖动）。 */
+    @Override
+    protected void onGamepadMapPan(float dxPx, float dyPx) {
+        binding.worldMapImage.panBy(dxPx, dyPx);
+    }
+
+    /** X=缩小 Y=放大：围绕屏幕中心缩放卫星图。 */
+    @Override
+    protected boolean onGamepadZoom(float factor) {
+        binding.worldMapImage.zoomBy(factor);
+        return true;
+    }
+
+    /** 光标悬停：HUD 显示该处群系名（400ms 节流）。 */
+    @Override
+    protected void onGamepadCursorHover(float x, float y) {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastBiomeHover < 400) {
+            return;
+        }
+        lastBiomeHover = now;
+        int biomeId = binding.worldMapImage.biomeIdAt(x, y);
+        if (biomeId < 0) {
+            return;
+        }
+        String name = BiomeNames.displayName(WorldMapRenderer.biomeName(biomeId));
+        if (name == null) {
+            return;
+        }
+        int[] block = binding.worldMapImage.screenToBlock(x, y);
+        String coord = block != null ? "X: " + block[0] + "  Z: " + block[1] + "  ·  " : "";
+        binding.mapHud.setText(coord + "群系：" + name
+                + "  ·  " + dimName(mapDimension)
+                + "  ·  ×" + String.format(java.util.Locale.getDefault(),
+                "%.2f", binding.worldMapImage.getPixelsPerBlock()));
+        hoverHudActive = true;
+    }
+
+    private long lastBiomeHover;
+    private boolean hoverHudActive;
+
+    /** 光标隐藏：HUD 恢复视口中心坐标显示。 */
+    @Override
+    protected void onGamepadCursorHidden() {
+        if (!hoverHudActive) {
+            return;
+        }
+        hoverHudActive = false;
+        binding.mapHud.setText("X: " + viewCenterX.get()
+                + "  Z: " + viewCenterZ.get()
+                + "  ·  " + dimName(mapDimension)
+                + "  ·  ×" + String.format(java.util.Locale.getDefault(),
+                "%.2f", binding.worldMapImage.getPixelsPerBlock()));
     }
 
     /** v474：解析坐标跳转输入——支持 50，50 / 50 50 /（50，50），

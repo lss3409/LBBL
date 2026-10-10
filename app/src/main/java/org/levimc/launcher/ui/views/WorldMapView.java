@@ -146,6 +146,54 @@ public class WorldMapView extends View {
         return pixelsPerBlock;
     }
 
+    /** v0.4.7：手柄平移（R3+右摇杆拖动地图），屏幕像素单位。 */
+    public void panBy(float dxPx, float dyPx) {
+        offsetX += dxPx;
+        offsetY += dyPx;
+        tapBlockX = -1;
+        tapBlockZ = -1;
+        clampTranslation();
+        invalidate();
+        notifyViewChanged();
+    }
+
+    /** v0.4.7：手柄缩放（屏幕中心锚点），factor>1 放大 <1 缩小。 */
+    public void zoomBy(float factor) {
+        if (map == null || factor <= 0f || Float.isNaN(factor) || Float.isInfinite(factor)) {
+            return;
+        }
+        float newPpb = clampPixelsPerBlock(pixelsPerBlock * factor);
+        float applied = newPpb / pixelsPerBlock;
+        float cx = getWidth() / 2f;
+        float cy = getHeight() / 2f;
+        offsetX = cx - (cx - offsetX) * applied;
+        offsetY = cy - (cy - offsetY) * applied;
+        setPpb(newPpb);
+        clampTranslation();
+        invalidate();
+        notifyViewChanged();
+    }
+
+    /** v0.4.7：屏幕坐标处群系 id（手柄光标悬停显示群系名用）。 */
+    public int biomeIdAt(float sx, float sy) {
+        if (map == null) {
+            return -1;
+        }
+        int bx = (int) ((sx - (double) offsetX) / (double) pixelsPerBlock) + map.minBlockX;
+        int bz = (int) ((sy - (double) offsetY) / (double) pixelsPerBlock) + map.minBlockZ;
+        return map.biomeIdAtBlock(bx, bz);
+    }
+
+    /** v0.4.7：屏幕坐标 → 方块坐标（悬停 HUD 显示用），map 为空返回 null。 */
+    public int[] screenToBlock(float sx, float sy) {
+        if (map == null) {
+            return null;
+        }
+        int bx = (int) ((sx - (double) offsetX) / (double) pixelsPerBlock) + map.minBlockX;
+        int bz = (int) ((sy - (double) offsetY) / (double) pixelsPerBlock) + map.minBlockZ;
+        return new int[]{bx, bz};
+    }
+
     /** 清空全部 chunk 渲染数据（渲染参数变化时调用——如忽略光源开关）：
      *  只清 chunkColors 不够——旧 tile/LOD 会残留旧渲染结果
      *  （"开了忽略光源还是显示黄色"的根因）。 */
