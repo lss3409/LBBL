@@ -3,7 +3,9 @@ package org.levimc.launcher.core.curseforge;
 import org.levimc.launcher.BuildConfig;
 import com.google.gson.Gson;
 
+import org.levimc.launcher.core.curseforge.models.CategoriesResponse;
 import org.levimc.launcher.core.curseforge.models.ContentSearchResponse;
+import org.levimc.launcher.core.curseforge.models.GameVersionsResponse;
 import org.levimc.launcher.core.curseforge.models.ModFilesResponse;
 import org.levimc.launcher.core.curseforge.models.StringResponse;
 
@@ -79,11 +81,11 @@ public class CurseForgeClient {
                 }
                 try {
                     String json = response.body().string();
-                    models.GameVersionsResponse r = gson.fromJson(json,
-                            models.GameVersionsResponse.class);
+                    GameVersionsResponse r = gson.fromJson(json,
+                            GameVersionsResponse.class);
                     java.util.List<String> names = new java.util.ArrayList<>();
                     if (r != null && r.data != null) {
-                        for (models.GameVersionsResponse.GameVersion v : r.data) {
+                        for (GameVersionsResponse.GameVersion v : r.data) {
                             if (v.name != null) {
                                 names.add(v.name);
                             }
@@ -99,7 +101,7 @@ public class CurseForgeClient {
 
     /** v0.4.8：分类树（GDK 版 GetCurseForgeCategories 同款）：isClass=大类，
      *  其余为分类，分类跟随所选大类联动。 */
-    public void getCategories(CurseForgeCallback<java.util.List<models.CategoriesResponse.CategoryData>> callback) {
+    public void getCategories(CurseForgeCallback<java.util.List<CategoriesResponse.CategoryData>> callback) {
         HttpUrl url = HttpUrl.parse(BASE_URL + "/v1/categories").newBuilder()
                 .addQueryParameter("gameId", String.valueOf(GAME_ID_MINECRAFT))
                 .build();
@@ -122,8 +124,8 @@ public class CurseForgeClient {
                 }
                 try {
                     String json = response.body().string();
-                    models.CategoriesResponse r = gson.fromJson(json,
-                            models.CategoriesResponse.class);
+                    CategoriesResponse r = gson.fromJson(json,
+                            CategoriesResponse.class);
                     callback.onSuccess(r != null && r.data != null ? r.data
                             : java.util.Collections.emptyList());
                 } catch (Exception e) {
