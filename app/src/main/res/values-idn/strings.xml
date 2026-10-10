@@ -1496,7 +1496,7 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="nether_y_bottom">Bawah</string>
 <string name="nether_exclude_title">Daftar hitam</string>
 <string name="nether_exclude_dialog_title">Daftar hitam · Kecualikan blok</string>
-<string name="nether_exclude_default">Bawaan: bedrock</string>
+<string name="nether_exclude_default">Bawaan: bedrock + netherrack + pasir jiwa</string>
 <string name="layer_grid">Kisi chunk</string>
 <string name="layer_biome">Bioma</string>
 <string name="layer_ore">Penanda bijih (cari bijih)</string>

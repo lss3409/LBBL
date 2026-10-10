@@ -1473,7 +1473,7 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="nether_y_bottom">Bas</string>
 <string name="nether_exclude_title">Liste noire</string>
 <string name="nether_exclude_dialog_title">Liste noire · Exclure des blocs</string>
-<string name="nether_exclude_default">Par défaut : bedrock</string>
+<string name="nether_exclude_default">Par défaut : bedrock + netherrack + sable des âmes</string>
 <string name="layer_grid">Grille de chunks</string>
 <string name="layer_biome">Biomes</string>
 <string name="layer_ore">Marqueurs de minerais (trouver des minerais)</string>

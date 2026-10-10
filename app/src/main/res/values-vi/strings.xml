@@ -1502,7 +1502,7 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="nether_y_bottom">Dưới</string>
 <string name="nether_exclude_title">Danh sách chặn</string>
 <string name="nether_exclude_dialog_title">Danh sách chặn · Loại trừ khối</string>
-<string name="nether_exclude_default">Mặc định: bedrock</string>
+<string name="nether_exclude_default">Mặc định: bedrock + netherrack + cát linh hồn</string>
 <string name="layer_grid">Lưới chunk</string>
 <string name="layer_biome">Quần xã</string>
 <string name="layer_ore">Đánh dấu quặng (tìm quặng)</string>

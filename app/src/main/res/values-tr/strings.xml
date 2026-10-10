@@ -1499,7 +1499,7 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="nether_y_bottom">Alt</string>
 <string name="nether_exclude_title">Kara liste</string>
 <string name="nether_exclude_dialog_title">Kara liste · Blokları hariç tut</string>
-<string name="nether_exclude_default">Varsayılan: ana kaya</string>
+<string name="nether_exclude_default">Varsayılan: ana kaya + netherrack + ruh kumu</string>
 <string name="layer_grid">Yığın ızgarası</string>
 <string name="layer_biome">Biyomlar</string>
 <string name="layer_ore">Cevher işaretleri (cevherleri bul)</string>

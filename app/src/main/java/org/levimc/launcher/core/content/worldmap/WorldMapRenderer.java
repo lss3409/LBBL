@@ -935,7 +935,7 @@ public class WorldMapRenderer {
         // smooth step: 6x^5 - 15x^4 + 10x^3
         yNorm = ((6f * yNorm2) - (15f * yNorm) + 10f) * yNorm2 * yNorm;
 
-        float shading = btrHeightShading(height, heightW, heightN);
+        float shading = btrHeightShading(height, heightW, heightN, DIM_OVERWORLD);
 
         int r = (int) (yNorm * shading * 256f);
         int g = (int) (70f * shading);
@@ -947,9 +947,11 @@ public class WorldMapRenderer {
         return 0xff000000 | (r << 16) | (g << 8) | b;
     }
 
-    /** BTR SatelliteRenderer.getHeightShading：坡度阴影（atan 压缩高度差）。 */
-    private static float btrHeightShading(int height, int heightW, int heightN) {
-        float shadingAmp = 0.8f;
+    /** BTR SatelliteRenderer.getHeightShading：坡度阴影（atan 压缩高度差）。
+     *  v0.4.6：下界幅度减半——下界方块色本身偏暗（netherrack 暗红），
+     *  0.8 幅度叠加后暗部发黑（用户实测"方块显示会发黑"）。 */
+    private static float btrHeightShading(int height, int heightW, int heightN, int dimension) {
+        float shadingAmp = dimension == DIM_NETHER ? 0.45f : 0.8f;
         int samples = 0;
         float heightDiff = 0;
         if (heightW > 0) {
@@ -1013,11 +1015,11 @@ public class WorldMapRenderer {
                 }
                 if (dimension == DIM_NETHER) {
                     if (ex == null) {
-                        // v0.4.2：默认只穿透基岩天花板（说明书 5.1：Y=127
-                        // 基岩排除，下界岩地表必须可见）。v270 老行为把
-                        // netherrack 也穿透，大面积下界岩地表被看穿，
-                        // 显示地下方块/回退色——"卫星图像高度图"的根因之一
-                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")) {
+                        // v0.4.6：默认穿透基岩天花板+下界岩+灵魂沙
+                        // （用户实测"排除地狱岩跟灵魂沙才能较直观展现"）
+                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")
+                                || name.equals("minecraft:netherrack")
+                                || name.equals("minecraft:soul_sand")) {
                             continue;
                         }
                     } else if (ex.contains(name)) {
@@ -1031,7 +1033,7 @@ public class WorldMapRenderer {
         return hmap;
     }
 
-    private static int applyShading(int color, int[] hmap, int i) {
+    private static int applyShading(int color, int[] hmap, int i, int dimension) {
         if (!enableShading) {
             return color; // v397 设置区开关：平面色块
         }
@@ -1043,7 +1045,7 @@ public class WorldMapRenderer {
         int h = hmap[i];
         int hW = lx > 0 ? hmap[i - 1] : h;
         int hN = lz > 0 ? hmap[i - 16] : h;
-        float shading = btrHeightShading(h, hW, hN);
+        float shading = btrHeightShading(h, hW, hN, dimension);
         int r = Math.min(255, (int) (((color >> 16) & 0xFF) * shading));
         int g = Math.min(255, (int) (((color >> 8) & 0xFF) * shading));
         int b = Math.min(255, (int) ((color & 0xFF) * shading));
@@ -1609,7 +1611,7 @@ public class WorldMapRenderer {
                 }
                 int hW = px > 0 ? heights[idx - 1] : h;
                 int hN = pz > 0 ? heights[idx - width] : h;
-                float shading = btrHeightShading(h, hW, hN);
+                float shading = btrHeightShading(h, hW, hN, dimension);
                 int r = Math.min(255, (int) (((c >> 16) & 0xFF) * shading));
                 int g = Math.min(255, (int) (((c >> 8) & 0xFF) * shading));
                 int b = Math.min(255, (int) ((c & 0xFF) * shading));
@@ -2054,7 +2056,7 @@ public class WorldMapRenderer {
             int h = hmap[i];
             int color = surfaceColor(h, lx, lz, subs, biomes, dimension);
             // BTR 坡度阴影（樱花树冠/山地的立体感来源；chunk 边界取自身高度）
-            color = applyShading(color, hmap, i);
+            color = applyShading(color, hmap, i, dimension);
             colors[i] = color;
             if ((color & 0xFF000000) != 0) {
                 hasAny = true;
@@ -2109,7 +2111,7 @@ public class WorldMapRenderer {
     //      （下界岩地表可见，说明书卫星图语义）。旧缓存是穿透渲染，
     //      必须失效
     // v23：v0.4.5 下界高度图无数据列透明化 + 四段彩色渐变
-    private static final int MAP_CACHE_VERSION = 23;
+    private static final int MAP_CACHE_VERSION = 24;
 
     /** 缓存根目录（应用私有，卸载即清——缓存可再生）。null 时回退旧路径。 */
     private static java.io.File sCacheBase;
@@ -2376,7 +2378,10 @@ public class WorldMapRenderer {
                 continue;
             }
             if (ex == null) {
-                if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")) {
+                // v0.4.6：与 surfaceColor 默认穿透一致（基岩+下界岩+灵魂沙）
+                if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")
+                        || name.equals("minecraft:netherrack")
+                        || name.equals("minecraft:soul_sand")) {
                     continue;
                 }
             } else if (ex.contains(name)) {
@@ -2436,7 +2441,7 @@ public class WorldMapRenderer {
     //      必须失效
     // v5：v0.4.5 下界高度图无数据列透明化 + 四段彩色渐变（旧缓存是
     //      预测值米黄白/灰棕两段渐变渲染，必须失效）
-    private static final int SMALL_CACHE_VERSION = 5;
+    private static final int SMALL_CACHE_VERSION = 6;
 
     /** 小世界全图缓存文件（v395 新结构：<世界>/<维度>/small<suffix>.bin）。
      *  v413：阴影开关进文件名——切换后小世界缓存也作废。
@@ -4205,7 +4210,7 @@ public class WorldMapRenderer {
                 int lx = i & 15;
                 int lz = i >> 4;
                 int c = surfaceColor(hmap[i], lx, lz, subs, biomes, dimension);
-                colors[i] = applyShading(c, hmap, i);
+                colors[i] = applyShading(c, hmap, i, dimension);
                 if (biomeCols != null) {
                     biomeCols[i] = biomeGrassColor(biomes[i] & 0xFF);
                 }
@@ -5446,6 +5451,12 @@ public class WorldMapRenderer {
                 if (name == null || isAirName(name)) {
                     continue;
                 }
+                // v0.4.6：熔岩=实体方块——亮橙直接返回，岩浆底下的
+                // 方块不再显示（用户实测要求：岩浆湖下方基岩被默认
+                // 剔除穿透后露出更底层内容，视觉上是"岩浆被看穿"）
+                if (isLavaName(name)) {
+                    return 0xFFFF5A00;
+                }
                 // 忽略光源方块（设置页开关）：火把/灯笼/蜡烛等非固体光源
                 // 俯视图渲染成黄色杂点——生电建筑周围插满火把时"边缘一圈
                 // 黄色"的根因。视为空气向下穿透显示地表（卫星图语义）
@@ -5453,13 +5464,16 @@ public class WorldMapRenderer {
                     continue;
                 }
                 // 下界剔除黑名单（设置页可选）：视为空气向下穿透。
-                // v0.4.2：null 默认只穿透基岩天花板（说明书 5.1）——
-                // 下界岩地表可见（卫星图语义：地表覆盖物必须显示）。
-                // 看穿地下的需求走设置页自定义剔除列表
+                // v0.4.6：null 默认剔除基岩天花板+下界岩+灵魂沙——用户
+                // 实测"排除地狱岩跟灵魂沙才能较直观的展现"（看穿地表
+                // 大片暗红覆盖，直接见熔岩湖/地下结构）。v0.4.2 的
+                // "只剔基岩"行为作废
                 if (dimension == DIM_NETHER) {
                     java.util.Set<String> ex = netherExcludeBlocks;
                     if (ex == null) {
-                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")) {
+                        if (name.equals("minecraft:bedrock") || name.endsWith("bedrock")
+                                || name.equals("minecraft:netherrack")
+                                || name.equals("minecraft:soul_sand")) {
                             continue;
                         }
                     } else if (ex.contains(name)) {
@@ -5607,6 +5621,11 @@ public class WorldMapRenderer {
     /** 水方块（含流动水）判定。 */
     private static boolean isWaterName(String name) {
         return name.equals("minecraft:water") || name.equals("minecraft:flowing_water");
+    }
+
+    /** v0.4.6：熔岩判定（熔岩=实体方块：亮橙直接返回，底下不显示）。 */
+    private static boolean isLavaName(String name) {
+        return name.equals("minecraft:lava") || name.equals("minecraft:flowing_lava");
     }
 
     /**
