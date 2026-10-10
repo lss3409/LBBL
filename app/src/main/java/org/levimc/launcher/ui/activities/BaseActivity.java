@@ -79,15 +79,20 @@ public class BaseActivity extends AppCompatActivity {
         if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
             // 手柄任何按键：退出触屏模式，恢复焦点描边（触屏时被隐藏）
             onGamepadInputResume();
+            // v0.4.10：非 A 键 = 显式切回焦点模式（A 键在光标可见时
+            // 是光标点击语义，不切模式）
+            if (isGamepadCursorVisible()
+                    && event.getKeyCode() != android.view.KeyEvent.KEYCODE_BUTTON_A) {
+                hideGamepadCursor();
+                restoreOutlineAfterCursor();
+            }
             switch (event.getKeyCode()) {
                 case android.view.KeyEvent.KEYCODE_DPAD_UP:
                 case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
                 case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
                 case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
-                    // 光标活跃时输入只信任光标，D-pad 焦点导航让位
-                    if (isGamepadCursorVisible()) {
-                        return true;
-                    }
+                    // v0.4.10：D-pad = 显式切回焦点模式（moveGamepadFocus
+                    // 内部先隐藏光标恢复描边再导航）
                     return moveGamepadFocus(event.getKeyCode()
                             == android.view.KeyEvent.KEYCODE_DPAD_UP ? View.FOCUS_UP
                             : event.getKeyCode() == android.view.KeyEvent.KEYCODE_DPAD_DOWN
@@ -146,11 +151,8 @@ public class BaseActivity extends AppCompatActivity {
                 moveGamepadCursor();
                 return true;
             }
-            // v0.4.4：光标活跃时输入只信任光标——左摇杆焦点导航让位，
-            // 避免「光标在动、焦点描边还在跳」的误触
-            if (isGamepadCursorVisible()) {
-                return true;
-            }
+            // v0.4.10：左摇杆 = 显式切回焦点模式（moveGamepadFocus
+            // 内部先隐藏光标恢复描边再导航），不再"光标让位吞掉输入"
             onGamepadInputResume();
             float hatX = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_X);
             float hatY = event.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
@@ -177,6 +179,12 @@ public class BaseActivity extends AppCompatActivity {
     }
 
     private boolean moveGamepadFocus(int direction) {
+        // v0.4.10：焦点导航 = 显式切回焦点模式（光标可见时先隐藏并
+        // 恢复描边，不再"光标让位吞掉输入"）
+        if (isGamepadCursorVisible()) {
+            hideGamepadCursor();
+            restoreOutlineAfterCursor();
+        }
         View current = getCurrentFocus();
         if (current == null) {
             // v0.4.4：无焦点（刚切 tab/触屏清焦后）→ 落到子类指定首页
@@ -293,7 +301,8 @@ public class BaseActivity extends AppCompatActivity {
     /** 光标可见期间焦点描边被压制（避免「光标在动、描边还在跳」的
      *  双指示器冲突），隐藏后恢复。 */
     private boolean outlineSuppressedByCursor;
-    /** 摇杆归中 600ms 后自动隐藏光标（恢复焦点导航）。 */
+    /** v0.4.10：摇杆归中 5s 后自动隐藏光标。模式不自动切换——
+     *  只有主动动左摇杆/D-pad/其它按键才切回焦点模式（描边恢复）。 */
     private final Runnable cursorHideTask = new Runnable() {
         @Override
         public void run() {
@@ -315,12 +324,14 @@ public class BaseActivity extends AppCompatActivity {
                     boolean active = Math.abs(cursorRx) > 0.15f
                             || Math.abs(cursorRy) > 0.15f;
                     if (!active) {
-                        // 摇杆回中：停帧，600ms 后自动隐藏（光标让位
-                        // 焦点导航）；期间再动摇杆则取消隐藏
+                        // 摇杆回中：停帧，5s 后自动隐藏（v0.4.10 改，
+                        // 此前 600ms 太短"光标立刻消失"）；期间再动
+                        // 摇杆则取消隐藏。隐藏不恢复描边——模式切换
+                        // 只由左摇杆/D-pad/其它按键显式触发
                         cursorFramePosted = false;
                         cursorLastFrameNanos = 0;
                         gamepadCursor.removeCallbacks(cursorHideTask);
-                        gamepadCursor.postDelayed(cursorHideTask, 600);
+                        gamepadCursor.postDelayed(cursorHideTask, 5000);
                         return;
                     }
                     gamepadCursor.removeCallbacks(cursorHideTask);
@@ -350,9 +361,10 @@ public class BaseActivity extends AppCompatActivity {
                     cursorY = Math.max(0, Math.min(
                             getResources().getDisplayMetrics().heightPixels,
                             cursorY + cursorRy * step));
-                    // 尖端锚定：贴图箭头尖端在 viewport (357,70)/1820×1024
-                    gamepadCursor.setTranslationX(cursorX - 4.7f * d);
-                    gamepadCursor.setTranslationY(cursorY - 0.9f * d);
+                    // 尖端锚定：箭头尖端在 viewport (357,70)/1820×1024，
+                    // 内嵌偏移 (12,12)dp（v0.4.10 光晕版）
+                    gamepadCursor.setTranslationX(cursorX - 16.7f * d);
+                    gamepadCursor.setTranslationY(cursorY - 12.9f * d);
                     if (gamepadCursor.getVisibility() != android.view.View.VISIBLE) {
                         gamepadCursor.setVisibility(android.view.View.VISIBLE);
                         // 光标出现：压制焦点描边，输入只信任光标
@@ -373,12 +385,26 @@ public class BaseActivity extends AppCompatActivity {
             return;
         }
         // v0.4.3：用户提供 SVG 贴图（白箭头 + 黑描边，drawable/gamepad_cursor）
+        // v0.4.10：底部加白色径向光晕（gamepad_cursor_glow）提升可见度；
+        // View 52×52，箭头 24×13.5 内嵌在 (12,12) 处，尖端锚点
+        // (12+4.7, 12+0.9)dp——参考主流手柄 UI 的发光光标设计
         android.widget.ImageView iv = new android.widget.ImageView(this);
-        iv.setImageResource(R.drawable.gamepad_cursor);
         float d = getResources().getDisplayMetrics().density;
-        int w = (int) (24 * d);
-        int h = (int) (13.5f * d);
-        iv.setLayoutParams(new ViewGroup.LayoutParams(w, h));
+        int size = (int) (52 * d);
+        android.graphics.drawable.Drawable glow =
+                ContextCompat.getDrawable(this, R.drawable.gamepad_cursor_glow);
+        android.graphics.drawable.Drawable arrow =
+                ContextCompat.getDrawable(this, R.drawable.gamepad_cursor);
+        android.graphics.drawable.LayerDrawable layer =
+                new android.graphics.drawable.LayerDrawable(
+                        new android.graphics.drawable.Drawable[]{glow, arrow});
+        int arrowL = (int) (12 * d);
+        int arrowT = (int) (12 * d);
+        layer.setLayerInset(1, arrowL, arrowT,
+                size - arrowL - (int) (24 * d),
+                size - arrowT - (int) (13.5f * d));
+        iv.setImageDrawable(layer);
+        iv.setLayoutParams(new ViewGroup.LayoutParams(size, size));
         // 高 elevation 保证图层排序盖过按钮/FAB；outline 置空不画系统
         // 阴影（贴图自带黑描边）。translation 每帧变化时系统阴影区域
         // 整块重绘是卡顿来源之一
@@ -478,7 +504,9 @@ public class BaseActivity extends AppCompatActivity {
             gamepadCursor.removeCallbacks(cursorHideTask);
             gamepadCursor.setVisibility(View.GONE);
         }
-        restoreOutlineAfterCursor();
+        // v0.4.10：隐藏不再恢复描边——模式切换只由左摇杆/D-pad/
+        // 其它按键显式触发（restoreOutlineAfterCursor 改由
+        // moveGamepadFocus 与手柄按键调用）
         onGamepadCursorHidden();
     }
 
@@ -486,7 +514,7 @@ public class BaseActivity extends AppCompatActivity {
     protected void onGamepadCursorHidden() {
     }
 
-    /** 光标隐藏后恢复焦点描边（若期间被压制）。 */
+    /** 光标隐藏后恢复焦点描边（若期间被压制）。由焦点输入显式触发。 */
     private void restoreOutlineAfterCursor() {
         if (!outlineSuppressedByCursor) {
             return;
@@ -827,6 +855,9 @@ public class BaseActivity extends AppCompatActivity {
         if (backButton != null) {
             backButton.setOnClickListener(v -> getOnBackPressedDispatcher().onBackPressed());
             DynamicAnim.applyPressScale(backButton);
+            // v0.4.10：返回按钮不可聚焦——B 键已处理返回，若可聚焦则
+            // 焦点导航落到它时 A 键会触发退出（"A 键一会点击一会退出"根因）
+            backButton.setFocusable(false);
         }
 
         View signIn = findViewById(R.id.nav_sign_in_button);
