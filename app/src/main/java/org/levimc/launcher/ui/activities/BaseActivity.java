@@ -796,9 +796,12 @@ public class BaseActivity extends AppCompatActivity {
             tab.setTextColor(color);
             tab.setTypeface(tab.getTypeface(), android.graphics.Typeface.NORMAL);
             TextViewCompat.setCompoundDrawableTintList(tab, ColorStateList.valueOf(color));
-            // v0.4.4：tab 可聚焦——切 tab 后焦点落到当前 tab 并描边
+            // v0.4.4：tab 可聚焦——切 tab 后焦点落到当前 tab 并描边。
+            // v0.4.9：去掉 setFocusableInTouchMode(true)——touch mode 下
+            // 点击抢焦点不触发 click，触摸切栏位要双击（用户实测回归），
+            // 且抢焦点触发描边"不识别触摸"。手柄按键输入时系统自动
+            // 退出 touch mode，焦点导航不受影响
             tab.setFocusable(true);
-            tab.setFocusableInTouchMode(true);
         }
 
         if (pm.hasBackgroundImage()) {
@@ -1054,13 +1057,15 @@ public class BaseActivity extends AppCompatActivity {
         hideSystemUI();
         refreshNavAccountUI();
         refreshNewsBadge();
-        // v0.4.4：手柄 LB/RB 切 tab 到达 → 焦点落到当前 tab 按钮并描边
+        // v0.4.4：手柄 LB/RB 切 tab 到达 → 焦点落到当前 tab 按钮并描边。
+        // v0.4.9：touch mode 下跳过——用户已在触摸时不抢焦点不描边
         if (getIntent().getBooleanExtra("gamepad_tab_nav", false)) {
             getIntent().removeExtra("gamepad_tab_nav");
             View tab = gamepadFirstFocusView();
             if (tab != null) {
                 tab.postDelayed(() -> {
-                    if (!isFinishing() && !isDestroyed() && tab.isShown()) {
+                    if (!isFinishing() && !isDestroyed() && tab.isShown()
+                            && !tab.isInTouchMode()) {
                         tab.requestFocus();
                         applyFocusOutline(tab);
                     }
