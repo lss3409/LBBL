@@ -583,7 +583,12 @@
 <string name="quick_launch_menu_subtitle">Запуск с URI-действиями</string>
 
     <!-- CurseForge -->
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">Поиск</string>
+    <string name="curseforge_featured">Рекомендуемые</string>
+    <string name="curseforge_creation_date">Дата создания</string>
+    <string name="curseforge_all_versions">Все версии</string>
+    <string name="curseforge_all_classes">Все типы</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">Просмотр и загрузка контента</string>
 <string name="curseforge_search_hint">Поиск контента…</string>
 <string name="curseforge_download">Скачать</string>

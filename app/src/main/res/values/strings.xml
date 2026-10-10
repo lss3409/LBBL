@@ -1161,7 +1161,12 @@ Migration must complete before LBBL can continue.</string>
 <string name="quick_launch_menu_subtitle">Launch with URI actions</string>
 
     <!-- CurseForge -->
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">Search</string>
+    <string name="curseforge_featured">Featured</string>
+    <string name="curseforge_creation_date">Creation Date</string>
+    <string name="curseforge_all_versions">All Versions</string>
+    <string name="curseforge_all_classes">All Types</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">Browse and download contents</string>
 <string name="curseforge_search_hint">Search contents…</string>
 <string name="curseforge_download">Download</string>

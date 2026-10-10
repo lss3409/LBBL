@@ -618,7 +618,12 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="quick_launch">Lancement Rapide</string>
 <string name="quick_launch_menu_subtitle">Lancer avec des actions URI</string>
 
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">Rechercher</string>
+    <string name="curseforge_featured">En vedette</string>
+    <string name="curseforge_creation_date">Date de création</string>
+    <string name="curseforge_all_versions">Toutes les versions</string>
+    <string name="curseforge_all_classes">Tous les types</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">Parcourir et télécharger des contenus</string>
 <string name="curseforge_search_hint">Rechercher des contenus…</string>
 <string name="curseforge_download">Télécharger</string>

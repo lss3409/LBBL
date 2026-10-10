@@ -587,7 +587,12 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="quick_launch_menu_subtitle">Luncurkan dengan tindakan URI</string>
 
     <!-- CurseForge -->
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">Cari</string>
+    <string name="curseforge_featured">Unggulan</string>
+    <string name="curseforge_creation_date">Tanggal dibuat</string>
+    <string name="curseforge_all_versions">Semua versi</string>
+    <string name="curseforge_all_classes">Semua tipe</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">Jelajahi dan unduh konten</string>
 <string name="curseforge_search_hint">Cari konten…</string>
 <string name="curseforge_download">Unduh</string>

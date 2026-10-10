@@ -644,7 +644,12 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="quick_launch_menu_subtitle">URI कार्यों के साथ लॉन्च करें</string>
 
     <!-- CurseForge -->
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">खोजें</string>
+    <string name="curseforge_featured">फ़ीचर्ड</string>
+    <string name="curseforge_creation_date">निर्माण तिथि</string>
+    <string name="curseforge_all_versions">सभी संस्करण</string>
+    <string name="curseforge_all_classes">सभी प्रकार</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">सामग्री ब्राउज़ करें और डाउनलोड करें</string>
 <string name="curseforge_search_hint">सामग्री खोजें…</string>
 <string name="curseforge_download">डाउनलोड</string>

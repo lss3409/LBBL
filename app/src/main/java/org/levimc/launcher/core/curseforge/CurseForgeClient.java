@@ -24,11 +24,13 @@ public class CurseForgeClient {
 
     public static final int GAME_ID_MINECRAFT = 78022;
 
+    // v0.4.8：排序对齐官方 GDK 版（CurseForgePage.tsx sortOptions）
+    public static final String SORT_FEATURED = "1";
     public static final String SORT_POPULARITY = "2";
     public static final String SORT_LAST_UPDATED = "3";
-    public static final String SORT_NAME = "4";
     public static final String SORT_TOTAL_DOWNLOADS = "6";
-    
+    public static final String SORT_CREATION_DATE = "10";
+
     private final OkHttpClient client;
     private final Gson gson;
 
@@ -53,6 +55,82 @@ public class CurseForgeClient {
     public interface CurseForgeCallback<T> {
         void onSuccess(T result);
         void onError(Throwable t);
+    }
+
+    /** v0.4.8：MC 版本号列表（GDK 版 GetCurseForgeGameVersions 同款）。 */
+    public void getGameVersions(CurseForgeCallback<java.util.List<String>> callback) {
+        String url = BASE_URL + "/v1/games/" + GAME_ID_MINECRAFT + "/versions";
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("x-api-key", API_KEY)
+                .addHeader("Accept", "application/json")
+                .build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                callback.onError(e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                if (!response.isSuccessful()) {
+                    callback.onError(new IOException("Unexpected code " + response));
+                    return;
+                }
+                try {
+                    String json = response.body().string();
+                    models.GameVersionsResponse r = gson.fromJson(json,
+                            models.GameVersionsResponse.class);
+                    java.util.List<String> names = new java.util.ArrayList<>();
+                    if (r != null && r.data != null) {
+                        for (models.GameVersionsResponse.GameVersion v : r.data) {
+                            if (v.name != null) {
+                                names.add(v.name);
+                            }
+                        }
+                    }
+                    callback.onSuccess(names);
+                } catch (Exception e) {
+                    callback.onError(e);
+                }
+            }
+        });
+    }
+
+    /** v0.4.8：分类树（GDK 版 GetCurseForgeCategories 同款）：isClass=大类，
+     *  其余为分类，分类跟随所选大类联动。 */
+    public void getCategories(CurseForgeCallback<java.util.List<models.CategoriesResponse.CategoryData>> callback) {
+        HttpUrl url = HttpUrl.parse(BASE_URL + "/v1/categories").newBuilder()
+                .addQueryParameter("gameId", String.valueOf(GAME_ID_MINECRAFT))
+                .build();
+        Request request = new Request.Builder()
+                .url(url)
+                .addHeader("x-api-key", API_KEY)
+                .addHeader("Accept", "application/json")
+                .build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                callback.onError(e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                if (!response.isSuccessful()) {
+                    callback.onError(new IOException("Unexpected code " + response));
+                    return;
+                }
+                try {
+                    String json = response.body().string();
+                    models.CategoriesResponse r = gson.fromJson(json,
+                            models.CategoriesResponse.class);
+                    callback.onSuccess(r != null && r.data != null ? r.data
+                            : java.util.Collections.emptyList());
+                } catch (Exception e) {
+                    callback.onError(e);
+                }
+            }
+        });
     }
 
     public void searchContent(String query, int classId, String version, int index, int pageSize, String sortField, String sortOrder, CurseForgeCallback<ContentSearchResponse> callback) {

@@ -1019,7 +1019,12 @@
 <string name="quick_launch_menu_subtitle">通过 URI 操作启动</string>
 
     <!-- CurseForge -->
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">搜索</string>
+    <string name="curseforge_featured">精选</string>
+    <string name="curseforge_creation_date">创建日期</string>
+    <string name="curseforge_all_versions">全部版本</string>
+    <string name="curseforge_all_classes">全部类型</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">浏览并下载内容</string>
 <string name="curseforge_search_hint">搜索内容…</string>
 <string name="curseforge_download">下载</string>

@@ -711,7 +711,12 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="quick_launch_menu_subtitle">URI işlemleriyle başlat</string>
 
     <!-- CurseForge -->
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">Ara</string>
+    <string name="curseforge_featured">Öne çıkanlar</string>
+    <string name="curseforge_creation_date">Oluşturma tarihi</string>
+    <string name="curseforge_all_versions">Tüm sürümler</string>
+    <string name="curseforge_all_classes">Tüm türler</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">İçeriklere göz at ve indir</string>
 <string name="curseforge_search_hint">İçerik ara…</string>
 <string name="curseforge_download">İndir</string>

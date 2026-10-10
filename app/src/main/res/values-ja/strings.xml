@@ -618,7 +618,12 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="quick_launch">クイック起動</string>
 <string name="quick_launch_menu_subtitle">URI アクションで起動</string>
 
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">検索</string>
+    <string name="curseforge_featured">注目</string>
+    <string name="curseforge_creation_date">作成日</string>
+    <string name="curseforge_all_versions">すべてのバージョン</string>
+    <string name="curseforge_all_classes">すべてのタイプ</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">コンテンツを閲覧してダウンロード</string>
 <string name="curseforge_search_hint">コンテンツを検索…</string>
 <string name="curseforge_download">ダウンロード</string>

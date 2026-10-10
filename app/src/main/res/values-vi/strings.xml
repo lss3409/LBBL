@@ -697,7 +697,12 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="quick_launch_menu_subtitle">Khởi chạy với các hành động URI</string>
 
     <!-- CurseForge -->
-<string name="curseforge_title">CurseForge</string>
+<string name="curseforge_search">Tìm kiếm</string>
+    <string name="curseforge_featured">Nổi bật</string>
+    <string name="curseforge_creation_date">Ngày tạo</string>
+    <string name="curseforge_all_versions">Tất cả phiên bản</string>
+    <string name="curseforge_all_classes">Tất cả loại</string>
+    <string name="curseforge_title">CurseForge</string>
 <string name="curseforge_subtitle">Duyệt và tải xuống nội dung</string>
 <string name="curseforge_search_hint">Tìm kiếm nội dung…</string>
 <string name="curseforge_download">Tải xuống</string>

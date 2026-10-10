@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- v0.4.8：布局对齐官方 GDK 版 CurseForgePage：
+     搜索行 + 横向过滤器行（MC 版本 / 资源类型 / 分类 / 排序） -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -12,7 +14,6 @@
         android:background="@android:color/transparent"
         app:elevation="0dp">
 
-        <!-- Scrollable Header Area -->
         <LinearLayout
             android:id="@+id/header_container"
             android:layout_width="match_parent"
@@ -26,70 +27,93 @@
             android:elevation="4dp"
             app:layout_scrollFlags="scroll">
 
-            <!-- Top Row: Title and Sort -->
-            <RelativeLayout
+            <!-- Top Row: Title -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:text="@string/curseforge_title"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:fontFamily="@font/misans"/>
+
+            <!-- Search Row -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_marginBottom="12dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/curseforge_title"
-                    android:textSize="26sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary"
+                <EditText
+                    android:id="@+id/search_box"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_search_box"
+                    android:paddingHorizontal="16dp"
+                    android:hint="@string/curseforge_search_hint"
+                    android:textColorHint="@color/text_secondary"
+                    android:textColor="@color/on_surface"
                     android:fontFamily="@font/misans"
-                    android:layout_alignParentStart="true"
-                    android:layout_centerVertical="true"/>
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:drawableStart="@drawable/ic_search"
+                    android:drawableTint="@color/on_surface"
+                    android:drawablePadding="12dp"/>
 
                 <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_sort"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:id="@+id/btn_search"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_alignParentEnd="true"
-                    android:layout_centerVertical="true"
-                    android:text="@string/sort"
-                    android:textSize="12sp"
-                    android:textColor="@color/on_surface"
-                    android:paddingHorizontal="12dp"
-                    app:strokeColor="@color/divider"
-                    app:icon="@drawable/ic_arrow_down" 
-                    app:iconTint="@color/on_surface"
-                    app:iconGravity="textEnd"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="8dp"
+                    android:text="@string/curseforge_search"
+                    android:textSize="14sp"
                     app:cornerRadius="18dp"/>
-            </RelativeLayout>
+            </LinearLayout>
 
-            <!-- Search Box -->
-            <EditText
-                android:id="@+id/search_box"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:background="@drawable/bg_search_box"
-                android:paddingHorizontal="16dp"
-                android:hint="@string/curseforge_search_hint"
-                android:textColorHint="@color/text_secondary"
-                android:textColor="@color/on_surface"
-                android:fontFamily="@font/misans"
-                android:imeOptions="actionSearch"
-                android:inputType="text"
-                android:drawableStart="@drawable/ic_search"
-                android:drawableTint="@color/on_surface"
-                android:drawablePadding="12dp"
-                android:layout_marginBottom="16dp"/>
-
-            <!-- Horizontal Scrollable Categories -->
+            <!-- Filters Row（GDK 版 catalog-filters 同款：版本/类型/分类/排序） -->
             <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:scrollbars="none">
+                android:scrollbars="none"
+                android:fillViewport="false">
 
-                <RadioGroup
-                    android:id="@+id/category_group"
+                <LinearLayout
+                    android:id="@+id/filters_row"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <Spinner
+                        android:id="@+id/spinner_version"
+                        android:layout_width="160dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_search_box"/>
+
+                    <Spinner
+                        android:id="@+id/spinner_class"
+                        android:layout_width="150dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_search_box"/>
+
+                    <Spinner
+                        android:id="@+id/spinner_category"
+                        android:layout_width="150dp"
+                        android:layout_height="44dp"
+                        android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_search_box"/>
+
+                    <Spinner
+                        android:id="@+id/spinner_sort"
+                        android:layout_width="150dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_search_box"/>
+                </LinearLayout>
             </HorizontalScrollView>
         </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
