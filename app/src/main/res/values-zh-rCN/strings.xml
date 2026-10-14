@@ -1780,4 +1780,18 @@
     <string name="nether_mode_satellite">卫星图</string>
     <string name="nether_mode_height">高度图</string>
     <string name="splash_preparing_to_launch">正在准备启动</string>
+    <!-- v0.4.24: Windows 音效 -->
+    <string name="sound_effects_title">Windows 音效</string>
+    <string name="sound_effects_desc">启动、弹窗、崩溃等场景播放经典 Windows XP 音效（整活版）</string>
+    <string name="sound_effects_preview">试听</string>
+    <!-- v0.4.24: 日志上报 -->
+    <string name="report_logs">上报日志</string>
+    <string name="report_logs_desc">把崩溃日志和调试日志打包发给开发者，帮助修复 bug。</string>
+    <string name="report_logs_collecting">正在收集日志…</string>
+    <string name="report_logs_done">日志打包好了，选择一个应用来发送</string>
+    <string name="report_logs_failed">收集日志失败：%1$s</string>
+    <string name="report_logs_empty">没有找到日志文件</string>
+    <string name="report_logs_no_app">没有能发送邮件的应用</string>
+    <!-- v0.4.24: 愚人节语言 -->
+    <string name="april_fools_language">微软机翻 (Microsoft Machine Translation)</string>
 </resources>

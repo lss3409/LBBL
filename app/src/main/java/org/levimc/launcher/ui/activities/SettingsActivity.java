@@ -283,6 +283,7 @@ public class SettingsActivity extends BaseActivity {
 
         // Keep English at the top (default language).
         // Sort all other languages alphabetically by their display name.
+        // v0.4.24：末尾加愚人节微软机翻（locale tag "zz"→values-zz/）
         String[] languageOptions = {
                 getString(R.string.english),
                 getString(R.string.chinese),
@@ -294,7 +295,8 @@ public class SettingsActivity extends BaseActivity {
                 getString(R.string.russian),
                 getString(R.string.spanish),
                 getString(R.string.turkish),
-                getString(R.string.vietnamese)
+                getString(R.string.vietnamese),
+                getString(R.string.april_fools_language)
         };
 
         String currentCode = languageManager.getCurrentLanguage();
@@ -309,6 +311,7 @@ public class SettingsActivity extends BaseActivity {
             case "es" -> 8;
             case "tr", "tr-TR" -> 9;
             case "vi" -> 10;
+            case "zz", "zz-ZZ" -> 11;
             default -> 0;
         };
 
@@ -335,6 +338,7 @@ public class SettingsActivity extends BaseActivity {
                     case 8 -> "es";
                     case 9 -> "tr";
                     case 10 -> "vi";
+                    case 11 -> "zz";
                     default -> "en";
                 };
                 if (!code.equals(languageManager.getCurrentLanguage())) {
@@ -639,6 +643,32 @@ public class SettingsActivity extends BaseActivity {
 
     private void setupPersonalizeSection() {
         ThemeManager themeManager = new ThemeManager(this);
+        FeatureSettings fs = FeatureSettings.getInstance();
+
+        // v0.4.24：Windows XP 音效开关 + 试听
+        SwitchMaterial switchWinSounds = findViewById(R.id.switch_win_sounds);
+        if (switchWinSounds != null) {
+            switchWinSounds.setChecked(fs.isWinSoundsEnabled());
+            switchWinSounds.setOnCheckedChangeListener((btn, checked) -> {
+                fs.setWinSoundsEnabled(checked);
+                if (checked) {
+                    org.levimc.launcher.util.WinSoundPlayer.get(this)
+                            .play(org.levimc.launcher.util.WinSoundPlayer.SOUND_DING);
+                }
+            });
+        }
+        com.google.android.material.button.MaterialButton btnSoundPreview =
+                findViewById(R.id.btn_sound_preview);
+        if (btnSoundPreview != null) {
+            // 试听按钮染个性化强调色（铁律：文字按钮 styleSecondary 色）
+            if (personalizationManager != null && personalizationManager.hasCustomAccent()) {
+                btnSoundPreview.setTextColor(personalizationManager.getAccentColor());
+            }
+            btnSoundPreview.setOnClickListener(v -> {
+                org.levimc.launcher.util.WinSoundPlayer.get(this)
+                        .play(org.levimc.launcher.util.WinSoundPlayer.SOUND_TADA);
+            });
+        }
 
         View itemSystem = findViewById(R.id.theme_item_system);
         View itemLight = findViewById(R.id.theme_item_light);
@@ -1361,6 +1391,17 @@ public class SettingsActivity extends BaseActivity {
                 openUrl("https://zh.minecraft.wiki/", getString(R.string.help_mcwiki)));
         findViewById(R.id.help_bilibili).setOnClickListener(v ->
                 openUrl("https://www.bilibili.com/", getString(R.string.help_bilibili)));
+        // v0.4.24：日志上报（收集打包 → 邮件预填发送）
+        com.google.android.material.button.MaterialButton btnReportLogs =
+                findViewById(R.id.btn_report_logs);
+        if (btnReportLogs != null) {
+            if (personalizationManager != null && personalizationManager.hasCustomAccent()) {
+                btnReportLogs.setTextColor(personalizationManager.getAccentColor());
+                btnReportLogs.setStrokeColor(android.content.res.ColorStateList.valueOf(
+                        personalizationManager.getAccentColor()));
+            }
+            btnReportLogs.setOnClickListener(v -> org.levimc.launcher.util.LogReporter.report(this));
+        }
         // v0.0.24：minebbs/littleskin 死 UI 清理（此前 setVisibility(GONE) 残留）
     }
 

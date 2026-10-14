@@ -14,6 +14,8 @@ public class FeatureSettings {
     /** v704：前台服务默认开启（用户实测 v490 不杀后台，联机掉线根因）；设置页开关可关。 */
     private boolean foregroundServiceEnabled = true;
     private Boolean crashUploadEnabled = true;
+    /** v0.4.24：Windows XP 音效（默认开；个性化页开关可关）。 */
+    private boolean winSoundsEnabled = true;
 
     public enum StorageType {
         INTERNAL,
@@ -62,6 +64,9 @@ public class FeatureSettings {
 
     public boolean isCrashUploadEnabled() { return crashUploadEnabled == null || crashUploadEnabled; }
     public void setCrashUploadEnabled(boolean enabled) { this.crashUploadEnabled = enabled; autoSave(); }
+
+    public boolean isWinSoundsEnabled() { return winSoundsEnabled; }
+    public void setWinSoundsEnabled(boolean enabled) { this.winSoundsEnabled = enabled; autoSave(); }
 
 
     private void autoSave() {

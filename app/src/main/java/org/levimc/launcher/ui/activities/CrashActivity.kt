@@ -23,6 +23,12 @@ class CrashActivity : BaseActivity() {
 
         setContentView(R.layout.activity_crash)
 
+        // v0.4.24：XP 崩溃音效（延迟等 SoundPool 加载完）
+        Handler(Looper.getMainLooper()).postDelayed({
+            org.levimc.launcher.util.WinSoundPlayer.get(this)
+                .play(org.levimc.launcher.util.WinSoundPlayer.SOUND_ERROR)
+        }, 300)
+
         logPath = intent.getStringExtra("LOG_PATH")
         val summary = intent.getStringExtra("SUMMARY")
             ?: intent.getStringExtra("EMERGENCY")

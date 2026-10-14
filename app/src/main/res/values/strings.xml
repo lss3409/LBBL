@@ -1943,4 +1943,18 @@ Invite code: P/%1$s
     <string name="nether_mode_satellite">Satellite</string>
     <string name="nether_mode_height">Height Map</string>
     <string name="splash_preparing_to_launch">Preparing to launch</string>
+    <!-- v0.4.24: Windows sounds -->
+    <string name="sound_effects_title">Windows Sounds</string>
+    <string name="sound_effects_desc">Play classic Windows XP sounds on startup, dialogs, crashes and more (meme edition)</string>
+    <string name="sound_effects_preview">Preview</string>
+    <!-- v0.4.24: Log reporting -->
+    <string name="report_logs">Report Logs</string>
+    <string name="report_logs_desc">Package crash logs and debug logs and send them to the developer to help fix bugs.</string>
+    <string name="report_logs_collecting">Collecting logs…</string>
+    <string name="report_logs_done">Logs packaged. Choose an app to send them.</string>
+    <string name="report_logs_failed">Failed to collect logs: %1$s</string>
+    <string name="report_logs_empty">No log files found</string>
+    <string name="report_logs_no_app">No email app available</string>
+    <!-- v0.4.24: April Fools language -->
+    <string name="april_fools_language">微软机翻 (Microsoft Machine Translation)</string>
 </resources>
