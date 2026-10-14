@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>LBBL 联机邀请</title>
+<link rel="icon" href="data:image/png;base64,{{LOGO_B64}}">
 <style>
   :root {
     --bg: #f6f8f7;
@@ -29,11 +30,9 @@
   }
   .brand { text-align: center; margin: 36px 0 6px; }
   .brand .logo {
-    width: 76px; height: 76px; margin: 0 auto 14px;
-    background: linear-gradient(145deg, #4caf50, #2e7d32);
-    border-radius: 22px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 40px; font-weight: 800; color: #fff;
+    width: 84px; height: 84px; margin: 0 auto 14px;
+    border-radius: 24px;
+    display: block;
     box-shadow: 0 8px 24px rgba(67,160,71,.25);
   }
   .brand h1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
@@ -111,7 +110,7 @@
 <body>
 
   <div class="brand">
-    <div class="logo">L</div>
+    <img class="logo" src="data:image/png;base64,{{LOGO_B64}}" alt="LBBL">
     <h1>LBBL</h1>
     <div class="sub">Levi Better Bedrock Launcher</div>
     <div class="edition">Minecraft Edition</div>
@@ -138,16 +137,33 @@
 <script>
   var code = '{{CODE}}';
 
+  var leaveTimer = null;
   function openLauncher() {
-    location.href = 'lbb://invite?code=' + encodeURIComponent(code);
-    setTimeout(function () {
-      if (!document.hidden) {
-        var t = document.getElementById('toast');
-        t.textContent = '未检测到 LBBL，请先下载安装启动器';
-        t.classList.add('show');
-        setTimeout(function () { t.classList.remove('show'); t.textContent = '已复制邀请码 ✓'; }, 3000);
-      }
-    }, 1200);
+    var ua = navigator.userAgent.toLowerCase();
+    if (ua.indexOf('android') > -1) {
+      // Android 浏览器用 intent:// 协议唤起（Chrome/微信内置浏览器都支持）
+      location.href = 'intent://invite?code=' + encodeURIComponent(code) +
+        '#Intent;scheme=lbb;package=org.levimc.launcher;end';
+    } else {
+      location.href = 'lbb://invite?code=' + encodeURIComponent(code);
+    }
+    // 3 秒内页面离开=唤起成功；仍在页面=未装启动器，给指引
+    leaveTimer = setTimeout(showNotInstalled, 3000);
+  }
+  function cancelLeaveTimer() {
+    if (leaveTimer) { clearTimeout(leaveTimer); leaveTimer = null; }
+  }
+  // 成功唤起后浏览器会离开/隐藏本页——立即取消误报
+  window.addEventListener('pagehide', cancelLeaveTimer);
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { cancelLeaveTimer(); }
+  });
+  function showNotInstalled() {
+    leaveTimer = null;
+    var t = document.getElementById('toast');
+    t.textContent = '未检测到 LBBL，请先下载安装启动器';
+    t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); t.textContent = '已复制邀请码 ✓'; }, 3000);
   }
 
   function copyCode() {

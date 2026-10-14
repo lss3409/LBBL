@@ -178,6 +178,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="lbb" android:host="invite" />
             </intent-filter>
+            <!-- v0.4.37：微信/文件管理器打开 LBBL-Invite-*.html 邀请卡时
+                 可直接选 LBBL（读文件提取邀请码自动弹加入框） -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" android:mimeType="text/html" android:pathPattern="*LBBL-Invite*.html" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="text/html" android:pathPattern="*LBBL-Invite*.html" />
+            </intent-filter>
         </activity>
 
         <activity
