@@ -51,9 +51,6 @@ public final class LogReporter {
     private static final String REPORT_TO = "lishushu8888@outlook.com";
     private static final String SMTP_HOST = "smtp.qq.com";
     private static final int SMTP_PORT = 465;
-    /** 内置发件（用户密码轮换工具配置，Base64 混淆）。 */
-    private static final String DEFAULT_FROM = "3771407017@qq.com";
-    private static final String DEFAULT_AUTH = "d2J6d3p3bXVvYWpjY2JoZw==";
 
     private LogReporter() {
     }
@@ -66,10 +63,13 @@ public final class LogReporter {
 
     // ---------------- 发送前弹窗 ----------------
 
+    /** v0.4.26：首次（未配置发件）弹描述+邮箱+授权码；之后只弹描述。
+     *  发件邮箱/授权码一律空白让用户自己填（不内置预填）。 */
     private static void showReportDialog(Activity activity, Runnable onDone) {
         SharedPreferences prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        String savedFrom = prefs.getString(KEY_FROM, DEFAULT_FROM);
+        String savedFrom = prefs.getString(KEY_FROM, "");
         String savedAuth = prefs.getString(KEY_AUTH, "");
+        final boolean configured = !savedFrom.isEmpty() && !savedAuth.isEmpty();
 
         int onSurface = ContextCompat.getColor(activity, R.color.on_surface);
         int hintColor = ContextCompat.getColor(activity, R.color.text_secondary);
@@ -85,34 +85,33 @@ public final class LogReporter {
         descInput.setMinLines(3);
         root.addView(descInput);
 
-        EditText fromInput = makeEdit(activity, onSurface, hintColor, false);
-        fromInput.setHint(activity.getString(R.string.report_from_email));
-        fromInput.setText(savedFrom);
-        root.addView(fromInput);
+        EditText fromInput = null;
+        EditText authInput = null;
+        if (!configured) {
+            fromInput = makeEdit(activity, onSurface, hintColor, false);
+            fromInput.setHint(activity.getString(R.string.report_from_email));
+            root.addView(fromInput);
 
-        EditText authInput = makeEdit(activity, onSurface, hintColor, false);
-        authInput.setHint(activity.getString(R.string.report_auth_code));
-        if (!savedAuth.isEmpty()) {
-            authInput.setText(savedAuth);
-        } else {
-            authInput.setText(new String(Base64.decode(DEFAULT_AUTH, Base64.DEFAULT),
-                    java.nio.charset.StandardCharsets.UTF_8));
+            authInput = makeEdit(activity, onSurface, hintColor, false);
+            authInput.setHint(activity.getString(R.string.report_auth_code));
+            root.addView(authInput);
         }
-        root.addView(authInput);
+        final EditText fFrom = fromInput;
+        final EditText fAuth = authInput;
 
         new CustomAlertDialog(activity)
                 .setTitleText(activity.getString(R.string.report_logs))
                 .setCustomView(root)
-                .setPositiveButton(activity.getString(R.string.report_logs), v -> {
+                .setPositiveButton(activity.getString(R.string.report_send_button), v -> {
                     String desc = descInput.getText().toString().trim();
-                    String from = fromInput.getText().toString().trim();
-                    String auth = authInput.getText().toString().trim();
-                    if (from.isEmpty()) {
-                        from = DEFAULT_FROM;
-                    }
-                    if (auth.isEmpty()) {
-                        auth = new String(Base64.decode(DEFAULT_AUTH, Base64.DEFAULT),
-                                java.nio.charset.StandardCharsets.UTF_8);
+                    String from = configured ? savedFrom
+                            : (fFrom != null ? fFrom.getText().toString().trim() : "");
+                    String auth = configured ? savedAuth
+                            : (fAuth != null ? fAuth.getText().toString().trim() : "");
+                    if (from.isEmpty() || auth.isEmpty()) {
+                        Toast.makeText(activity, R.string.report_need_account,
+                                Toast.LENGTH_LONG).show();
+                        return;
                     }
                     prefs.edit().putString(KEY_FROM, from).putString(KEY_AUTH, auth).apply();
                     collectAndSend(activity, desc, from, auth, onDone);
