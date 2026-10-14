@@ -166,12 +166,12 @@
 
         <activity
             android:name="org.levimc.launcher.ui.activities.OnlineActivity"
-            android:exported="false"
+            android:exported="true"
             android:screenOrientation="sensorLandscape"
             android:configChanges="fontScale|density|smallestScreenSize|screenSize|uiMode|screenLayout|orientation|navigation|keyboardHidden|keyboard|touchscreen|locale|mnc|mcc"
             tools:ignore="DiscouragedApi">
             <!-- v0.4.34：邀请网页「打开启动器」深链——lbb://invite?code=P%2Fxxx
-                 唤起联机页并自动填充邀请码 -->
+                 唤起联机页并自动填充邀请码（exported=true 供浏览器外部唤起） -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
