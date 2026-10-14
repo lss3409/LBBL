@@ -247,6 +247,29 @@ public final class OnlineActivity extends BaseActivity
         });
 
         handleDebugJoinIntent(getIntent());
+        // v0.4.34：邀请网页「打开启动器」深链（lbb://invite?code=P%2Fxxx）
+        handleInviteDeepLink();
+    }
+
+    /** v0.4.34：解析 lbb://invite?code= 深链，自动弹加入框并预填邀请码。 */
+    private void handleInviteDeepLink() {
+        try {
+            Intent intent = getIntent();
+            if (intent == null || intent.getData() == null) {
+                return;
+            }
+            String code = intent.getData().getQueryParameter("code");
+            intent.setData(null); // 只消费一次（防 recreate 重复弹窗）
+            if (code == null || code.trim().isEmpty()) {
+                return;
+            }
+            String formatted = InviteCode.formatInput(code);
+            if (formatted.isEmpty()) {
+                return;
+            }
+            getWindow().getDecorView().post(() -> showJoinDialogWithCode(formatted));
+        } catch (Exception ignored) {
+        }
     }
 
     /** v695：时钟定时器（30s 刷新一次，跨时段自动更新问候语）。 */
