@@ -7,7 +7,7 @@
 <string name="beta_badge">Beta</string>
 <string name="debug_badge">Depuración</string>
 <string name="cursor">Cursor</string>
-<string name="bedrock_edition">Bedrock Edition</string>
+<string name="bedrock_edition">Edition</string>
 <string name="current_instance">Instancia actual</string>
 
     <!-- Mods -->
@@ -1861,4 +1861,5 @@ Código de invitación: P/%1$s
     <string name="no_worlds_available">No hay mundos disponibles</string>
     <string name="fm_ui_open_internal">Abrir en el lanzador</string>
     <string name="fm_ui_open_system">Abrir con...</string>
+    <string name="splash_preparing_to_launch">Preparando lanzamiento</string>
 </resources>

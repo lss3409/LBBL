@@ -599,7 +599,7 @@
 
     <!-- Missing translations -->
 <string name="cursor">Курсор</string>
-<string name="bedrock_edition">Bedrock Edition</string>
+<string name="bedrock_edition">Edition</string>
 <string name="current_instance">Текущий экземпляр</string>
 <string name="content_mgmt_section_title">Управление контентом</string>
 <string name="misc_section_title">Разное</string>
@@ -1891,4 +1891,5 @@
     <string name="no_worlds_available">Нет доступных миров</string>
     <string name="fm_ui_open_internal">Открыть в лаунчере</string>
     <string name="fm_ui_open_system">Открыть с помощью...</string>
+    <string name="splash_preparing_to_launch">Подготовка к запуску</string>
 </resources>

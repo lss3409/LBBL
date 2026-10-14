@@ -7,7 +7,7 @@
 <string name="beta_badge">बीटा</string>
 <string name="debug_badge">डीबग</string>
 <string name="cursor">कर्सर</string>
-<string name="bedrock_edition">Bedrock Edition</string>
+<string name="bedrock_edition">Edition</string>
 <string name="current_instance">वर्तमान इंस्टेंस</string>
 
     <!-- Mods -->
@@ -1888,4 +1888,5 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="no_worlds_available">कोई वर्ल्ड उपलब्ध नहीं</string>
     <string name="fm_ui_open_internal">लॉन्चर में खोलें</string>
     <string name="fm_ui_open_system">इसके साथ खोलें...</string>
+    <string name="splash_preparing_to_launch">लॉन्च की तैयारी हो रही है</string>
 </resources>

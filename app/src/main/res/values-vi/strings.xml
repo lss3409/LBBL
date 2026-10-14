@@ -6,7 +6,7 @@
 <string name="beta_badge">Thử Nghiệm</string>
 <string name="debug_badge">Gỡ lỗi</string>
 <string name="cursor">Con trỏ</string>
-<string name="bedrock_edition">Bedrock Edition</string>
+<string name="bedrock_edition">Edition</string>
 <string name="current_instance">Phiên bản hiện tại</string>
 
     <!-- Mods -->
@@ -1890,4 +1890,5 @@ Mã mời: P/%1$s
     <string name="no_worlds_available">Không có thế giới nào</string>
     <string name="fm_ui_open_internal">Mở trong launcher</string>
     <string name="fm_ui_open_system">Mở bằng...</string>
+    <string name="splash_preparing_to_launch">Đang chuẩn bị khởi chạy</string>
 </resources>

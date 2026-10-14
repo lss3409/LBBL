@@ -86,6 +86,11 @@ public class SettingsActivity extends BaseActivity {
     private EditText extendedRootPathInput;
     private SwitchMaterial switchSharedStorageLayout;
     private TextView sharedStorageLayoutStatus;
+    /** v0.4.22：已应用路径参照——输入框文本 == 已应用值 → 按钮「选择」；
+     *  不一致（用户编辑过）→ 「应用」。修复「已有文本时按钮还是应用」
+     *  与「应用后文本框不显示当前路径」（v0.4.21 清空输入框方案回退）。 */
+    private String appliedCustomStoragePath;
+    private String appliedExtendedRootPath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -1101,6 +1106,10 @@ public class SettingsActivity extends BaseActivity {
         if (customStoragePathInput != null) {
             customStoragePathInput.setHint(LauncherStorage.getTargetAppRootDisplayPath(this));
             String custom = LauncherStorage.getCustomStoragePath(this);
+            // v0.4.22：先记已应用参照再填充——填充触发的 TextWatcher
+            // 用参照判定（文本==已应用→「选择」），否则「已有文本时
+            // 按钮还是应用」
+            appliedCustomStoragePath = custom;
             if (custom != null) {
                 customStoragePathInput.setText(custom);
             }
@@ -1119,8 +1128,9 @@ public class SettingsActivity extends BaseActivity {
         }
 
         if (btnSelectApply != null) {
-            // v0.4.20：双态按钮——输入框空=「选择」（开文件管理器，
-            // 选完直接默认应用）；有文本=「应用」（应用输入内容）
+            // v0.4.20：双态按钮——「选择」（开文件管理器，选完直接
+            // 默认应用）/「应用」（应用输入内容）；
+            // v0.4.22：状态改脏判定——文本==已应用→「选择」
             btnSelectApply.setOnClickListener(v -> {
                 if (getString(R.string.custom_storage_path_select)
                         .contentEquals(btnSelectApply.getText())) {
@@ -1142,9 +1152,13 @@ public class SettingsActivity extends BaseActivity {
     private void updateSelectApplyButtonState() {
         Button btn = findViewById(R.id.btn_apply_custom_storage_path);
         if (btn == null) return;
-        boolean hasText = customStoragePathInput != null
-                && !customStoragePathInput.getText().toString().trim().isEmpty();
-        btn.setText(hasText ? R.string.custom_storage_path_apply : R.string.custom_storage_path_select);
+        // v0.4.22：脏状态判定——文本 == 已应用值 → 「选择」（点开
+        // 文件管理器）；被编辑过 → 「应用」。不再只看输入框有无文本
+        String text = customStoragePathInput != null
+                ? customStoragePathInput.getText().toString().trim() : "";
+        String applied = appliedCustomStoragePath != null ? appliedCustomStoragePath : "";
+        boolean unchanged = text.equals(applied);
+        btn.setText(unchanged ? R.string.custom_storage_path_select : R.string.custom_storage_path_apply);
     }
 
     private void openFolderPicker() {
@@ -1164,7 +1178,12 @@ public class SettingsActivity extends BaseActivity {
         // v0.4.14：示例路径 hint（旧自定义存储输入框同款）
         if (extendedRootPathInput != null) {
             extendedRootPathInput.setHint(LauncherStorage.getExtendedRootPath(this));
-            // v0.4.20：双态按钮联动——输入框空=「选择」/有文本=「应用」
+            // v0.4.22：输入框预填当前生效路径（此前只在 hint 里）——
+            // 「应用完之后文本框没显示当前路径」修复；先记参照再填充，
+            // 按钮经脏状态判定保持「选择」
+            appliedExtendedRootPath = LauncherStorage.getExtendedRootPath(this);
+            extendedRootPathInput.setText(appliedExtendedRootPath);
+            // v0.4.20：双态按钮联动——文本==已应用=「选择」/被编辑=「应用」
             extendedRootPathInput.addTextChangedListener(new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -1196,8 +1215,11 @@ public class SettingsActivity extends BaseActivity {
         if (btnReset != null) {
             btnReset.setOnClickListener(v -> {
                 LauncherStorage.setExtendedRootPath(this, null);
+                // v0.4.22：重置后输入框显示回默认生效路径（不清空），
+                // 按钮经脏状态判定回到「选择」
+                appliedExtendedRootPath = LauncherStorage.getExtendedRootPath(this);
                 if (extendedRootPathInput != null) {
-                    extendedRootPathInput.setText("");
+                    extendedRootPathInput.setText(appliedExtendedRootPath);
                 }
                 refreshExtendedRootPathUi();
             });
@@ -1211,10 +1233,13 @@ public class SettingsActivity extends BaseActivity {
         if (btn == null) {
             return;
         }
-        boolean hasText = extendedRootPathInput != null
-                && !extendedRootPathInput.getText().toString().trim().isEmpty();
-        btn.setText(hasText ? R.string.custom_storage_path_apply
-                : R.string.custom_storage_path_select);
+        // v0.4.22：脏状态判定（与自定义存储区块一致）
+        String text = extendedRootPathInput != null
+                ? extendedRootPathInput.getText().toString().trim() : "";
+        String applied = appliedExtendedRootPath != null ? appliedExtendedRootPath : "";
+        boolean unchanged = text.equals(applied);
+        btn.setText(unchanged ? R.string.custom_storage_path_select
+                : R.string.custom_storage_path_apply);
     }
 
     private void refreshExtendedRootPathUi() {
@@ -1231,8 +1256,13 @@ public class SettingsActivity extends BaseActivity {
         String path = extendedRootPathInput.getText().toString().trim();
         LauncherStorage.setExtendedRootPath(this, path.isEmpty() ? null : path);
         refreshExtendedRootPathUi();
-        // v0.4.21：应用后清空输入框——按钮回到「选择」
-        extendedRootPathInput.setText("");
+        // v0.4.22：应用后输入框显示当前生效路径（v0.4.21 清空导致
+        // 「文本框没显示当前路径」）——按钮经脏状态判定回到「选择」
+        appliedExtendedRootPath = LauncherStorage.getExtendedRootPath(this);
+        extendedRootPathInput.setText(appliedExtendedRootPath);
+        // setText 文本与现文本一致时 Watcher 不触发（picker 回调
+        // setText(path) 已把按钮置「应用」）——显式重算回「选择」
+        updateExtendedApplyButtonState();
         // 地图烘焙缓存位置变化：旧缓存读不到会自动重烘（缓存可再生）
     }
 
@@ -1280,17 +1310,24 @@ public class SettingsActivity extends BaseActivity {
         String path = customStoragePathInput.getText().toString().trim();
         if (path.isEmpty()) {
             LauncherStorage.clearCustomStoragePath(this);
+            // v0.4.22：同步已应用参照（空=回默认），按钮回到「选择」
+            appliedCustomStoragePath = null;
             refreshCustomStoragePathUi();
             refreshVersionsAfterStorageChange();
+            updateSelectApplyButtonState();
             return;
         }
         Runnable doApply = () -> {
             LauncherStorage.setCustomStoragePath(this, path);
+            // v0.4.22：先记参照再刷新——应用后输入框保留当前生效路径
+            // （v0.4.21 清空导致「文本框没显示当前路径」），按钮经
+            // 脏状态判定（文本==已应用）回到「选择」
+            appliedCustomStoragePath = path;
             refreshCustomStoragePathUi();
             refreshVersionsAfterStorageChange();
-            // v0.4.21：应用后清空输入框——按钮回到「选择」方便
-            // 下次直接点开文件管理器（文本框残留文本时按钮是「应用」）
-            customStoragePathInput.setText("");
+            // picker 回调路径：setText(path) 先触发 Watcher（参照还是
+            // 旧值→按钮短暂变「应用」），这里必须显式重算回「选择」
+            updateSelectApplyButtonState();
         };
         if (skipConfirm) {
             doApply.run();
@@ -1307,6 +1344,8 @@ public class SettingsActivity extends BaseActivity {
 
     private void resetCustomStoragePath() {
         LauncherStorage.clearCustomStoragePath(this);
+        // v0.4.22：同步已应用参照（空=回默认），按钮回到「选择」
+        appliedCustomStoragePath = null;
         if (customStoragePathInput != null) {
             customStoragePathInput.setText("");
         }

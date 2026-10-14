@@ -6,7 +6,7 @@
 <string name="beta_badge">Beta</string>
 <string name="debug_badge">Debug</string>
 <string name="cursor">Cursor</string>
-<string name="bedrock_edition">Bedrock Edition</string>
+<string name="bedrock_edition">Edition</string>
 <string name="current_instance">Current Instance</string>
 
     <!-- Mods -->
@@ -1942,4 +1942,5 @@ Invite code: P/%1$s
     <string name="nether_mode_title">Display Mode</string>
     <string name="nether_mode_satellite">Satellite</string>
     <string name="nether_mode_height">Height Map</string>
+    <string name="splash_preparing_to_launch">Preparing to launch</string>
 </resources>

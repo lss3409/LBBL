@@ -603,7 +603,7 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 
     <!-- Missing translations -->
 <string name="cursor">Kursor</string>
-<string name="bedrock_edition">Edisi Bedrock</string>
+<string name="bedrock_edition">Edition</string>
 <string name="current_instance">Instans Saat Ini</string>
 <string name="content_mgmt_section_title">Manajemen Konten</string>
 <string name="misc_section_title">Lain-lain</string>
@@ -1884,4 +1884,5 @@ Kode undangan: P/%1$s
     <string name="no_worlds_available">Tidak ada dunia tersedia</string>
     <string name="fm_ui_open_internal">Buka di launcher</string>
     <string name="fm_ui_open_system">Buka dengan...</string>
+    <string name="splash_preparing_to_launch">Mempersiapkan peluncuran</string>
 </resources>

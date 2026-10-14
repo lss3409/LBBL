@@ -7,7 +7,7 @@
 <string name="beta_badge">ベータ</string>
 <string name="debug_badge">デバッグ</string>
 <string name="cursor">カーソル</string>
-<string name="bedrock_edition">Bedrock Edition</string>
+<string name="bedrock_edition">Edition</string>
 <string name="current_instance">現在のインスタンス</string>
 
     <!-- Mods -->
@@ -1858,4 +1858,5 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="no_worlds_available">利用可能なワールドがありません</string>
     <string name="fm_ui_open_internal">ランチャーで開く</string>
     <string name="fm_ui_open_system">他のアプリで開く</string>
+    <string name="splash_preparing_to_launch">起動を準備中</string>
 </resources>
