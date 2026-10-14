@@ -38,6 +38,11 @@ static def getVersionCodeByTimestamp() {
 android {
     namespace 'org.levimc.launcher'
     compileSdkVersion 36
+    // v0.4.13：beta（装机用不可调试变体）继承 release 的 lintVital，
+    // 关闭致命 lint 检查（与历史 release 构建行为一致）
+    lint {
+        checkReleaseBuilds false
+    }
     defaultConfig {
         applicationId "org.levimc.launcher"
         minSdkVersion 28
