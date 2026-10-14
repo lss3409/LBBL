@@ -1784,7 +1784,16 @@
     <string name="report_crash_desc_hint">描述一下发生了什么（选填）</string>
     <!-- v0.4.24: 日志上报 -->
     <string name="report_logs">上报日志</string>
-    <string name="report_logs_desc">把崩溃日志和调试日志打包发给开发者，帮助修复 bug。</string>
+    <string name="report_logs_desc">日志会上传到 logshare.cn 并生成公开分享链接。</string>
+    <string name="report_desc_sub">描述一下发生了什么（选填），描述会随日志一起上传。</string>
+    <string name="report_uploading">正在上传日志…</string>
+    <string name="report_upload_success">日志已上传 ✓</string>
+    <string name="report_upload_success_desc">把这个链接分享给开发者或发到社区求助：</string>
+    <string name="report_upload_failed_title">上传失败</string>
+    <string name="report_upload_failed">上传失败：%1$s</string>
+    <string name="report_copy_link">复制链接</string>
+    <string name="report_share_link">分享链接</string>
+    <string name="report_send_email_fallback">用系统邮件发送</string>
     <string name="report_logs_collecting">正在收集日志…</string>
     <string name="report_logs_done">日志打包好了，选择一个应用来发送</string>
     <string name="report_logs_failed">收集日志失败：%1$s</string>

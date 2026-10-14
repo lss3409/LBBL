@@ -1388,8 +1388,9 @@ public final class OnlineActivity extends BaseActivity
         dialog.show();
         // v0.0.21：二维码生成移到后台线程——首次点击卡顿根因
         // （主线程 ZXing 编码 480×480 + 类首次加载）
+        // v0.4.29：二维码内容改为邀请网页链接（扫一扫打开启动器 UI 页面）
         new Thread(() -> {
-            android.graphics.Bitmap qr = QrUtils.generate("P/" + currentCode, 480);
+            android.graphics.Bitmap qr = QrUtils.generate(inviteUrl(currentCode), 480);
             runOnUiThread(() -> {
                 if (!dialog.isShowing() || isFinishing()) {
                     return;
@@ -1410,8 +1411,17 @@ public final class OnlineActivity extends BaseActivity
         }
         Intent send = new Intent(Intent.ACTION_SEND);
         send.setType("text/plain");
-        send.putExtra(Intent.EXTRA_TEXT, getString(R.string.online_share_text, "P/" + currentCode));
+        // v0.4.29：分享文本带邀请网页链接（点开展示启动器 UI + 邀请码）
+        send.putExtra(Intent.EXTRA_TEXT,
+                getString(R.string.online_share_text, "P/" + currentCode)
+                        + "\n" + inviteUrl(currentCode));
         startActivity(Intent.createChooser(send, getString(R.string.online_share_code)));
+    }
+
+    /** v0.4.29：邀请网页链接（GitHub Pages 静态页展示启动器 UI）。 */
+    private String inviteUrl(String code) {
+        return "https://lss3409.github.io/?code="
+                + android.net.Uri.encode("P/" + code);
     }
 
     /** v541：当前个性化强调色。 */

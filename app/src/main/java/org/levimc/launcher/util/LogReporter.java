@@ -1,6 +1,8 @@
 package org.levimc.launcher.util;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -8,99 +10,72 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.InputType;
-import android.util.TypedValue;
-import android.view.Gravity;
+import android.text.TextUtils;
+import android.view.View;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import org.json.JSONObject;
 import org.levimc.launcher.R;
 import org.levimc.launcher.ui.dialogs.CustomAlertDialog;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
-/** v0.4.24：日志上报——收集崩溃日志/调试日志/设备信息打包 zip，
- *  走系统邮件预填发送给开发者（lishushu8888@outlook.com）。
- *  v0.4.28：SMTP 直发放弃（用户拍板），恢复系统邮件；发送前弹窗
- *  可填崩溃描述（写入邮件正文）。 */
+/** v0.4.24：日志上报。
+ *  v0.4.29：接入 LogShare.CN 公共 API（https://api.logshare.cn/v1/log，
+ *  无需认证、免费开放）——日志合并文本上传，返回分享链接；
+ *  失败回退系统邮件预填。 */
 public final class LogReporter {
 
     private static final String REPORT_TO = "lishushu8888@outlook.com";
+    private static final String LOGSHARE_URL = "https://api.logshare.cn/v1/log";
+    /** 日志文本上限（API 单条最大 10MB，留余量）。 */
+    private static final int MAX_TEXT = 8 * 1024 * 1024;
 
     private LogReporter() {
     }
 
-    /** 点击上报：弹描述弹窗 → 后台收集 → 拉起系统邮件（预填收件人）。 */
+    /** 点击上报：弹描述弹窗 → 后台收集+上传 → 成功弹分享链接。 */
     public static void report(Activity activity) {
-        showReportDialog(activity);
-    }
-
-    // ---------------- 发送前弹窗（只填崩溃描述） ----------------
-
-    private static void showReportDialog(Activity activity) {
-        int onSurface = ContextCompat.getColor(activity, R.color.on_surface);
-        int hintColor = ContextCompat.getColor(activity, R.color.text_secondary);
-        float density = activity.getResources().getDisplayMetrics().density;
-
-        LinearLayout root = new LinearLayout(activity);
-        root.setOrientation(LinearLayout.VERTICAL);
-        int pad = (int) (12 * density);
-        root.setPadding(pad, 0, pad, 0);
-
-        EditText descInput = new EditText(activity);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        descInput.setLayoutParams(lp);
-        descInput.setBackgroundResource(R.drawable.bg_spinner_outline);
-        descInput.setPadding(pad, pad, pad, pad);
-        descInput.setTextColor(onSurface);
-        descInput.setHintTextColor(hintColor);
-        descInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        descInput.setHint(activity.getString(R.string.report_crash_desc_hint));
-        descInput.setMinLines(3);
-        descInput.setGravity(Gravity.TOP);
-        descInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        root.addView(descInput);
-
+        View v = activity.getLayoutInflater().inflate(R.layout.dialog_report_logs, null);
+        EditText descInput = v.findViewById(R.id.report_desc_input);
         new CustomAlertDialog(activity)
                 .setTitleText(activity.getString(R.string.report_logs))
-                .setCustomView(root)
-                .setPositiveButton(activity.getString(R.string.report_logs), v -> {
+                .setCustomView(v)
+                .setPositiveButton(activity.getString(R.string.report_logs), d -> {
                     String desc = descInput.getText().toString().trim();
-                    collectAndSend(activity, desc);
+                    collectAndUpload(activity, desc);
                 })
                 .setNegativeButton(activity.getString(R.string.cancel), null)
                 .show();
     }
 
-    // ---------------- 收集 + 拉起邮件 ----------------
+    // ---------------- 收集 + 上传 ----------------
 
-    private static void collectAndSend(Activity activity, String desc) {
-        Toast.makeText(activity, R.string.report_logs_collecting, Toast.LENGTH_SHORT).show();
+    private static void collectAndUpload(Activity activity, String desc) {
+        Toast.makeText(activity, R.string.report_uploading, Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             String error = null;
-            File zip = null;
+            String text = null;
             try {
-                zip = collect(activity);
+                text = collectText(activity);
             } catch (Exception e) {
                 error = String.valueOf(e.getMessage());
             }
-            final File result = zip;
+            final String result = text;
             final String err = error;
             Handler main = new Handler(Looper.getMainLooper());
             main.post(() -> {
@@ -113,45 +88,147 @@ public final class LogReporter {
                     }
                     return;
                 }
-                if (!sendMail(activity, result, desc)) {
-                    Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
-                }
+                upload(activity, desc, result);
             });
         }, "log-reporter").start();
     }
 
-    /** 系统邮件预填（收件人+主题+描述正文+zip 附件）。
-     *  type 用 message/rfc822：Outlook 才会当邮件草稿并预填收件人
-     *  （v0.4.28 修复「点发送跑到草稿里没收件人」）。 */
-    private static boolean sendMail(Activity activity, File zip, String desc) {
+    /** 上传 logshare（后台线程）。成功弹分享链接弹窗，失败回退邮件。 */
+    private static void upload(Activity activity, String desc, String text) {
+        new Thread(() -> {
+            String url = null;
+            String error = null;
+            try {
+                url = postLogShare(activity, desc, text);
+            } catch (Exception e) {
+                error = String.valueOf(e.getMessage());
+            }
+            final String link = url;
+            final String err = error;
+            Handler main = new Handler(Looper.getMainLooper());
+            main.post(() -> {
+                if (link != null) {
+                    showShareLinkDialog(activity, link);
+                } else {
+                    showUploadFailed(activity, err, text);
+                }
+            });
+        }, "logshare-upload").start();
+    }
+
+    /** POST /v1/log（JSON：content+source）。返回分享链接。 */
+    private static String postLogShare(Context context, String desc, String text) throws Exception {
+        String version = "";
         try {
-            Uri uri = FileProvider.getUriForFile(activity,
-                    activity.getPackageName() + ".fileprovider", zip);
+            version = context.getPackageManager()
+                    .getPackageInfo(context.getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+        }
+        StringBuilder content = new StringBuilder(text.length() + 256);
+        if (desc != null && !desc.isEmpty()) {
+            content.append("崩溃描述：\n").append(desc).append("\n\n");
+        }
+        content.append(text);
+
+        JSONObject body = new JSONObject();
+        body.put("content", content.toString());
+        body.put("name", "lbb-logs.txt");
+        body.put("source", "lbb/" + version);
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(LOGSHARE_URL).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(60000);
+        conn.setDoOutput(true);
+        byte[] payload = body.toString().getBytes(StandardCharsets.UTF_8);
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(payload);
+        }
+        int code = conn.getResponseCode();
+        java.io.InputStream is = code >= 200 && code < 300
+                ? conn.getInputStream() : conn.getErrorStream();
+        StringBuilder resp = new StringBuilder();
+        if (is != null) {
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    resp.append(line);
+                }
+            }
+        }
+        conn.disconnect();
+        if (code >= 200 && code < 300) {
+            JSONObject obj = new JSONObject(resp.toString());
+            if (obj.optBoolean("success", false)) {
+                String u = obj.optString("url", "");
+                if (!TextUtils.isEmpty(u)) {
+                    return u;
+                }
+                String id = obj.optString("id", "");
+                if (!TextUtils.isEmpty(id)) {
+                    return "https://logshare.cn/" + id;
+                }
+            }
+            throw new Exception("bad response: " + resp);
+        }
+        throw new Exception("HTTP " + code + " " + resp);
+    }
+
+    // ---------------- 成功/失败弹窗 ----------------
+
+    /** 上传成功：展示分享链接（复制/分享/打开）。 */
+    private static void showShareLinkDialog(Activity activity, String link) {
+        View v = activity.getLayoutInflater().inflate(R.layout.dialog_share_link, null);
+        android.widget.TextView tv = v.findViewById(R.id.share_link_text);
+        tv.setText(link);
+        tv.setTextColor(accentOf(activity));
+        new CustomAlertDialog(activity)
+                .setTitleText(activity.getString(R.string.report_upload_success))
+                .setCustomView(v)
+                .setPositiveButton(activity.getString(R.string.report_copy_link), d -> {
+                    ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                    cm.setPrimaryClip(ClipData.newPlainText("logshare", link));
+                    Toast.makeText(activity, R.string.copied, Toast.LENGTH_SHORT).show();
+                })
+                .setNeutralButton(activity.getString(R.string.report_share_link), d -> {
+                    Intent send = new Intent(Intent.ACTION_SEND);
+                    send.setType("text/plain");
+                    send.putExtra(Intent.EXTRA_TEXT, link);
+                    activity.startActivity(Intent.createChooser(send, null));
+                })
+                .setNegativeButton(activity.getString(R.string.close), null)
+                .show();
+    }
+
+    /** 上传失败：提示原因 + 系统邮件备选。 */
+    private static void showUploadFailed(Activity activity, String error, String text) {
+        new CustomAlertDialog(activity)
+                .setTitleText(activity.getString(R.string.report_upload_failed_title))
+                .setMessage(activity.getString(R.string.report_upload_failed, error))
+                .setPositiveButton(activity.getString(R.string.report_send_email_fallback), v -> {
+                    if (!sendMail(activity, text)) {
+                        Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton(activity.getString(R.string.cancel), null)
+                .show();
+    }
+
+    /** 系统邮件备选：正文=日志文本（不再附 zip）。 */
+    private static boolean sendMail(Activity activity, String text) {
+        try {
             String version = "";
             try {
                 version = activity.getPackageManager()
                         .getPackageInfo(activity.getPackageName(), 0).versionName;
             } catch (Exception ignored) {
             }
-            Intent intent = new Intent(Intent.ACTION_SEND_MULTIPLE);
+            Intent intent = new Intent(Intent.ACTION_SEND);
             intent.setType("message/rfc822");
             intent.putExtra(Intent.EXTRA_EMAIL, new String[]{REPORT_TO});
             intent.putExtra(Intent.EXTRA_SUBJECT, "[LBBL Log Report] v" + version);
-            StringBuilder body = new StringBuilder();
-            if (desc != null && !desc.isEmpty()) {
-                body.append(desc).append("\n\n");
-            }
-            body.append("（日志由 LBBL 自动收集，见附件 zip）\n");
-            body.append("Version: ").append(version).append('\n');
-            body.append("Device: ").append(Build.MANUFACTURER).append(' ')
-                    .append(Build.MODEL).append('\n');
-            body.append("Android: ").append(Build.VERSION.RELEASE)
-                    .append(" (SDK ").append(Build.VERSION.SDK_INT).append(")\n");
-            intent.putExtra(Intent.EXTRA_TEXT, body.toString());
-            ArrayList<Uri> uris = new ArrayList<>();
-            uris.add(uri);
-            intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.putExtra(Intent.EXTRA_TEXT, text);
             Intent chooser = Intent.createChooser(intent,
                     activity.getString(R.string.report_logs_done));
             if (chooser.resolveActivity(activity.getPackageManager()) == null) {
@@ -160,97 +237,43 @@ public final class LogReporter {
             activity.startActivity(chooser);
             return true;
         } catch (Exception e) {
-            Toast.makeText(activity,
-                    activity.getString(R.string.report_logs_failed, String.valueOf(e.getMessage())),
-                    Toast.LENGTH_LONG).show();
             return false;
         }
     }
 
-    // ---------------- 日志收集 ----------------
-
-    /** 收集日志打包 zip（cache/logs/ 下）。没有日志时抛异常。 */
-    private static File collect(Context context) throws Exception {
-        File dir = new File(context.getCacheDir(), "logs");
-        File[] olds = dir.listFiles();
-        if (olds != null) {
-            for (File f : olds) {
-                if (f.getName().startsWith("lbbl-logs-")) {
-                    //noinspection ResultOfMethodCallIgnored
-                    f.delete();
-                }
+    private static int accentOf(Context context) {
+        try {
+            int c = new org.levimc.launcher.util.PersonalizationManager(context).getAccentColor();
+            if (c != 0) {
+                return c;
             }
+        } catch (Throwable ignored) {
         }
-        if (!dir.exists() && !dir.mkdirs()) {
-            throw new Exception("mkdir failed");
-        }
-        String stamp = new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date());
-        File zip = new File(dir, "lbbl-logs-" + stamp + ".zip");
+        return ContextCompat.getColor(context, R.color.primary);
+    }
 
-        List<File> sources = new ArrayList<>();
-        File info = new File(dir, "device-info.txt");
-        writeDeviceInfo(context, info);
-        sources.add(info);
+    // ---------------- 日志收集（文本合并） ----------------
+
+    /** 收集日志合并为文本（device-info + 各日志文件 + logcat）。 */
+    private static String collectText(Context context) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        appendDeviceInfo(context, sb);
         File filesDir = context.getFilesDir();
-        collectFiles(filesDir, sources, 0);
-        File logcat = new File(dir, "logcat.txt");
-        if (dumpLogcat(logcat)) {
-            sources.add(logcat);
+        int fileCount = appendLogFiles(filesDir, sb, 0);
+        if (appendLogcat(sb)) {
+            fileCount++;
         }
-        if (sources.size() <= 1) {
+        if (fileCount == 0) {
             throw new Exception("No log files");
         }
-
-        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zip))) {
-            byte[] buf = new byte[8192];
-            for (File f : sources) {
-                String name = f.equals(info) ? "device-info.txt"
-                        : f.equals(logcat) ? "logcat.txt" : relativeName(filesDir, f);
-                zos.putNextEntry(new ZipEntry(name));
-                try (FileInputStream fis = new FileInputStream(f)) {
-                    int n;
-                    while ((n = fis.read(buf)) > 0) {
-                        zos.write(buf, 0, n);
-                    }
-                }
-                zos.closeEntry();
-            }
+        if (sb.length() > MAX_TEXT) {
+            return sb.substring(0, MAX_TEXT) + "\n...(truncated)";
         }
-        return zip;
+        return sb.toString();
     }
 
-    private static void collectFiles(File dir, List<File> out, int depth) {
-        if (depth > 4 || out.size() > 40) {
-            return;
-        }
-        File[] children = dir.listFiles();
-        if (children == null) {
-            return;
-        }
-        for (File f : children) {
-            if (f.isDirectory()) {
-                String n = f.getName().toLowerCase(Locale.US);
-                if (n.contains("xcrash") || n.contains("crash") || n.contains("log")) {
-                    collectFiles(f, out, depth + 1);
-                }
-            } else {
-                String n = f.getName().toLowerCase(Locale.US);
-                if ((n.endsWith(".log") || n.endsWith(".txt")) && f.length() > 0
-                        && f.length() < 10 * 1024 * 1024) {
-                    out.add(f);
-                }
-            }
-        }
-    }
-
-    private static String relativeName(File base, File f) {
-        String basePath = base.getAbsolutePath();
-        String path = f.getAbsolutePath();
-        return path.startsWith(basePath) ? path.substring(basePath.length() + 1) : f.getName();
-    }
-
-    private static void writeDeviceInfo(Context context, File out) throws Exception {
-        StringBuilder sb = new StringBuilder();
+    private static void appendDeviceInfo(Context context, StringBuilder sb) {
+        sb.append("=== LBBL Log Report ===\n");
         try {
             PackageInfo pi = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
             sb.append("App: ").append(context.getPackageName()).append('\n');
@@ -272,28 +295,65 @@ public final class LogReporter {
                     .append(LauncherStorage.getExtendedRootPath(context)).append('\n');
         } catch (Exception ignored) {
         }
-        try (FileOutputStream fos = new FileOutputStream(out)) {
-            fos.write(sb.toString().getBytes("UTF-8"));
-        }
+        sb.append('\n');
     }
 
-    private static boolean dumpLogcat(File out) {
+    private static int appendLogFiles(File dir, StringBuilder sb, int depth) {
+        if (depth > 4 || sb.length() > MAX_TEXT) {
+            return 0;
+        }
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return 0;
+        }
+        int count = 0;
+        for (File f : children) {
+            if (f.isDirectory()) {
+                String n = f.getName().toLowerCase(Locale.US);
+                if (n.contains("xcrash") || n.contains("crash") || n.contains("log")) {
+                    count += appendLogFiles(f, sb, depth + 1);
+                }
+            } else {
+                String n = f.getName().toLowerCase(Locale.US);
+                if ((n.endsWith(".log") || n.endsWith(".txt")) && f.length() > 0
+                        && f.length() < 10 * 1024 * 1024) {
+                    sb.append("=== File: ").append(f.getName()).append(" ===\n");
+                    try (BufferedReader br = new BufferedReader(
+                            new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = br.readLine()) != null && sb.length() < MAX_TEXT) {
+                            sb.append(line).append('\n');
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    sb.append('\n');
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static boolean appendLogcat(StringBuilder sb) {
         try {
             Process p = new ProcessBuilder("logcat", "-d", "-t", "500")
                     .redirectErrorStream(true).start();
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-                 FileOutputStream fos = new FileOutputStream(out)) {
+            StringBuilder part = new StringBuilder();
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()))) {
                 String line;
                 int count = 0;
                 while ((line = br.readLine()) != null && count < 2000) {
-                    fos.write((line + "\n").getBytes("UTF-8"));
+                    part.append(line).append('\n');
                     count++;
                 }
             }
             p.destroy();
-            return out.length() > 0;
-        } catch (Exception e) {
-            return false;
+            if (part.length() > 0) {
+                sb.append("=== logcat ===\n").append(part).append('\n');
+                return true;
+            }
+        } catch (Exception ignored) {
         }
+        return false;
     }
 }

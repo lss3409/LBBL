@@ -1947,7 +1947,16 @@ Invite code: P/%1$s
     <string name="report_crash_desc_hint">Describe what happened (optional)</string>
     <!-- v0.4.24: Log reporting -->
     <string name="report_logs">Report Logs</string>
-    <string name="report_logs_desc">Package crash logs and debug logs and send them to the developer to help fix bugs.</string>
+    <string name="report_logs_desc">Logs are uploaded to logshare.cn and a public share link is generated.</string>
+    <string name="report_desc_sub">Describe what happened (optional). Your description is uploaded together with the logs.</string>
+    <string name="report_uploading">Uploading logs…</string>
+    <string name="report_upload_success">Logs uploaded ✓</string>
+    <string name="report_upload_success_desc">Share this link with the developer or in the community:</string>
+    <string name="report_upload_failed_title">Upload Failed</string>
+    <string name="report_upload_failed">Failed to upload: %1$s</string>
+    <string name="report_copy_link">Copy Link</string>
+    <string name="report_share_link">Share Link</string>
+    <string name="report_send_email_fallback">Send via email app</string>
     <string name="report_logs_collecting">Collecting logs…</string>
     <string name="report_logs_done">Logs packaged. Choose an app to send them.</string>
     <string name="report_logs_failed">Failed to collect logs: %1$s</string>
