@@ -89,22 +89,15 @@ public class SettingsActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // v0.4.31 临时性能打点（定位点设置栏卡顿，定位后删除）
-        long perfT = System.currentTimeMillis();
         super.onCreate(savedInstanceState);
-        android.util.Log.i("PerfSettings", "super.onResume +" + (System.currentTimeMillis() - perfT));
         setContentView(R.layout.activity_settings);
-        android.util.Log.i("PerfSettings", "setContentView +" + (System.currentTimeMillis() - perfT));
 
         DynamicAnim.applyPressScaleRecursively(findViewById(android.R.id.content));
-        android.util.Log.i("PerfSettings", "applyPressScale +" + (System.currentTimeMillis() - perfT));
 
         setupNavBar();
         setupUpdateCheck();
-        android.util.Log.i("PerfSettings", "nav+update +" + (System.currentTimeMillis() - perfT));
 
         personalizationManager = new PersonalizationManager(this);
-        android.util.Log.i("PerfSettings", "personalization +" + (System.currentTimeMillis() - perfT));
 
         // v0.0.6：首次打开默认「基础设置」（含语言切换），避免用户切到
         // 别的 tab 后找不到语言入口（用户反馈）。
@@ -170,14 +163,12 @@ public class SettingsActivity extends BaseActivity {
         setupPersonalizeSection();
         setupMigrationSection();
         setupAboutSection();
-        android.util.Log.i("PerfSettings", "sections +" + (System.currentTimeMillis() - perfT));
 
         TextView[] tabs = getSettingsTabs();
         if (selectedTabIndex >= tabs.length) {
             selectedTabIndex = 0;
         }
         selectTab(tabs[selectedTabIndex]);
-        android.util.Log.i("PerfSettings", "selectTab +" + (System.currentTimeMillis() - perfT));
 
         // v0.0.5：tab 行复位到最左——恢复上次 tab（如「关于」）时
         // 第一个 tab「基础设置」（含语言切换）不能滚出屏幕外
