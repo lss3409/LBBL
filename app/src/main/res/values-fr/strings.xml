@@ -790,7 +790,10 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="website">Site web</string>
 <string name="delete_account_title">Supprimer le compte</string>
 <string name="delete_account_confirm">Voulez-vous vraiment supprimer ce compte ?</string>
-<string name="custom_storage_path_title">Chemin de stockage personnalisé</string>
+<string name="extended_root_path_title">Chemin des données du launcher</string>
+    <string name="extended_root_path_desc">Sauvegardes, exports HTML, structures et cache (défaut : Download/LeviLauncher)</string>
+    <string name="extended_root_path_current">Actuel : %s</string>
+    <string name="custom_storage_path_title">Chemin de stockage personnalisé</string>
 <string name="custom_storage_path_desc">Définir un répertoire racine personnalisé pour les données de Minecraft. Laissez vide pour utiliser le chemin par défaut.</string>
 <string name="custom_storage_path_apply">Appliquer</string>
 <string name="custom_storage_path_select">Sélectionner</string>

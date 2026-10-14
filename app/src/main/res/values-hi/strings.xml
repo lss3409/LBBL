@@ -817,7 +817,10 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="website">वेबसाइट</string>
 <string name="delete_account_title">खाता हटाएँ</string>
 <string name="delete_account_confirm">क्या आप वाकई यह खाता हटाना चाहते हैं?</string>
-<string name="custom_storage_path_title">कस्टम स्टोरेज पथ</string>
+<string name="extended_root_path_title">लॉन्चर डेटा पथ</string>
+    <string name="extended_root_path_desc">बैकअप, HTML निर्यात, संरचना और कैश (डिफ़ॉल्ट: Download/LeviLauncher)</string>
+    <string name="extended_root_path_current">वर्तमान: %s</string>
+    <string name="custom_storage_path_title">कस्टम स्टोरेज पथ</string>
 <string name="custom_storage_path_desc">Minecraft डेटा के लिए कस्टम रूट निर्देशिका सेट करें। डिफ़ॉल्ट पथ उपयोग करने के लिए खाली छोड़ दें।</string>
 <string name="custom_storage_path_apply">लागू करें</string>
 <string name="custom_storage_path_select">चुनें</string>

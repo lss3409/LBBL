@@ -81,6 +81,8 @@ public class SettingsActivity extends BaseActivity {
     private ImageView bgImagePreview;
     private TextView customStoragePathCurrent;
     private EditText customStoragePathInput;
+    private TextView extendedRootPathCurrent;
+    private EditText extendedRootPathInput;
     private SwitchMaterial switchSharedStorageLayout;
     private TextView sharedStorageLayoutStatus;
 
@@ -133,10 +135,16 @@ public class SettingsActivity extends BaseActivity {
                 uri -> {
                     if (uri != null) {
                         String path = getPathFromTreeUri(uri);
-                        if (path != null && customStoragePathInput != null) {
-                            // v0.4.12：选完目录自动应用（此前只把路径填进
-                            // 输入栏，用户以为 SAF 的"应用"已生效——
-                            // "文件管理器选择后点应用不生效"根因）
+                        if (path == null) {
+                            return;
+                        }
+                        // v0.4.12：选完目录自动应用（此前只把路径填进
+                        // 输入栏，用户以为 SAF 的"应用"已生效——
+                        // "文件管理器选择后点应用不生效"根因）
+                        if (extendedPickerTarget && extendedRootPathInput != null) {
+                            extendedRootPathInput.setText(path);
+                            applyExtendedRootPath();
+                        } else if (customStoragePathInput != null) {
                             customStoragePathInput.setText(path);
                             applyCustomStoragePath();
                         }
@@ -1065,11 +1073,18 @@ public class SettingsActivity extends BaseActivity {
         setupCustomStoragePathSection();
     }
 
+    /** v0.4.13：选择器目标（true=启动器数据路径，false=游戏数据自定义路径）。 */
+    private boolean extendedPickerTarget;
+
     private void setupCustomStoragePathSection() {
         customStoragePathCurrent = findViewById(R.id.custom_storage_path_current);
         customStoragePathInput = findViewById(R.id.input_custom_storage_path);
         Button btnSelectApply = findViewById(R.id.btn_apply_custom_storage_path);
         Button btnReset = findViewById(R.id.btn_reset_custom_storage_path);
+
+        // v0.4.13：启动器数据路径（备份/HTML/结构文件/缓存，默认
+        // Download/LeviLauncher，支持更改）
+        setupExtendedRootPathSection();
 
         if (customStoragePathInput != null) {
             customStoragePathInput.setHint(LauncherStorage.getTargetAppRootDisplayPath(this));
@@ -1117,9 +1132,54 @@ public class SettingsActivity extends BaseActivity {
     }
 
     private void openFolderPicker() {
+        extendedPickerTarget = false;
         if (folderPickerLauncher != null) {
             folderPickerLauncher.launch(null);
         }
+    }
+
+    /** v0.4.13：启动器数据路径区块（备份/HTML/结构文件/缓存）。 */
+    private void setupExtendedRootPathSection() {
+        extendedRootPathCurrent = findViewById(R.id.extended_root_path_current);
+        extendedRootPathInput = findViewById(R.id.input_extended_root_path);
+        Button btnSelect = findViewById(R.id.btn_apply_extended_root_path);
+        Button btnReset = findViewById(R.id.btn_reset_extended_root_path);
+
+        if (btnSelect != null) {
+            btnSelect.setOnClickListener(v -> {
+                extendedPickerTarget = true;
+                if (folderPickerLauncher != null) {
+                    folderPickerLauncher.launch(null);
+                }
+            });
+        }
+        if (btnReset != null) {
+            btnReset.setOnClickListener(v -> {
+                LauncherStorage.setExtendedRootPath(this, null);
+                if (extendedRootPathInput != null) {
+                    extendedRootPathInput.setText("");
+                }
+                refreshExtendedRootPathUi();
+            });
+        }
+        refreshExtendedRootPathUi();
+    }
+
+    private void refreshExtendedRootPathUi() {
+        if (extendedRootPathCurrent != null) {
+            extendedRootPathCurrent.setText(getString(R.string.extended_root_path_current,
+                    LauncherStorage.getExtendedRootPath(this)));
+        }
+    }
+
+    private void applyExtendedRootPath() {
+        if (extendedRootPathInput == null) {
+            return;
+        }
+        String path = extendedRootPathInput.getText().toString().trim();
+        LauncherStorage.setExtendedRootPath(this, path.isEmpty() ? null : path);
+        refreshExtendedRootPathUi();
+        // 地图烘焙缓存位置变化：旧缓存读不到会自动重烘（缓存可再生）
     }
 
     private String getPathFromTreeUri(Uri uri) {

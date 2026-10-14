@@ -1162,6 +1162,93 @@
                                 android:paddingHorizontal="12dp" />
                         </LinearLayout>
                     </LinearLayout>
+
+                    <!-- v0.4.13：启动器数据路径（备份/HTML/结构文件/缓存） -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/card_background"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/extended_root_path_title"
+                            android:fontFamily="@font/misans"
+                            android:textColor="@color/on_surface"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/extended_root_path_desc"
+                            android:fontFamily="@font/misans"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/extended_root_path_current"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/bg_spinner_outline"
+                            android:fontFamily="@font/misans"
+                            android:padding="10dp"
+                            android:textColor="@color/on_surface"
+                            android:textSize="12sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <EditText
+                                android:id="@+id/input_extended_root_path"
+                                android:layout_width="0dp"
+                                android:layout_height="40dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_spinner_outline"
+                                android:paddingHorizontal="12dp"
+                                android:fontFamily="@font/misans"
+                                android:textSize="13sp"
+                                android:textColor="@color/on_surface"
+                                android:inputType="textUri"
+                                android:singleLine="true"
+                                android:importantForAutofill="no" />
+
+                            <Button
+                                android:id="@+id/btn_apply_extended_root_path"
+                                android:layout_width="wrap_content"
+                                android:layout_height="40dp"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/custom_storage_path_apply"
+                                android:textAllCaps="false"
+                                android:fontFamily="@font/misans"
+                                android:textSize="12sp"
+                                android:textColor="@color/on_primary"
+                                android:backgroundTint="@color/primary"
+                                android:paddingHorizontal="16dp" />
+
+                            <Button
+                                android:id="@+id/btn_reset_extended_root_path"
+                                android:layout_width="wrap_content"
+                                android:layout_height="40dp"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/custom_storage_path_reset"
+                                android:textAllCaps="false"
+                                android:fontFamily="@font/misans"
+                                android:textSize="12sp"
+                                android:textColor="@color/on_surface"
+                                android:backgroundTint="@color/surface_variant"
+                                android:paddingHorizontal="12dp" />
+                        </LinearLayout>
+                    </LinearLayout>
                 </LinearLayout>
 
             </FrameLayout>

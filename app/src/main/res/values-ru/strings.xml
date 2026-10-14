@@ -820,7 +820,10 @@
 <string name="website">Сайт</string>
 <string name="delete_account_title">Удалить аккаунт</string>
 <string name="delete_account_confirm">Вы уверены, что хотите удалить этот аккаунт?</string>
-<string name="custom_storage_path_title">Пользовательский путь хранения</string>
+<string name="extended_root_path_title">Путь данных лаунчера</string>
+    <string name="extended_root_path_desc">Резервные копии, экспорт HTML, структуры и кэш (по умолчанию: Download/LeviLauncher)</string>
+    <string name="extended_root_path_current">Текущий: %s</string>
+    <string name="custom_storage_path_title">Пользовательский путь хранения</string>
 <string name="custom_storage_path_desc">Задайте пользовательский корневой каталог для данных Minecraft. Оставьте пустым, чтобы использовать путь по умолчанию.</string>
 <string name="custom_storage_path_apply">Применить</string>
 <string name="custom_storage_path_select">Выбрать</string>

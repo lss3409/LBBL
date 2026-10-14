@@ -180,7 +180,10 @@
 <string name="shared_storage_layout_mode_legacy">原始内部/外部目录</string>
 <string name="shared_storage_layout_status">当前模式：%1$s\n内部：%2$s\n外部：%3$s</string>
 <string name="shared_storage_layout_changed">存储目录选择已更新。请重启 Minecraft 并重新打开内容管理，以确保变更完全生效。</string>
-<string name="custom_storage_path_title">自定义存储路径</string>
+<string name="extended_root_path_title">启动器数据路径</string>
+    <string name="extended_root_path_desc">备份、HTML 导出、结构文件与地图缓存放这里（默认：Download/LeviLauncher）</string>
+    <string name="extended_root_path_current">当前：%s</string>
+    <string name="custom_storage_path_title">自定义存储路径</string>
 <string name="custom_storage_path_desc">设置 Minecraft 数据的自定义根目录。留空则使用默认路径。</string>
 <string name="custom_storage_path_apply">应用</string>
 <string name="custom_storage_path_select">选择</string>

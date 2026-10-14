@@ -813,7 +813,10 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="website">Situs Web</string>
 <string name="delete_account_title">Hapus Akun</string>
 <string name="delete_account_confirm">Anda yakin ingin menghapus akun ini?</string>
-<string name="custom_storage_path_title">Jalur Penyimpanan Kustom</string>
+<string name="extended_root_path_title">Jalur data peluncur</string>
+    <string name="extended_root_path_desc">Cadangan, ekspor HTML, struktur, dan cache (bawaan: Download/LeviLauncher)</string>
+    <string name="extended_root_path_current">Saat ini: %s]</string>
+    <string name="custom_storage_path_title">Jalur Penyimpanan Kustom</string>
 <string name="custom_storage_path_desc">Tetapkan direktori root kustom untuk data Minecraft. Kosongkan untuk memakai jalur bawaan.</string>
 <string name="custom_storage_path_apply">Terapkan</string>
 <string name="custom_storage_path_select">Pilih</string>

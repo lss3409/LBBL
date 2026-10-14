@@ -103,7 +103,8 @@ android {
                 mappingFileUploadEnabled false
                 nativeSymbolUploadEnabled true
             }
-            resValue "string", "app_name", "LeviLauncher Beta"
+            // v0.4.13：装机用变体——不可调试（消除 16KB 兼容性警告），名字同正式版
+            resValue "string", "app_name", "LBBL"
             buildConfigField "boolean", "IS_BETA", "true"
             matchingFallbacks = ["release"]
             ndk {

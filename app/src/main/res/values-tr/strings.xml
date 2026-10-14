@@ -847,7 +847,10 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="website">Web Sitesi</string>
 <string name="delete_account_title">Hesabı Sil</string>
 <string name="delete_account_confirm">Bu hesabı silmek istediğinden emin misin?</string>
-<string name="custom_storage_path_title">Özel Depolama Yolu</string>
+<string name="extended_root_path_title">Başlatıcı veri yolu</string>
+    <string name="extended_root_path_desc">Yedekler, HTML dışa aktarma, yapılar ve önbellek (varsayılan: Download/LeviLauncher)</string>
+    <string name="extended_root_path_current">Geçerli: %s</string>
+    <string name="custom_storage_path_title">Özel Depolama Yolu</string>
 <string name="custom_storage_path_desc">Minecraft verileri için özel bir kök dizin belirle. Varsayılan yolu kullanmak için boş bırak.</string>
 <string name="custom_storage_path_apply">Uygula</string>
 <string name="custom_storage_path_select">Seç</string>

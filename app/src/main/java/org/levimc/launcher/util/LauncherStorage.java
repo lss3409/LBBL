@@ -77,52 +77,16 @@ public final class LauncherStorage {
             }
         }
 
-        // 第二级：Download/LeviLauncher（v0.4.12 用户指定的默认存储根；
-        // 此前默认 Android/data——FUSE 慢且卸载即清）。老用户兼容：
-        // Android/data 有数据而新默认根无数据 → 沿用 Android/data
-        // 防"升级后世界列表全空"
-        File dlRoot = new File(android.os.Environment.getExternalStorageDirectory(),
-                "Download/LeviLauncher");
+        // 第二级：应用专属外部存储（Android/data，绕过 FUSE，大量小文件操作快）
         File appExternal = context.getExternalFilesDir(null);
-        if (appExternal != null && dirHasData(appExternal) && !dirHasData(dlRoot)) {
-            if (ensureDir(appExternal)) {
-                return appExternal;
-            }
-        }
-        if (ensureDir(dlRoot)) {
-            return dlRoot;
-        }
-
-        // 第三级：应用专属外部存储 fallback
         if (appExternal != null && ensureDir(appExternal)) {
             return appExternal;
         }
 
-        // 第四级：内部存储 fallback
+        // 第三级：内部存储 fallback
         File internalFallback = new File(context.getFilesDir(), GAMES_DIR);
         ensureDir(internalFallback);
         return internalFallback;
-    }
-
-    /** v0.4.12：目录里是否有启动器数据（games/ 或 minecraft/ 有内容）。 */
-    private static boolean dirHasData(File root) {
-        if (root == null || !root.isDirectory()) {
-            return false;
-        }
-        File[] children = root.listFiles();
-        if (children == null) {
-            return false;
-        }
-        for (File child : children) {
-            if (child.isDirectory()
-                    && (GAMES_DIR.equals(child.getName()) || "minecraft".equals(child.getName()))) {
-                File[] sub = child.listFiles();
-                if (sub != null && sub.length > 0) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     public static String getCustomStoragePath(Context context) {
@@ -149,15 +113,11 @@ public final class LauncherStorage {
     }
 
     public static String getTargetAppRootDisplayPath(Context context) {
-        // v0.4.12：显示路径与 resolveTargetAppRoot 默认一致
-        // （自定义 → Download/LeviLauncher 默认 → Android/data 兜底）
-        String custom = getCustomStoragePath(context);
-        if (custom != null) {
-            return custom;
+        File external = context.getExternalFilesDir(null);
+        if (external != null) {
+            return external.getAbsolutePath();
         }
-        File dlRoot = new File(android.os.Environment.getExternalStorageDirectory(),
-                "Download/LeviLauncher");
-        return dlRoot.getAbsolutePath();
+        return buildTargetAppRootDisplayPath(context.getPackageName());
     }
 
     static String buildTargetAppRootDisplayPath(String packageName) {
@@ -454,8 +414,39 @@ public final class LauncherStorage {
         return dir;
     }
 
+    // ---------- v0.4.13：可配置的启动器内容根（备份/导出/结构/缓存） ----------
+
+    private static final String KEY_EXTENDED_ROOT_PATH = "extended_root_path";
+    /** 默认内容根：/storage/emulated/0/Download/LeviLauncher */
+    private static final String DEFAULT_EXTENDED_ROOT = "Download/LeviLauncher";
+
+    /** 内容根路径（设置页可改；空/未设置 = 默认 Download/LeviLauncher）。 */
+    public static String getExtendedRootPath(Context context) {
+        String path = context.getSharedPreferences(STORAGE_LAYOUT_PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_EXTENDED_ROOT_PATH, null);
+        if (path == null || path.trim().isEmpty()) {
+            return new File(android.os.Environment.getExternalStorageDirectory(),
+                    DEFAULT_EXTENDED_ROOT).getAbsolutePath();
+        }
+        return path.trim();
+    }
+
+    public static void setExtendedRootPath(Context context, String path) {
+        String trimmed = (path == null || path.trim().isEmpty()) ? null : path.trim();
+        context.getSharedPreferences(STORAGE_LAYOUT_PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_EXTENDED_ROOT_PATH, trimmed)
+                .apply();
+    }
+
+    private static File getExtendedRootDir(Context context) {
+        File dir = new File(getExtendedRootPath(context));
+        ensureDir(dir);
+        return dir;
+    }
+
     public static File getBackupsRoot(Context context) {
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(), "Download/LeviLauncher/Backups");
+        File dir = new File(getExtendedRootDir(context), "Backups");
         ensureDir(dir);
         return dir;
     }
@@ -473,10 +464,10 @@ public final class LauncherStorage {
         return dir;
     }
 
-    /** v569：扩展数据根目录：Download/LeviLauncher/Exports（HTML 地图导出等）。 */
+    /** v569：扩展数据根目录：<内容根>/Exports（HTML 地图导出等）。
+     *  v0.4.13：内容根可配置（默认 Download/LeviLauncher）。 */
     public static File getExportsRoot(Context context) {
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(),
-                "Download/LeviLauncher/Exports");
+        File dir = new File(getExtendedRootDir(context), "Exports");
         ensureDir(dir);
         return dir;
     }
@@ -488,11 +479,9 @@ public final class LauncherStorage {
         return dir;
     }
 
-    /** v569：扩展缓存目录：Download/LeviLauncher/Cache/map_cache（烘培地图数据，
-     * 从应用私有 Android/data 迁出，统一放 Download/LeviLauncher 下）。 */
+    /** v569：扩展缓存目录：<内容根>/Cache/map_cache（烘培地图数据）。 */
     public static File getBakedMapCacheDir(Context context) {
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(),
-                "Download/LeviLauncher/Cache/map_cache");
+        File dir = new File(getExtendedRootDir(context), "Cache/map_cache");
         ensureDir(dir);
         return dir;
     }

@@ -787,7 +787,10 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="website">ウェブサイト</string>
 <string name="delete_account_title">アカウントの削除</string>
 <string name="delete_account_confirm">このアカウントを本当に削除しますか？</string>
-<string name="custom_storage_path_title">カスタム保存先パス</string>
+<string name="extended_root_path_title">ランチャーデータパス</string>
+    <string name="extended_root_path_desc">バックアップ、HTMLエクスポート、構造、キャッシュ（既定：Download/LeviLauncher）</string>
+    <string name="extended_root_path_current">現在：%s</string>
+    <string name="custom_storage_path_title">カスタム保存先パス</string>
 <string name="custom_storage_path_desc">Minecraft データのカスタムルートディレクトリを設定します。空にするとデフォルトのパスを使用します。</string>
 <string name="custom_storage_path_apply">適用</string>
 <string name="custom_storage_path_select">選択</string>

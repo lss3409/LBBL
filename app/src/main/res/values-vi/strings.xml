@@ -850,7 +850,10 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="shared_storage_layout_mode_legacy">Thư mục trong/ngoài ban đầu</string>
 <string name="shared_storage_layout_status">Chế độ hiện tại: %1$s\nBên trong: %2$s\nBên ngoài: %3$s</string>
 <string name="shared_storage_layout_changed">Đã cập nhật lựa chọn thư mục lưu trữ. Hãy khởi động lại Minecraft và mở lại mục quản lý nội dung để thay đổi có hiệu lực hoàn toàn.</string>
-<string name="custom_storage_path_title">Đường dẫn lưu trữ tùy chỉnh</string>
+<string name="extended_root_path_title">Đường dẫn dữ liệu launcher</string>
+    <string name="extended_root_path_desc">Sao lưu, xuất HTML, cấu trúc và bộ nhớ đệm (mặc định: Download/LeviLauncher)</string>
+    <string name="extended_root_path_current">Hiện tại: %s</string>
+    <string name="custom_storage_path_title">Đường dẫn lưu trữ tùy chỉnh</string>
 <string name="custom_storage_path_desc">Đặt thư mục gốc tùy chỉnh cho dữ liệu Minecraft. Để trống để dùng đường dẫn mặc định.</string>
 <string name="custom_storage_path_apply">Áp dụng</string>
 <string name="custom_storage_path_select">Chọn</string>
