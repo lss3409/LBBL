@@ -1049,14 +1049,15 @@
                             android:layout_marginStart="12dp"
                             android:orientation="vertical">
 
-                            <TextView
+                            <!-- v0.4.43：标题文字换 BILIBILI 官方文字 logo 图 -->
+                            <ImageView
                                 android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/help_bilibili"
-                                android:fontFamily="@font/misans"
-                                android:textColor="@color/on_surface"
-                                android:textSize="15sp"
-                                android:textStyle="bold" />
+                                android:layout_height="14dp"
+                                android:adjustViewBounds="true"
+                                android:contentDescription="@string/help_bilibili"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_bilibili_text"
+                                app:tint="@color/on_surface" />
 
                             <TextView
                                 android:layout_width="wrap_content"
