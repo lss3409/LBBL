@@ -68,10 +68,6 @@ public class SplashActivity extends BaseActivity {
 
         warmUpStorageAndVersions();
 
-        // v0.4.24：XP 启动音——延迟等 SoundPool 把 424KB 的 wav 加载完
-        binding.getRoot().postDelayed(() -> org.levimc.launcher.util.WinSoundPlayer
-                .get(this).play(org.levimc.launcher.util.WinSoundPlayer.SOUND_STARTUP), 800);
-
         binding.getRoot().post(this::startSplashSequence);
     }
 

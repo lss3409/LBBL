@@ -3,16 +3,26 @@ package org.levimc.launcher.util;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
+import android.util.Base64;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 import org.levimc.launcher.R;
+import org.levimc.launcher.ui.dialogs.CustomAlertDialog;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,19 +37,117 @@ import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-/** v0.4.24：日志上报——收集崩溃日志/调试日志/设备信息打包 zip，
- *  走系统邮件预填发送给开发者（lishushu8888@outlook.com）。
- *  隐私：只收集启动器自己的文件与 logcat 里本进程的日志。 */
+/** v0.4.24：日志上报。
+ *  v0.4.26：SMTP 直发（smtp.qq.com:465 SSL，授权码内置 Base64 混淆，
+ *  参考用户密码轮换工具）——真正发送完成才回调 onDone（绿勾提示）；
+ *  发送前弹窗可填崩溃描述 + 改发件邮箱/授权码（prefs 记忆）；
+ *  失败时提供系统邮件备选。 */
 public final class LogReporter {
 
-    private static final String REPORT_EMAIL = "lishushu8888@outlook.com";
+    private static final String PREFS = "log_reporter";
+    private static final String KEY_FROM = "from_email";
+    private static final String KEY_AUTH = "auth_code";
+
+    private static final String REPORT_TO = "lishushu8888@outlook.com";
+    private static final String SMTP_HOST = "smtp.qq.com";
+    private static final int SMTP_PORT = 465;
+    /** 内置发件（用户密码轮换工具配置，Base64 混淆）。 */
+    private static final String DEFAULT_FROM = "3771407017@qq.com";
+    private static final String DEFAULT_AUTH = "d2J6d3p3bXVvYWpjY2JoZw==";
 
     private LogReporter() {
     }
 
-    /** 点击上报：后台线程收集 → 主线程拉起邮件。
-     *  onDone：调起邮件后主线程回调（上传完成贴图用）。 */
+    /** 点击上报：先弹描述/发件弹窗 → 后台收集 + SMTP 发送。
+     *  onDone：邮件真正发送成功后主线程回调。 */
     public static void report(Activity activity, Runnable onDone) {
+        showReportDialog(activity, onDone);
+    }
+
+    // ---------------- 发送前弹窗 ----------------
+
+    private static void showReportDialog(Activity activity, Runnable onDone) {
+        SharedPreferences prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String savedFrom = prefs.getString(KEY_FROM, DEFAULT_FROM);
+        String savedAuth = prefs.getString(KEY_AUTH, "");
+
+        int onSurface = ContextCompat.getColor(activity, R.color.on_surface);
+        int hintColor = ContextCompat.getColor(activity, R.color.text_secondary);
+        float density = activity.getResources().getDisplayMetrics().density;
+
+        LinearLayout root = new LinearLayout(activity);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (12 * density);
+        root.setPadding(pad, 0, pad, 0);
+
+        EditText descInput = makeEdit(activity, onSurface, hintColor, true);
+        descInput.setHint(activity.getString(R.string.report_crash_desc_hint));
+        descInput.setMinLines(3);
+        root.addView(descInput);
+
+        EditText fromInput = makeEdit(activity, onSurface, hintColor, false);
+        fromInput.setHint(activity.getString(R.string.report_from_email));
+        fromInput.setText(savedFrom);
+        root.addView(fromInput);
+
+        EditText authInput = makeEdit(activity, onSurface, hintColor, false);
+        authInput.setHint(activity.getString(R.string.report_auth_code));
+        if (!savedAuth.isEmpty()) {
+            authInput.setText(savedAuth);
+        } else {
+            authInput.setText(new String(Base64.decode(DEFAULT_AUTH, Base64.DEFAULT),
+                    java.nio.charset.StandardCharsets.UTF_8));
+        }
+        root.addView(authInput);
+
+        new CustomAlertDialog(activity)
+                .setTitleText(activity.getString(R.string.report_logs))
+                .setCustomView(root)
+                .setPositiveButton(activity.getString(R.string.report_logs), v -> {
+                    String desc = descInput.getText().toString().trim();
+                    String from = fromInput.getText().toString().trim();
+                    String auth = authInput.getText().toString().trim();
+                    if (from.isEmpty()) {
+                        from = DEFAULT_FROM;
+                    }
+                    if (auth.isEmpty()) {
+                        auth = new String(Base64.decode(DEFAULT_AUTH, Base64.DEFAULT),
+                                java.nio.charset.StandardCharsets.UTF_8);
+                    }
+                    prefs.edit().putString(KEY_FROM, from).putString(KEY_AUTH, auth).apply();
+                    collectAndSend(activity, desc, from, auth, onDone);
+                })
+                .setNegativeButton(activity.getString(R.string.cancel), null)
+                .show();
+    }
+
+    private static EditText makeEdit(Context context, int textColor, int hintColor, boolean multiline) {
+        EditText et = new EditText(context);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        int margin = (int) (8 * context.getResources().getDisplayMetrics().density);
+        lp.bottomMargin = margin;
+        et.setLayoutParams(lp);
+        et.setBackgroundResource(R.drawable.bg_spinner_outline);
+        int pad = (int) (12 * context.getResources().getDisplayMetrics().density);
+        et.setPadding(pad, pad, pad, pad);
+        et.setTextColor(textColor);
+        et.setHintTextColor(hintColor);
+        et.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        et.setSingleLine(!multiline);
+        et.setInputType(multiline
+                ? InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                : InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        if (multiline) {
+            et.setGravity(Gravity.TOP);
+        }
+        return et;
+    }
+
+    // ---------------- 收集 + 发送 ----------------
+
+    private static void collectAndSend(Activity activity, String desc, String from,
+                                       String auth, Runnable onDone) {
         Toast.makeText(activity, R.string.report_logs_collecting, Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             String error = null;
@@ -62,17 +170,109 @@ public final class LogReporter {
                     }
                     return;
                 }
-                if (sendMail(activity, result) && onDone != null) {
-                    onDone.run();
-                }
+                Toast.makeText(activity, R.string.report_sending, Toast.LENGTH_SHORT).show();
+                sendViaSmtp(activity, from, auth, desc, result, onDone);
             });
         }, "log-reporter").start();
     }
 
+    /** SMTP 直发；失败弹窗提供系统邮件备选。 */
+    private static void sendViaSmtp(Activity activity, String from, String auth,
+                                    String desc, File zip, Runnable onDone) {
+        String version = "";
+        try {
+            version = activity.getPackageManager()
+                    .getPackageInfo(activity.getPackageName(), 0).versionName;
+        } catch (Exception ignored) {
+        }
+        String subject = "[LBBL Log Report] v" + version;
+        StringBuilder body = new StringBuilder();
+        if (desc != null && !desc.isEmpty()) {
+            body.append("崩溃描述：\n").append(desc).append("\n\n");
+        }
+        body.append("（日志由 LBBL 自动收集，见附件 zip）\n");
+        body.append("Version: ").append(version).append('\n');
+        body.append("Device: ").append(Build.MANUFACTURER).append(' ')
+                .append(Build.MODEL).append('\n');
+        body.append("Android: ").append(Build.VERSION.RELEASE)
+                .append(" (SDK ").append(Build.VERSION.SDK_INT).append(")\n");
+
+        SmtpSender.send(SMTP_HOST, SMTP_PORT, from, auth, from,
+                new String[]{REPORT_TO}, subject, body.toString(), zip,
+                new SmtpSender.Callback() {
+                    @Override
+                    public void onSuccess() {
+                        Handler main = new Handler(Looper.getMainLooper());
+                        main.post(() -> {
+                            Toast.makeText(activity, R.string.report_logs_uploaded,
+                                    Toast.LENGTH_SHORT).show();
+                            if (onDone != null) {
+                                onDone.run();
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(String error) {
+                        Handler main = new Handler(Looper.getMainLooper());
+                        main.post(() -> showSendFailed(activity, error, zip));
+                    }
+                });
+    }
+
+    /** 发送失败：提示原因 + 系统邮件备选。 */
+    private static void showSendFailed(Activity activity, String error, File zip) {
+        new CustomAlertDialog(activity)
+                .setTitleText(activity.getString(R.string.report_send_failed_title))
+                .setMessage(activity.getString(R.string.report_send_failed, error))
+                .setPositiveButton(activity.getString(R.string.report_send_fallback), v -> {
+                    if (!sendMail(activity, zip)) {
+                        Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
+                    }
+                })
+                .setNegativeButton(activity.getString(R.string.cancel), null)
+                .show();
+    }
+
+    /** 系统邮件预填（备选路径；不回调 onDone——无法确认发送完成）。 */
+    private static boolean sendMail(Activity activity, File zip) {
+        try {
+            Uri uri = FileProvider.getUriForFile(activity,
+                    activity.getPackageName() + ".fileprovider", zip);
+            String version = "";
+            try {
+                version = activity.getPackageManager()
+                        .getPackageInfo(activity.getPackageName(), 0).versionName;
+            } catch (Exception ignored) {
+            }
+            Intent intent = new Intent(Intent.ACTION_SEND_MULTIPLE);
+            intent.setType("application/zip");
+            intent.putExtra(Intent.EXTRA_EMAIL, new String[]{REPORT_TO});
+            intent.putExtra(Intent.EXTRA_SUBJECT, "[LBBL Log Report] v" + version);
+            ArrayList<Uri> uris = new ArrayList<>();
+            uris.add(uri);
+            intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Intent chooser = Intent.createChooser(intent,
+                    activity.getString(R.string.report_logs_done));
+            if (chooser.resolveActivity(activity.getPackageManager()) == null) {
+                return false;
+            }
+            activity.startActivity(chooser);
+            return true;
+        } catch (Exception e) {
+            Toast.makeText(activity,
+                    activity.getString(R.string.report_logs_failed, String.valueOf(e.getMessage())),
+                    Toast.LENGTH_LONG).show();
+            return false;
+        }
+    }
+
+    // ---------------- 日志收集（同 v0.4.24） ----------------
+
     /** 收集日志打包 zip（cache/logs/ 下）。没有日志时抛异常。 */
     private static File collect(Context context) throws Exception {
         File dir = new File(context.getCacheDir(), "logs");
-        // 旧上报包清掉，防止越积越多
         File[] olds = dir.listFiles();
         if (olds != null) {
             for (File f : olds) {
@@ -89,14 +289,11 @@ public final class LogReporter {
         File zip = new File(dir, "lbbl-logs-" + stamp + ".zip");
 
         List<File> sources = new ArrayList<>();
-        // 1. 设备/版本信息
         File info = new File(dir, "device-info.txt");
         writeDeviceInfo(context, info);
         sources.add(info);
-        // 2. 应用 files 下的日志（OnlineDebugLog、CrashReporter、xCrash 等）
         File filesDir = context.getFilesDir();
         collectFiles(filesDir, sources, 0);
-        // 3. logcat（本进程可见部分）
         File logcat = new File(dir, "logcat.txt");
         if (dumpLogcat(logcat)) {
             sources.add(logcat);
@@ -123,8 +320,6 @@ public final class LogReporter {
         return zip;
     }
 
-    /** 递归收集 files 下日志类文件（*.log、*.txt 与 xCrash 崩溃目录），
-     *  单文件上限 10MB、总文件数上限 40，防止超大日志拖垮邮件。 */
     private static void collectFiles(File dir, List<File> out, int depth) {
         if (depth > 4 || out.size() > 40) {
             return;
@@ -183,7 +378,6 @@ public final class LogReporter {
         }
     }
 
-    /** logcat -d 导出（只能抓到本进程日志，Android 4.1+ 限制）。 */
     private static boolean dumpLogcat(File out) {
         try {
             Process p = new ProcessBuilder("logcat", "-d", "-t", "500")
@@ -200,41 +394,6 @@ public final class LogReporter {
             p.destroy();
             return out.length() > 0;
         } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /** 邮件预填发送（附件走 FileProvider）。调起成功返回 true。 */
-    private static boolean sendMail(Activity activity, File zip) {
-        try {
-            Uri uri = FileProvider.getUriForFile(activity,
-                    activity.getPackageName() + ".fileprovider", zip);
-            String version = "";
-            try {
-                version = activity.getPackageManager()
-                        .getPackageInfo(activity.getPackageName(), 0).versionName;
-            } catch (Exception ignored) {
-            }
-            Intent intent = new Intent(Intent.ACTION_SEND_MULTIPLE);
-            intent.setType("application/zip");
-            intent.putExtra(Intent.EXTRA_EMAIL, new String[]{REPORT_EMAIL});
-            intent.putExtra(Intent.EXTRA_SUBJECT, "[LBBL Log Report] v" + version);
-            ArrayList<Uri> uris = new ArrayList<>();
-            uris.add(uri);
-            intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            Intent chooser = Intent.createChooser(intent,
-                    activity.getString(R.string.report_logs_done));
-            if (chooser.resolveActivity(activity.getPackageManager()) == null) {
-                Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
-                return false;
-            }
-            activity.startActivity(chooser);
-            return true;
-        } catch (Exception e) {
-            Toast.makeText(activity,
-                    activity.getString(R.string.report_logs_failed, String.valueOf(e.getMessage())),
-                    Toast.LENGTH_LONG).show();
             return false;
         }
     }

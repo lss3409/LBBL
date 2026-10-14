@@ -6,7 +6,9 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 
 const RES = "res";
 const EN = `${RES}/values/strings.xml`;
-const ZZ = `${RES}/values-zz/strings.xml`;
+// v0.4.26：locale "zz" 被 ICU 当特殊保留码（资源回退英文根因），
+// 改用真实语言代码 jbo（Lojban）——values-jbo/ 目录
+const ZZ = `${RES}/values-jbo/strings.xml`;
 
 // ---------- 短语表（先匹配，长→短无所谓，按数组顺序） ----------
 const PHRASES = [
@@ -4675,6 +4677,245 @@ const PHRASES = [
   ["migrating", "正在迁移"],
   ["copying", "正在复制"],
   ["transferring", "正在转移"],
+  // v0.4.26 残留英文补充（按词频）
+  ["caused by", "由…引起的"],
+  ["directories", "目录们"],
+  ["directory", "目录们"],
+  ["the", "这个"],
+  ["to", "到"],
+  ["and", "和"],
+  ["a", "一个"],
+  ["an", "一个"],
+  ["or", "或者"],
+  ["name", "名字们"],
+  ["be", "是"],
+  ["not", "不"],
+  ["no", "没有"],
+  ["all", "全部的"],
+  ["instance", "实例们"],
+  ["instances", "实例们"],
+  ["your", "你的"],
+  ["data", "数据们"],
+  ["for", "为"],
+  ["launcher", "启动器们"],
+  ["trash", "回收站们"],
+  ["folder", "文件夹们"],
+  ["folders", "文件夹们"],
+  ["server", "服务器们"],
+  ["servers", "服务器们"],
+  ["search", "寻找"],
+  ["shortcut", "快捷方式们"],
+  ["shortcuts", "快捷方式们"],
+  ["of", "的"],
+  ["menu", "菜单们"],
+  ["menus", "菜单们"],
+  ["clear", "清除之"],
+  ["by", "被"],
+  ["rename", "重命名之"],
+  ["path", "路径们"],
+  ["paths", "路径们"],
+  ["versions", "版本号们"],
+  ["version", "版本号们"],
+  ["time", "时间们"],
+  ["storage", "存储们"],
+  ["mode", "模式们"],
+  ["modes", "模式们"],
+  ["view", "视图们"],
+  ["views", "视图们"],
+  ["mods", "模组们"],
+  ["mod", "模组们"],
+  ["worlds", "世界们"],
+  ["world", "世界们"],
+  ["packs", "包们"],
+  ["pack", "包们"],
+  ["logs", "日志们"],
+  ["log", "日志们"],
+  ["size", "大小们"],
+  ["sizes", "大小们"],
+  ["apps", "应用们"],
+  ["app", "应用们"],
+  ["games", "游戏们"],
+  ["game", "游戏们"],
+  ["skins", "皮肤们"],
+  ["skin", "皮肤们"],
+  ["accounts", "账号们"],
+  ["account", "账号们"],
+  ["rooms", "房间们"],
+  ["room", "房间们"],
+  ["codes", "码们"],
+  ["code", "码们"],
+  ["languages", "语言们"],
+  ["language", "语言们"],
+  ["options", "选项们"],
+  ["option", "选项们"],
+  ["items", "项目们"],
+  ["item", "项目们"],
+  ["layers", "层们"],
+  ["layer", "层们"],
+  ["screenshots", "截图们"],
+  ["screenshot", "截图们"],
+  ["structures", "结构们"],
+  ["structure", "结构们"],
+  ["backups", "备份们"],
+  ["backup", "备份们"],
+  ["players", "玩家们"],
+  ["player", "玩家们"],
+  ["members", "成员们"],
+  ["member", "成员们"],
+  ["friends", "朋友们"],
+  ["friend", "朋友们"],
+  ["files", "文件们"],
+  ["file", "文件们"],
+  ["buttons", "按钮们"],
+  ["button", "按钮们"],
+  ["icons", "图标们"],
+  ["icon", "图标们"],
+  ["colors", "颜色们"],
+  ["color", "颜色们"],
+  ["images", "图片们"],
+  ["image", "图片们"],
+  ["texts", "文字们"],
+  ["text", "文字们"],
+  ["lists", "列表们"],
+  ["list", "列表们"],
+  ["pages", "页面们"],
+  ["page", "页面们"],
+  ["tabs", "标签页们"],
+  ["tab", "标签页们"],
+  ["dialogs", "弹窗们"],
+  ["dialog", "弹窗们"],
+  ["windows", "窗口们"],
+  ["window", "窗口们"],
+  ["panels", "面板们"],
+  ["panel", "面板们"],
+  ["cards", "卡片们"],
+  ["card", "卡片们"],
+  ["settings", "设置们"],
+  ["setting", "设置们"],
+  ["permissions", "权限们"],
+  ["permission", "权限们"],
+  ["networks", "网络们"],
+  ["network", "网络们"],
+  ["connections", "连接们"],
+  ["connection", "连接们"],
+  ["sessions", "会话们"],
+  ["session", "会话们"],
+  ["browsers", "浏览器们"],
+  ["browser", "浏览器们"],
+  ["devices", "设备们"],
+  ["device", "设备们"],
+  ["screens", "屏幕们"],
+  ["screen", "屏幕们"],
+  ["keyboards", "键盘们"],
+  ["keyboard", "键盘们"],
+  ["cursors", "光标们"],
+  ["cursor", "光标们"],
+  ["configs", "配置们"],
+  ["config", "配置们"],
+  ["profiles", "档案们"],
+  ["profile", "档案们"],
+  ["results", "结果们"],
+  ["result", "结果们"],
+  ["messages", "消息们"],
+  ["message", "消息们"],
+  ["titles", "标题们"],
+  ["title", "标题们"],
+  ["names", "名字们"],
+  ["times", "时间们"],
+  ["days", "天们"],
+  ["day", "天们"],
+  ["hours", "小时们"],
+  ["hour", "小时们"],
+  ["minutes", "分钟们"],
+  ["minute", "分钟们"],
+  ["seconds", "秒们"],
+  ["second", "秒们"],
+  ["maps", "地图们"],
+  ["map", "地图们"],
+  ["seeds", "种子们"],
+  ["seed", "种子们"],
+  ["biomes", "群系们"],
+  ["biome", "群系们"],
+  ["chunks", "区块们"],
+  ["chunk", "区块们"],
+  ["commands", "命令们"],
+  ["command", "命令们"],
+  ["tasks", "任务们"],
+  ["task", "任务们"],
+  ["errors", "错误们"],
+  ["error", "错误们"],
+  ["warnings", "警告们"],
+  ["warning", "警告们"],
+  ["notifications", "通知们"],
+  ["notification", "通知们"],
+  ["channels", "频道们"],
+  ["channel", "频道们"],
+  ["sounds", "声音们"],
+  ["sound", "声音们"],
+  ["effects", "效果们"],
+  ["effect", "效果们"],
+  ["actions", "动作们"],
+  ["action", "动作们"],
+  ["categories", "分类们"],
+  ["category", "分类们"],
+  ["groups", "组们"],
+  ["group", "组们"],
+  ["sections", "区块们"],
+  ["section", "区块们"],
+  ["fields", "字段们"],
+  ["field", "字段们"],
+  ["labels", "标签们"],
+  ["label", "标签们"],
+  ["hints", "提示们"],
+  ["hint", "提示们"],
+  ["details", "细节们"],
+  ["detail", "细节们"],
+  ["summaries", "摘要们"],
+  ["summary", "摘要们"],
+  ["states", "状态们"],
+  ["state", "状态们"],
+  ["types", "类型们"],
+  ["type", "类型们"],
+  ["classes", "类型们"],
+  ["class", "类型们"],
+  ["steps", "步骤们"],
+  ["step", "步骤们"],
+  ["stages", "阶段们"],
+  ["stage", "阶段们"],
+  ["events", "事件们"],
+  ["event", "事件们"],
+  ["updates", "更新们"],
+  ["update", "更新们"],
+  ["downloads", "下载们"],
+  ["download", "下载们"],
+  ["reports", "报告们"],
+  ["report", "报告们"],
+  ["crashes", "崩溃们"],
+  ["crash", "崩溃们"],
+  ["backups", "备份们"],
+  ["restores", "恢复们"],
+  ["recoveries", "恢复们"],
+  ["recovery", "恢复们"],
+  ["folders", "文件夹们"],
+  ["entries", "条目们"],
+  ["entry", "条目们"],
+  ["keywords", "关键词们"],
+  ["keyword", "关键词们"],
+  ["filters", "过滤器们"],
+  ["filter", "过滤器们"],
+  ["versions", "版本号们"],
+  ["launchers", "启动器们"],
+  ["installers", "安装者们"],
+  ["installer", "安装者们"],
+  ["managers", "管理器们"],
+  ["manager", "管理器们"],
+  ["if", "如果"],
+  ["incompatibility", "不兼容性们"],
+  ["compatibility", "兼容性们"],
+  ["editors", "编辑器们"],
+  ["editor", "编辑器们"],
+  ["viewers", "查看器们"],
+  ["viewer", "查看器们"],
 ];
 
 // 按英文长度降序排序，保证长短语先于短词替换（"backing up" 先于 "up"）
@@ -4716,8 +4957,28 @@ const xmlEsc = (s) => s
   .replace(/</g, "&lt;")
   .replace(/>/g, "&gt;");
 
+/** 提取 <plurals> 块（v0.4.26：复数字符串全量机翻）。 */
+function extractPlurals(path) {
+  const src = readFileSync(path, "utf8");
+  const map = new Map();
+  const re = /<plurals name="([^"]+)">([\s\S]*?)<\/plurals>/g;
+  let m;
+  while ((m = re.exec(src))) {
+    const items = [];
+    const ire = /<item quantity="([^"]+)">([\s\S]*?)<\/item>/g;
+    let im;
+    while ((im = ire.exec(m[2]))) {
+      items.push([im[1], im[2]]);
+    }
+    map.set(m[1], items);
+  }
+  return map;
+}
+
 const en = extractStrings(EN);
 const zz = extractStrings(ZZ);
+const enPlurals = extractPlurals(EN);
+const zzPlurals = extractPlurals(ZZ);
 let gen = 0;
 let keep = 0;
 const out = [];
@@ -4725,11 +4986,19 @@ out.push('<?xml version="1.0" encoding="utf-8"?>');
 out.push("<resources>");
 out.push("    <!-- ============================================================");
 out.push("         愚人节语言包：微软机翻（\"坐和放宽\"风格）");
-out.push("         手写核心条目 + 规则机翻生成（v0.4.25 gen_foolish.js 全量）。");
+out.push("         手写核心条目 + 规则机翻生成（v0.4.26 gen_foolish.js 全量）。");
+out.push("         locale=jbo（zz 被 ICU 当保留码，资源回退英文——勿改回）。");
 out.push("         ============================================================ -->");
 for (const [key, val] of zz) {
   out.push(`    <string name="${key}">${xmlEsc(val)}</string>`);
   keep++;
+}
+for (const [key, items] of zzPlurals) {
+  out.push(`    <plurals name="${key}">`);
+  for (const [q, v] of items) {
+    out.push(`        <item quantity="${q}">${xmlEsc(v)}</item>`);
+  }
+  out.push("    </plurals>");
 }
 for (const [key, val] of en) {
   if (zz.has(key)) continue;
@@ -4737,6 +5006,15 @@ for (const [key, val] of en) {
   out.push(`    <string name="${key}">${xmlEsc(t)}</string>`);
   gen++;
 }
+for (const [key, items] of enPlurals) {
+  if (zzPlurals.has(key)) continue;
+  out.push(`    <plurals name="${key}">`);
+  for (const [q, v] of items) {
+    out.push(`        <item quantity="${q}">${xmlEsc(mt(v))}</item>`);
+  }
+  out.push("    </plurals>");
+  gen++;
+}
 out.push("</resources>");
 writeFileSync(ZZ, out.join("\n") + "\n", "utf8");
-console.log(`keep=${keep} generated=${gen} total=${keep + gen}`);
+console.log(`keep=${keep} generated=${gen} plurals=${enPlurals.size} total=${keep + gen}`);

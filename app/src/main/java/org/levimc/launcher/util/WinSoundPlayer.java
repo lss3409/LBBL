@@ -10,23 +10,23 @@ import org.levimc.launcher.settings.FeatureSettings;
  *  （FileManagerActivity.openAudio）用 MediaPlayer 播放。
  *  v0.4.25：素材换成 Windows 11 音效（C:\Windows\Media，
  *  raw 由 PowerShell 加 WAV 头转 48kHz/16bit/mono）。
+ *  v0.4.26：用户要求去掉启动音。
  *  开关：FeatureSettings.winSoundsEnabled（个性化页）；试听
  *  用 force=true 绕过开关。 */
 public final class WinSoundPlayer {
 
-    /** 音效枚举——启动 / 弹窗提示 / 错误 / 成功 / 删除 / 退出。 */
-    public static final int SOUND_STARTUP = 0;
-    public static final int SOUND_DING = 1;
-    public static final int SOUND_ERROR = 2;
-    public static final int SOUND_TADA = 3;
-    public static final int SOUND_RECYCLE = 4;
-    public static final int SOUND_SHUTDOWN = 5;
+    /** 音效枚举——弹窗提示 / 错误 / 成功 / 删除 / 退出。 */
+    public static final int SOUND_DING = 0;
+    public static final int SOUND_ERROR = 1;
+    public static final int SOUND_TADA = 2;
+    public static final int SOUND_RECYCLE = 3;
+    public static final int SOUND_SHUTDOWN = 4;
 
     private static WinSoundPlayer INSTANCE;
 
     private final Context appContext;
     private final int[] raws = {
-            R.raw.win_startup, R.raw.win_ding, R.raw.win_error,
+            R.raw.win_ding, R.raw.win_error,
             R.raw.win_tada, R.raw.win_recycle, R.raw.win_shutdown
     };
     private MediaPlayer player;

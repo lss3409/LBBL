@@ -311,7 +311,7 @@ public class SettingsActivity extends BaseActivity {
             case "es" -> 8;
             case "tr", "tr-TR" -> 9;
             case "vi" -> 10;
-            case "zz", "zz-ZZ" -> 11;
+            case "jbo" -> 11;
             default -> 0;
         };
 
@@ -338,7 +338,7 @@ public class SettingsActivity extends BaseActivity {
                     case 8 -> "es";
                     case 9 -> "tr";
                     case 10 -> "vi";
-                    case 11 -> "zz";
+                    case 11 -> "jbo";
                     default -> "en";
                 };
                 if (!code.equals(languageManager.getCurrentLanguage())) {
@@ -666,9 +666,9 @@ public class SettingsActivity extends BaseActivity {
                 btnSoundPreview.setStrokeColor(ColorStateList.valueOf(
                         personalizationManager.getAccentColor()));
             }
-            // v0.4.25：试听菜单（6 个音效，点击即播；force 绕过开关）
+            // v0.4.25：试听菜单（点击即播；force 绕过开关）
+            // v0.4.26：用户要求去掉启动音——剩 5 项
             String[] previewNames = {
-                    getString(R.string.sound_preview_startup),
                     getString(R.string.sound_preview_ding),
                     getString(R.string.sound_preview_error),
                     getString(R.string.sound_preview_tada),
@@ -676,7 +676,6 @@ public class SettingsActivity extends BaseActivity {
                     getString(R.string.sound_preview_shutdown)
             };
             final int[] previewSounds = {
-                    org.levimc.launcher.util.WinSoundPlayer.SOUND_STARTUP,
                     org.levimc.launcher.util.WinSoundPlayer.SOUND_DING,
                     org.levimc.launcher.util.WinSoundPlayer.SOUND_ERROR,
                     org.levimc.launcher.util.WinSoundPlayer.SOUND_TADA,
