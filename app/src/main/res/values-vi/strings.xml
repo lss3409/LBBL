@@ -1276,6 +1276,10 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="online_greet_evening">Chào buổi tối, %1$s</string>
 <string name="online_state_idle">Chưa kết nối</string>
 <string name="online_state_connected_fmt">Đã kết nối · IP ảo %1$s</string>
+    <string name="online_clipboard_title">Đã phát hiện lời mời LBBL</string>
+    <string name="online_clipboard_msg">Mã mời trong khay nhớ tạm: %1$s
+Tham gia phòng?</string>
+    <string name="online_clipboard_join">Tham gia phòng</string>
 <string name="online_state_discovering">Đang tìm chủ phòng trên mạng nội bộ…</string>
 <string name="online_my_room">Phòng của bạn</string>
 <string name="online_room_hint">Bạn bè dùng cùng Wi-Fi (hoặc qua chuyển tiếp) có thể tham gia bằng mã này</string>

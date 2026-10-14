@@ -3,6 +3,8 @@ package org.levimc.launcher.ui.activities;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
@@ -131,6 +133,58 @@ import okhttp3.OkHttpClient;
     /** v518 久置自愈：后台久置后回前台，同进程渲染可能整体停摆（游戏黑屏+主页只剩背景色）。 */
     private long lastPauseElapsed = 0L;
     private static final long LONG_PAUSE_HEAL_MS = 5 * 60_000L;
+
+    /** v0.4.38：剪贴板邀请弹窗（防叠加重入）。 */
+    private CustomAlertDialog clipboardDialog;
+
+    /** v0.4.38：剪贴板邀请码检测（夸克式）——复制了 LBBL 邀请文本
+     *  回启动器自动弹「加入房间」确认窗，确认后深链直达联机页填码。 */
+    private void checkClipboardInvite() {
+        try {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (cm == null || !cm.hasPrimaryClip()) {
+                return;
+            }
+            ClipData.Item item = cm.getPrimaryClip().getItemAt(0);
+            if (item == null || item.getText() == null) {
+                return;
+            }
+            // formatInput 自带「任意文本提取 + mod 7 校验」（v526）
+            String code = org.levimc.launcher.core.online.InviteCode.formatInput(
+                    item.getText().toString());
+            if (code.isEmpty()) {
+                return;
+            }
+            android.content.SharedPreferences prefs =
+                    getSharedPreferences("clipboard_invite", MODE_PRIVATE);
+            // 自己刚复制的码不弹（分享弹窗「复制」后切回主页）
+            if (("P/" + code).equals(prefs.getString("self_copied", ""))) {
+                prefs.edit().remove("self_copied").apply();
+                return;
+            }
+            // 同码只提示一次（剪贴板换成别的码才再弹）
+            if (code.equals(prefs.getString("last_prompted", ""))) {
+                return;
+            }
+            if (clipboardDialog != null && clipboardDialog.isShowing()) {
+                return;
+            }
+            prefs.edit().putString("last_prompted", code).apply();
+            String display = "P/" + code;
+            clipboardDialog = new CustomAlertDialog(this)
+                    .setTitleText(getString(R.string.online_clipboard_title))
+                    .setMessage(getString(R.string.online_clipboard_msg, display))
+                    .setPositiveButton(getString(R.string.online_clipboard_join), d -> {
+                        Intent intent = new Intent(this, OnlineActivity.class);
+                        intent.setData(Uri.parse("lbb://invite?code=" + Uri.encode(display)));
+                        startActivity(intent);
+                    })
+                    .setNegativeButton(getString(R.string.cancel), null);
+            clipboardDialog.setOnDismissListener(d -> clipboardDialog = null);
+            clipboardDialog.show();
+        } catch (Exception ignored) {
+        }
+    }
 
 
     @Override
@@ -819,6 +873,10 @@ import okhttp3.OkHttpClient;
         // v618：邀请深链补发——游戏 finish 后回启动器走 onResume（双后台
         // 已删，MainActivity 不重建），v601 只挂 onCreate 导致深链丢失
         firePendingDeepLink();
+        // v0.4.38：剪贴板邀请码检测（夸克式）——复制了 LBBL 邀请文本
+        // 回启动器自动弹加入窗；延迟避开冷启动弹窗叠加
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+                this::checkClipboardInvite, 800);
         // v518 久置自愈：后台久置后回前台只显示背景色（实测）——
         // 游戏也在后台时同进程渲染整体停摆，整进程静默重启自愈
         // （游戏靠自动存档兜底）；无游戏时仅重建本窗口。

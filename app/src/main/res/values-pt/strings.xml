@@ -1247,6 +1247,10 @@ A migração deve ser concluída antes que o LeviLauncher continue.</string>
 <string name="online_greet_evening">Boa noite, %1$s</string>
 <string name="online_state_idle">Não conectado</string>
 <string name="online_state_connected_fmt">Conectado · IP virtual %1$s</string>
+    <string name="online_clipboard_title">Convite LBBL detectado</string>
+    <string name="online_clipboard_msg">Código de convite na área de transferência: %1$s
+Entrar na sala?</string>
+    <string name="online_clipboard_join">Entrar na sala</string>
 <string name="online_state_discovering">Procurando host na rede local…</string>
 <string name="online_my_room">Sua Sala</string>
 <string name="online_room_hint">Amigos no mesmo Wi-Fi (ou via relay) podem entrar com este código</string>

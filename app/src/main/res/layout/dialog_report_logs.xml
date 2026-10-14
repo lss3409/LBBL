@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- v0.4.29：上报日志弹窗 UI（描述输入 + 说明文案） -->
+<!-- v0.4.29：上报日志弹窗 UI（描述输入 + 说明文案）
+     v0.4.38：加发送方式选项（默认邮箱 / 上传网站） -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -29,6 +30,35 @@
         android:textColor="@color/on_surface"
         android:textColorHint="@color/text_secondary"
         android:textSize="13sp" />
+
+    <RadioGroup
+        android:id="@+id/report_method_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/report_method_mail"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:checked="true"
+            android:fontFamily="@font/misans"
+            android:text="@string/report_method_mail"
+            android:textColor="@color/on_surface"
+            android:textSize="13sp" />
+
+        <RadioButton
+            android:id="@+id/report_method_site"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="@font/misans"
+            android:text="@string/report_method_site"
+            android:textColor="@color/on_surface"
+            android:textSize="13sp" />
+    </RadioGroup>
 
     <TextView
         android:layout_width="wrap_content"

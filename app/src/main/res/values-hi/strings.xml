@@ -1274,6 +1274,10 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="online_greet_evening">शुभ संध्या, %1$s</string>
 <string name="online_state_idle">कनेक्टेड नहीं</string>
 <string name="online_state_connected_fmt">कनेक्टेड · वर्चुअल IP %1$s</string>
+    <string name="online_clipboard_title">LBBL आमंत्रण मिला</string>
+    <string name="online_clipboard_msg">क्लिपबोर्ड में आमंत्रण कोड: %1$s
+कमरे में शामिल हों?</string>
+    <string name="online_clipboard_join">कमरे में शामिल हों</string>
 <string name="online_state_discovering">स्थानीय नेटवर्क पर होस्ट खोजा जा रहा है…</string>
 <string name="online_my_room">आपका रूम</string>
 <string name="online_room_hint">एक ही Wi-Fi पर (या रिले के ज़रिए) दोस्त इस कोड से जुड़ सकते हैं</string>

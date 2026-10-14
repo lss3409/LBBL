@@ -1268,6 +1268,10 @@ Virtual IP: %1$s
     <string name="online_share_text">【LBBL Invite】
 Join my Minecraft world! Invite code: P/%1$s
 Open LBBL → Online → Join, then paste the code</string>
+    <string name="online_clipboard_title">LBBL invite detected</string>
+    <string name="online_clipboard_msg">Invite code in clipboard: %1$s
+Join this room?</string>
+    <string name="online_clipboard_join">Join room</string>
 <string name="online_state_discovering">Looking for host on the local network…</string>
 <string name="online_my_room">Your Room</string>
 <string name="online_room_hint">Friends on the same Wi-Fi (or via relay) can join with this code</string>
@@ -1947,7 +1951,10 @@ Invite code: P/%1$s
     <string name="report_crash_desc_hint">Describe what happened (optional)</string>
     <!-- v0.4.24: Log reporting -->
     <string name="report_logs">Report Logs</string>
-    <string name="report_logs_desc">Logs are uploaded to logshare.cn and a public share link is generated.</string>
+    <string name="report_logs_desc">Logs are sent to the developer's email by default (or uploaded to logshare.cn if selected).</string>
+    <string name="report_method_mail">Send to my email</string>
+    <string name="report_method_site">Upload to website</string>
+    <string name="report_send">Send</string>
     <string name="report_desc_sub">Describe what happened (optional). Your description is uploaded together with the logs.</string>
     <string name="report_uploading">Uploading logs…</string>
     <string name="report_upload_success">Logs uploaded ✓</string>

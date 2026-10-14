@@ -48,22 +48,59 @@ public final class LogReporter {
     private LogReporter() {
     }
 
-    /** 点击上报：弹描述弹窗 → 后台收集+上传 → 成功弹分享链接。 */
+    /** 点击上报：弹描述弹窗 → 选发送方式（默认邮箱）→ 后台收集+发送。 */
     public static void report(Activity activity) {
         View v = activity.getLayoutInflater().inflate(R.layout.dialog_report_logs, null);
         EditText descInput = v.findViewById(R.id.report_desc_input);
+        android.widget.RadioGroup group = v.findViewById(R.id.report_method_group);
         new CustomAlertDialog(activity)
                 .setTitleText(activity.getString(R.string.report_logs))
                 .setCustomView(v)
-                .setPositiveButton(activity.getString(R.string.report_logs), d -> {
+                .setPositiveButton(activity.getString(R.string.report_send), d -> {
                     String desc = descInput.getText().toString().trim();
-                    collectAndUpload(activity, desc);
+                    boolean toMail = group.getCheckedRadioButtonId() != R.id.report_method_site;
+                    if (toMail) {
+                        collectAndMail(activity, desc);
+                    } else {
+                        collectAndUpload(activity, desc);
+                    }
                 })
                 .setNegativeButton(activity.getString(R.string.cancel), null)
                 .show();
     }
 
-    // ---------------- 收集 + 上传 ----------------
+    // ---------------- 收集 + 发送 ----------------
+
+    /** v0.4.38：默认方式——收集日志后用系统邮件发送（收件人预填，无需用户填任何东西）。 */
+    private static void collectAndMail(Activity activity, String desc) {
+        Toast.makeText(activity, R.string.report_uploading, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            String error = null;
+            String text = null;
+            try {
+                text = collectText(activity);
+            } catch (Exception e) {
+                error = String.valueOf(e.getMessage());
+            }
+            final String result = text;
+            final String err = error;
+            Handler main = new Handler(Looper.getMainLooper());
+            main.post(() -> {
+                if (result == null) {
+                    if (err != null && err.contains("No log files")) {
+                        Toast.makeText(activity, R.string.report_logs_empty, Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(activity,
+                                activity.getString(R.string.report_logs_failed, err), Toast.LENGTH_LONG).show();
+                    }
+                    return;
+                }
+                if (!sendMail(activity, desc, result)) {
+                    Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
+                }
+            });
+        }, "log-reporter").start();
+    }
 
     private static void collectAndUpload(Activity activity, String desc) {
         Toast.makeText(activity, R.string.report_uploading, Toast.LENGTH_SHORT).show();
@@ -207,7 +244,7 @@ public final class LogReporter {
                 .setTitleText(activity.getString(R.string.report_upload_failed_title))
                 .setMessage(activity.getString(R.string.report_upload_failed, error))
                 .setPositiveButton(activity.getString(R.string.report_send_email_fallback), v -> {
-                    if (!sendMail(activity, text)) {
+                    if (!sendMail(activity, null, text)) {
                         Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
                     }
                 })
@@ -215,8 +252,8 @@ public final class LogReporter {
                 .show();
     }
 
-    /** 系统邮件备选：正文=日志文本（不再附 zip）。 */
-    private static boolean sendMail(Activity activity, String text) {
+    /** 系统邮件发送：正文=描述+日志文本（收件人预填，发件人=设备邮箱账户）。 */
+    private static boolean sendMail(Activity activity, String desc, String text) {
         try {
             String version = "";
             try {
@@ -224,11 +261,15 @@ public final class LogReporter {
                         .getPackageInfo(activity.getPackageName(), 0).versionName;
             } catch (Exception ignored) {
             }
+            String body = text;
+            if (desc != null && !desc.isEmpty()) {
+                body = "崩溃描述：\n" + desc + "\n\n" + text;
+            }
             Intent intent = new Intent(Intent.ACTION_SEND);
             intent.setType("message/rfc822");
             intent.putExtra(Intent.EXTRA_EMAIL, new String[]{REPORT_TO});
             intent.putExtra(Intent.EXTRA_SUBJECT, "[LBBL Log Report] v" + version);
-            intent.putExtra(Intent.EXTRA_TEXT, text);
+            intent.putExtra(Intent.EXTRA_TEXT, body);
             Intent chooser = Intent.createChooser(intent,
                     activity.getString(R.string.report_logs_done));
             if (chooser.resolveActivity(activity.getPackageManager()) == null) {

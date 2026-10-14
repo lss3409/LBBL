@@ -248,11 +248,10 @@ public final class OnlineActivity extends BaseActivity
 
         handleDebugJoinIntent(getIntent());
         // v0.4.34：邀请网页「打开启动器」深链（lbb://invite?code=P%2Fxxx）
-        // v0.4.37：另支持 file/content 邀请卡文件（微信「用其他应用打开」选 LBBL）
         handleInviteDeepLink();
     }
 
-    /** v0.4.37：活动已在前台时收到新深链/文件（微信二次打开邀请卡）。 */
+    /** v0.4.37：活动已在前台时收到新深链。 */
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -260,29 +259,14 @@ public final class OnlineActivity extends BaseActivity
         handleInviteDeepLink();
     }
 
-    /** v0.4.34：解析 lbb://invite?code= 深链，自动弹加入框并预填邀请码。
-     *  v0.4.37：file/content URI 走邀请卡文件解析（读 HTML 提取码）。 */
+    /** v0.4.34：解析 lbb://invite?code= 深链，自动弹加入框并预填邀请码。 */
     private void handleInviteDeepLink() {
         try {
             Intent intent = getIntent();
             if (intent == null || intent.getData() == null) {
                 return;
             }
-            android.net.Uri data = intent.getData();
-            String scheme = data.getScheme();
-            if ("file".equals(scheme) || "content".equals(scheme)) {
-                String code = readInviteCodeFromFile(data);
-                if (code == null) {
-                    return;
-                }
-                intent.setData(null); // 只消费一次（防 recreate 重复弹窗）
-                getWindow().getDecorView().post(() -> showJoinDialogWithCode(code));
-                return;
-            }
-            if (!"lbb".equals(scheme)) {
-                return;
-            }
-            String code = data.getQueryParameter("code");
+            String code = intent.getData().getQueryParameter("code");
             intent.setData(null); // 只消费一次（防 recreate 重复弹窗）
             if (code == null || code.trim().isEmpty()) {
                 return;
@@ -293,32 +277,6 @@ public final class OnlineActivity extends BaseActivity
             }
             getWindow().getDecorView().post(() -> showJoinDialogWithCode(formatted));
         } catch (Exception ignored) {
-        }
-    }
-
-    /** v0.4.37：读邀请卡 HTML 文件内容，正则提取邀请码（var code = '...'）。 */
-    private String readInviteCodeFromFile(android.net.Uri uri) {
-        try (java.io.InputStream is = getContentResolver().openInputStream(uri)) {
-            if (is == null) {
-                return null;
-            }
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = is.read(buf)) > 0) {
-                baos.write(buf, 0, n);
-            }
-            String html = new String(baos.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
-            java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile("var code = '([^']+)'")
-                    .matcher(html);
-            if (!m.find()) {
-                return null;
-            }
-            String formatted = InviteCode.formatInput(m.group(1));
-            return formatted.isEmpty() ? null : formatted;
-        } catch (Exception e) {
-            return null;
         }
     }
 
@@ -1410,6 +1368,9 @@ public final class OnlineActivity extends BaseActivity
         }
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         cm.setPrimaryClip(ClipData.newPlainText("invite", "P/" + currentCode));
+        // v0.4.38：标记自己刚复制的码——主页剪贴板检测跳过（防自弹加入窗）
+        getSharedPreferences("clipboard_invite", MODE_PRIVATE).edit()
+                .putString("self_copied", "P/" + currentCode).apply();
         Toast.makeText(this, R.string.online_copied, Toast.LENGTH_SHORT).show();
     }
 
@@ -1477,83 +1438,15 @@ public final class OnlineActivity extends BaseActivity
         }, "qr-gen").start();
     }
 
-    /** 系统分享（微信/QQ 等），文本为链接卡片式。 */
+    /** 系统分享（微信/QQ 等），纯文本邀请消息（v0.4.38 回滚 HTML 邀请卡）。 */
     private void systemShareCode() {
         if (currentCode == null) {
             return;
         }
-        // v0.4.36：分享本地 HTML 邀请卡文件（浏览器直接打开，白色
-        // 启动器 UI + 一键唤起启动器自动填码），文本说明附带
-        // v0.4.37：内嵌应用图标（{{LOGO_B64}}）+ 写入 Download/LBBL 副本
-        try {
-            String html = readAsset("invite_page.html")
-                    .replace("{{CODE}}", "P/" + currentCode)
-                    .replace("{{LOGO_B64}}", loadLogoBase64());
-            java.io.File dir = new java.io.File(getCacheDir(), "invite");
-            if (!dir.exists() && !dir.mkdirs()) {
-                return;
-            }
-            java.io.File file = new java.io.File(dir, "LBBL-Invite-" + currentCode + ".html");
-            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(file)) {
-                fos.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            }
-            // 副本到 Download/LBBL/（本机可从文件管理器用浏览器打开测试）
-            try {
-                java.io.File dlDir = new java.io.File(
-                        android.os.Environment.getExternalStoragePublicDirectory(
-                                android.os.Environment.DIRECTORY_DOWNLOADS), "LBBL");
-                if (dlDir.exists() || dlDir.mkdirs()) {
-                    java.io.File dlFile = new java.io.File(dlDir, file.getName());
-                    try (java.io.FileOutputStream fos = new java.io.FileOutputStream(dlFile)) {
-                        fos.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-            Uri uri = androidx.core.content.FileProvider.getUriForFile(
-                    this, getPackageName() + ".fileprovider", file);
-            Intent send = new Intent(Intent.ACTION_SEND);
-            send.setType("text/html");
-            send.putExtra(Intent.EXTRA_STREAM, uri);
-            send.putExtra(Intent.EXTRA_TEXT,
-                    getString(R.string.online_share_text, "P/" + currentCode)
-                            + "\n（附件是邀请卡：微信里点开文件 → 右上角「用其他应用打开」→ 选浏览器或 LBBL）");
-            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(Intent.createChooser(send, getString(R.string.online_share_code)));
-        } catch (Exception e) {
-            Toast.makeText(this, R.string.share_import_failed, Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    /** v0.4.37：应用图标（adaptive icon 合成）转 base64 内嵌邀请卡 HTML。 */
-    private String loadLogoBase64() {
-        try {
-            android.graphics.drawable.Drawable d = getResources().getDrawable(R.mipmap.ic_launcher);
-            if (d == null) {
-                return "";
-            }
-            int size = 192;
-            android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
-                    size, size, android.graphics.Bitmap.Config.ARGB_8888);
-            android.graphics.Canvas c = new android.graphics.Canvas(bmp);
-            d.setBounds(0, 0, size, size);
-            d.draw(c);
-            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-            bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, baos);
-            bmp.recycle();
-            return android.util.Base64.encodeToString(baos.toByteArray(), android.util.Base64.NO_WRAP);
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    /** v0.4.36：读 assets 邀请卡模板。 */
-    private String readAsset(String name) throws java.io.IOException {
-        try (java.io.InputStream is = getAssets().open(name)) {
-            byte[] buf = new byte[is.available()];
-            int n = is.read(buf);
-            return new String(buf, 0, Math.max(n, 0), java.nio.charset.StandardCharsets.UTF_8);
-        }
+        Intent send = new Intent(Intent.ACTION_SEND);
+        send.setType("text/plain");
+        send.putExtra(Intent.EXTRA_TEXT, getString(R.string.online_share_text, "P/" + currentCode));
+        startActivity(Intent.createChooser(send, getString(R.string.online_share_code)));
     }
 
     /** v541：当前个性化强调色。 */

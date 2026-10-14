@@ -1277,6 +1277,10 @@
 <string name="online_greet_evening">Добрый вечер, %1$s</string>
 <string name="online_state_idle">Не подключено</string>
 <string name="online_state_connected_fmt">Подключено · Виртуальный IP %1$s</string>
+    <string name="online_clipboard_title">Обнаружено приглашение LBBL</string>
+    <string name="online_clipboard_msg">Код приглашения в буфере обмена: %1$s
+Присоединиться к комнате?</string>
+    <string name="online_clipboard_join">Присоединиться</string>
 <string name="online_state_discovering">Поиск хоста в локальной сети…</string>
 <string name="online_my_room">Ваша комната</string>
 <string name="online_room_hint">Друзья в той же сети Wi-Fi (или через ретранслятор) могут присоединиться по этому коду</string>

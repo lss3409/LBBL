@@ -1260,6 +1260,10 @@
     <string name="online_share_text">【LBBL 联机邀请】
 来我的世界联机！邀请码：P/%1$s
 打开 LBBL 启动器 → 联机 → 加入房间，粘贴邀请码即可</string>
+    <string name="online_clipboard_title">检测到 LBBL 联机邀请</string>
+    <string name="online_clipboard_msg">剪贴板中有邀请码：%1$s
+是否加入房间？</string>
+    <string name="online_clipboard_join">加入房间</string>
 <string name="online_state_discovering">正在局域网内寻找房主…</string>
 <string name="online_my_room">我的房间</string>
 <string name="online_room_hint">同 WiFi（或已配置中转）的好友输入此码即可加入</string>
@@ -1784,7 +1788,10 @@
     <string name="report_crash_desc_hint">描述一下发生了什么（选填）</string>
     <!-- v0.4.24: 日志上报 -->
     <string name="report_logs">上报日志</string>
-    <string name="report_logs_desc">日志会上传到 logshare.cn 并生成公开分享链接。</string>
+    <string name="report_logs_desc">日志默认通过系统邮件发送到开发者邮箱（也可选择上传到 logshare.cn 生成公开分享链接）。</string>
+    <string name="report_method_mail">发送到我的邮箱</string>
+    <string name="report_method_site">上传到网站</string>
+    <string name="report_send">发送</string>
     <string name="report_desc_sub">描述一下发生了什么（选填），描述会随日志一起上传。</string>
     <string name="report_uploading">正在上传日志…</string>
     <string name="report_upload_success">日志已上传 ✓</string>

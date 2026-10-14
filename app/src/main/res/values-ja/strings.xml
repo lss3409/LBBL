@@ -1244,6 +1244,10 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="online_greet_evening">こんばんは、%1$s さん</string>
 <string name="online_state_idle">未接続</string>
 <string name="online_state_connected_fmt">接続済み · 仮想 IP %1$s</string>
+    <string name="online_clipboard_title">LBBL 招待を検出しました</string>
+    <string name="online_clipboard_msg">クリップボードに招待コード：%1$s
+ルームに参加しますか？</string>
+    <string name="online_clipboard_join">ルームに参加</string>
 <string name="online_state_discovering">ローカルネットワーク上でホストを探しています…</string>
 <string name="online_my_room">あなたのルーム</string>
 <string name="online_room_hint">同じ Wi-Fi の友達（またはリレー経由）がこのコードで参加できます</string>
