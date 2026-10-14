@@ -1038,7 +1038,7 @@
                             android:id="@+id/help_bilibili_icon"
                             android:layout_width="32dp"
                             android:layout_height="32dp"
-                            android:src="@drawable/ic_youtube"
+                            android:src="@drawable/ic_bilibili"
                             android:importantForAccessibility="no"
                             app:tint="@color/primary" />
 
