@@ -30,6 +30,7 @@ import android.widget.Toast;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.core.content.ContextCompat;
 import androidx.activity.result.contract.ActivityResultContracts;
 
 import org.levimc.launcher.R;

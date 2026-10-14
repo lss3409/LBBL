@@ -87,6 +87,8 @@ public final class ContentActionPopup {
                 }
                 action.callback.run();
             });
+            // v0.4.17：条目可聚焦——系统手柄 DPAD/A 导航 + 描边
+            row.setFocusable(true);
             items.addView(row);
         }
 
@@ -106,6 +108,23 @@ public final class ContentActionPopup {
         popup.setOutsideTouchable(true);
         popup.setClippingEnabled(true);
         popup.setElevation(dp(context, 10));
+        // v0.4.17：手柄支持——注册 popup（光标点击分发用）+ 焦点
+        // 描边监听 + 初始聚焦第一个条目 + 隐藏光标（popup window
+        // 层级高于 Activity）
+        if (context instanceof org.levimc.launcher.ui.activities.BaseActivity) {
+            org.levimc.launcher.ui.activities.BaseActivity.registerActiveGamepadPopup(popup);
+            org.levimc.launcher.ui.activities.BaseActivity.hideGamepadCursorFromDialog();
+            popup.setOnDismissListener(() ->
+                    org.levimc.launcher.ui.activities.BaseActivity.unregisterActiveGamepadPopup(popup));
+            content.getViewTreeObserver().addOnGlobalFocusChangeListener(
+                    (oldFocus, newFocus) -> {
+                        org.levimc.launcher.ui.activities.BaseActivity.clearFocusOutlineStatic(oldFocus);
+                        org.levimc.launcher.ui.activities.BaseActivity.applyFocusOutlineStatic(context, newFocus);
+                    });
+            if (items.getChildCount() > 0) {
+                content.post(() -> items.getChildAt(0).requestFocus());
+            }
+        }
         int[] location = new int[2];
         anchor.getLocationOnScreen(location);
         int xOffset = anchor.getWidth() - dp(context, 220);

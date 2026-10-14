@@ -588,10 +588,6 @@ public class BaseActivity extends AppCompatActivity {
 
     /** A 键：在光标位置模拟一次触摸点击（带按下动画反馈）。 */
     private void clickAtGamepadCursor() {
-        ViewGroup root = getWindow().getDecorView().findViewById(android.R.id.content);
-        if (root == null) {
-            return;
-        }
         long now = android.os.SystemClock.uptimeMillis();
         android.view.MotionEvent down = android.view.MotionEvent.obtain(
                 now, now, android.view.MotionEvent.ACTION_DOWN, cursorX, cursorY, 0);
@@ -603,8 +599,31 @@ public class BaseActivity extends AppCompatActivity {
                         .scaleX(1f).scaleY(1f).setDuration(90).start())
                 .start();
         try {
-            root.dispatchTouchEvent(down);
-            root.dispatchTouchEvent(up);
+            // v0.4.17：活动 popup（资源三个点菜单等）优先——popup
+            // window 不在 Activity 树，模拟触摸直接发给 popup 内容
+            // （此前点击落空="popup 不支持鼠标"根因）
+            android.widget.PopupWindow popup = sActiveGamepadPopup;
+            if (popup != null && popup.isShowing() && popup.getContentView() != null) {
+                View pc = popup.getContentView();
+                int[] loc = new int[2];
+                pc.getLocationOnScreen(loc);
+                android.view.MotionEvent pDown = android.view.MotionEvent.obtain(
+                        now, now, android.view.MotionEvent.ACTION_DOWN,
+                        cursorX - loc[0], cursorY - loc[1], 0);
+                android.view.MotionEvent pUp = android.view.MotionEvent.obtain(
+                        now, now + 60, android.view.MotionEvent.ACTION_UP,
+                        cursorX - loc[0], cursorY - loc[1], 0);
+                pc.dispatchTouchEvent(pDown);
+                pc.dispatchTouchEvent(pUp);
+                pDown.recycle();
+                pUp.recycle();
+            } else {
+                ViewGroup root = getWindow().getDecorView().findViewById(android.R.id.content);
+                if (root != null) {
+                    root.dispatchTouchEvent(down);
+                    root.dispatchTouchEvent(up);
+                }
+            }
         } finally {
             down.recycle();
             up.recycle();
@@ -758,11 +777,19 @@ public class BaseActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        sResumedActivity = this;
-        int currentGen = ThemeManager.getThemeChangeGeneration();
+    /** v0.4.17：当前活动的 PopupWindow（资源三个点菜单等）——
+     *  光标点击优先分发到 popup（popup window 不在 Activity 树）。 */
+    private static android.widget.PopupWindow sActiveGamepadPopup;
+
+    public static void registerActiveGamepadPopup(android.widget.PopupWindow p) {
+        sActiveGamepadPopup = p;
+    }
+
+    public static void unregisterActiveGamepadPopup(android.widget.PopupWindow p) {
+        if (sActiveGamepadPopup == p) {
+            sActiveGamepadPopup = null;
+        }
+    }
 
     /** v0.3.0：LB(-1)/RB(+1) 切换底部导航栏位（4 tab 循环）。 */
     protected boolean onGamepadTabSwitch(int delta) {
@@ -1232,6 +1259,7 @@ public class BaseActivity extends AppCompatActivity {
 
     protected void onResume() {
         super.onResume();
+        sResumedActivity = this;
         int currentGen = ThemeManager.getThemeChangeGeneration();
         int currentPGen = PersonalizationManager.getChangeGeneration();
         if (appliedThemeGeneration != currentGen || appliedPersonalizationGeneration != currentPGen) {
