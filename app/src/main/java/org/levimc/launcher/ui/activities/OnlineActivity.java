@@ -1437,11 +1437,11 @@ public final class OnlineActivity extends BaseActivity
         try {
             String html = readAsset("invite_page.html")
                     .replace("{{CODE}}", "P/" + currentCode);
-            File dir = new File(getCacheDir(), "invite");
+            java.io.File dir = new java.io.File(getCacheDir(), "invite");
             if (!dir.exists() && !dir.mkdirs()) {
                 return;
             }
-            File file = new File(dir, "LBBL-Invite-" + currentCode + ".html");
+            java.io.File file = new java.io.File(dir, "LBBL-Invite-" + currentCode + ".html");
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(file)) {
                 fos.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             }
