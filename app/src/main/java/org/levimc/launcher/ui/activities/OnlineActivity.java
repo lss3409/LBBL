@@ -1081,6 +1081,9 @@ public final class OnlineActivity extends BaseActivity
     /** v0.4.40：加入确认逻辑（确认按钮点击与剪贴板直接加入共用）。
      *  校验邀请码 → 步骤动画 → VPN 授权检查 → doJoinFromDialog。 */
     private void confirmJoin(View root, String raw) {
+        if (root == null) {
+            return;
+        }
         EditText input = root.findViewById(R.id.join_code_input);
         TextView feedback = root.findViewById(R.id.join_feedback);
         LinearLayout steps = root.findViewById(R.id.join_steps_container);
@@ -1122,10 +1125,15 @@ public final class OnlineActivity extends BaseActivity
             return;
         }
         String formatted = InviteCode.formatInput(code);
-        EditText input = joinDialog.findViewById(R.id.join_code_input);
-        input.setText(formatted);
-        input.setSelection(input.length());
-        confirmJoin(joinDialog, formatted);
+        View root = joinDialog instanceof org.levimc.launcher.ui.dialogs.CustomAlertDialog
+                ? ((org.levimc.launcher.ui.dialogs.CustomAlertDialog) joinDialog).getCustomView()
+                : null;
+        EditText input = root == null ? null : root.findViewById(R.id.join_code_input);
+        if (input != null) {
+            input.setText(formatted);
+            input.setSelection(input.length());
+        }
+        confirmJoin(root, formatted);
     }
 
     private void doJoinFromDialog(InviteCode.Parsed parsed) {

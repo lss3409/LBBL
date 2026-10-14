@@ -61,6 +61,11 @@ public class CustomAlertDialog extends Dialog {
         return this;
     }
 
+    /** v0.4.40：取自定义视图（剪贴板直达加入需要操作弹窗内控件）。 */
+    public View getCustomView() {
+        return mCustomView;
+    }
+
     public CustomAlertDialog setMessage(String message) {
         this.mMessage = message;
         return this;
