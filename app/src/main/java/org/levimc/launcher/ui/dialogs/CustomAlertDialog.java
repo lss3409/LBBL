@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.levimc.launcher.R;
+import org.levimc.launcher.ui.activities.BaseActivity;
 import org.levimc.launcher.ui.animation.DynamicAnim;
 
 public class CustomAlertDialog extends Dialog {
@@ -370,14 +371,10 @@ public class CustomAlertDialog extends Dialog {
 
     @Override
     public void dismiss() {
+        // v0.4.11：注销活动弹窗（手柄滚动键引用）
         if (getContext() instanceof BaseActivity) {
             BaseActivity.unregisterActiveGamepadDialog(this);
         }
-        super.dismiss();
-    }
-
-    @Override
-    public void dismiss() {
         try {
             if (!isShowing() || mDismissing) {
                 return;
