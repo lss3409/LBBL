@@ -134,8 +134,11 @@ public class SettingsActivity extends BaseActivity {
                     if (uri != null) {
                         String path = getPathFromTreeUri(uri);
                         if (path != null && customStoragePathInput != null) {
+                            // v0.4.12：选完目录自动应用（此前只把路径填进
+                            // 输入栏，用户以为 SAF 的"应用"已生效——
+                            // "文件管理器选择后点应用不生效"根因）
                             customStoragePathInput.setText(path);
-                            updateSelectApplyButtonState();
+                            applyCustomStoragePath();
                         }
                     }
                 }
