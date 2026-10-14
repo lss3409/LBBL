@@ -1116,12 +1116,16 @@ public class SettingsActivity extends BaseActivity {
         }
 
         if (btnSelectApply != null) {
-            btnSelectApply.setOnClickListener(v -> {
-                if (getString(R.string.custom_storage_path_select).contentEquals(btnSelectApply.getText())) {
-                    openFolderPicker();
-                } else {
-                    applyCustomStoragePath();
-                }
+            // v0.4.19：应用按钮固定语义（选择器独立按钮 btn_pick_*）
+            btnSelectApply.setOnClickListener(v -> applyCustomStoragePath());
+        }
+        // v0.4.19：独立「选择」按钮——输入框有旧文本时也能随时
+        // 打开文件管理器（此前按钮双态，输入框非空时只有「应用」）
+        Button btnPick = findViewById(R.id.btn_pick_custom_storage_path);
+        if (btnPick != null) {
+            btnPick.setOnClickListener(v -> {
+                extendedPickerTarget = false;
+                openFolderPicker();
             });
         }
         if (btnReset != null) {
@@ -1200,9 +1204,20 @@ public class SettingsActivity extends BaseActivity {
         try {
             String docId = android.provider.DocumentsContract.getTreeDocumentId(uri);
             if (docId == null) return null;
-            String[] parts = docId.split(":");
-            if (parts.length >= 2 && ("primary".equals(parts[0]) || "home".equals(parts[0]))) {
-                return "/storage/emulated/0/" + parts[1];
+            String[] parts = docId.split(":", 2);
+            if (parts.length >= 2) {
+                String vol = parts[0];
+                String rel = parts[1];
+                // 内置存储
+                if ("primary".equals(vol) || "home".equals(vol)) {
+                    return "/storage/emulated/0/" + rel;
+                }
+                // v0.4.19：SD 卡等外部卷（如 3D65-1710:Levilauncher）——
+                // 此前只认 primary，选 SD 卡目录解析失败返回 null
+                // （"选择后应用了还是不生效"根因）
+                if (vol.matches("[A-Za-z0-9_.-]+")) {
+                    return "/storage/" + vol + "/" + rel;
+                }
             }
         } catch (Exception ignored) {
         }
