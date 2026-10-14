@@ -1950,7 +1950,7 @@ Invite code: P/%1$s
     <string name="report_crash_desc_hint">Describe what happened (optional)</string>
     <!-- v0.4.24: Log reporting -->
     <string name="report_logs">Report Logs</string>
-    <string name="report_logs_desc">Logs are sent to the developer's email by default (or uploaded to logshare.cn if selected).</string>
+    <string name="report_logs_desc">Logs are sent to the developer\'s email by default (or uploaded to logshare.cn if selected).</string>
     <string name="report_method_mail">Send to my email</string>
     <string name="report_method_site">Upload to website</string>
     <string name="report_send">Send</string>
