@@ -817,6 +817,9 @@ public class SettingsActivity extends BaseActivity {
             btnSelectImage.setBackgroundTintList(ColorStateList.valueOf(accent));
             btnSelectImage.setTextColor(Color.WHITE);
         }
+
+        // v0.4.44：上报按钮描边随强调色即时刷新（setupAboutSection 只在启动时执行）
+        applyReportButtonAccent();
         
         SwitchMaterial switchLogcat = findViewById(R.id.switch_logcat);
         if (switchLogcat != null && accent != 0) {
@@ -1366,16 +1369,27 @@ public class SettingsActivity extends BaseActivity {
         com.google.android.material.button.MaterialButton btnReportLogs =
                 findViewById(R.id.btn_report_logs);
         if (btnReportLogs != null) {
-            if (personalizationManager != null && personalizationManager.hasCustomAccent()) {
-                btnReportLogs.setTextColor(personalizationManager.getAccentColor());
-                btnReportLogs.setStrokeColor(android.content.res.ColorStateList.valueOf(
-                        personalizationManager.getAccentColor()));
-                btnReportLogs.setIconTint(android.content.res.ColorStateList.valueOf(
-                        personalizationManager.getAccentColor()));
-            }
+            applyReportButtonAccent();
             btnReportLogs.setOnClickListener(v -> org.levimc.launcher.util.LogReporter.report(this));
         }
         // v0.0.24：minebbs/littleskin 死 UI 清理（此前 setVisibility(GONE) 残留）
+    }
+
+    /** v0.4.44：上报按钮描边/文字/图标染色（随强调色即时刷新——此前只在
+     *  启动时染一次，改色后要重启才生效）。 */
+    private void applyReportButtonAccent() {
+        com.google.android.material.button.MaterialButton btnReportLogs =
+                findViewById(R.id.btn_report_logs);
+        if (btnReportLogs == null) {
+            return;
+        }
+        int accent = new PersonalizationManager(this).getAccentColor();
+        if (accent == 0) {
+            return;
+        }
+        btnReportLogs.setTextColor(accent);
+        btnReportLogs.setStrokeColor(android.content.res.ColorStateList.valueOf(accent));
+        btnReportLogs.setIconTint(android.content.res.ColorStateList.valueOf(accent));
     }
 
     private void openUrl(String url, String title) {
