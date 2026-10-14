@@ -1403,7 +1403,8 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="no_structures_found_list">建造物ファイルが見つかりません</string>
 <string name="invalid_world_path">ワールドパスが無効です</string>
 <string name="no_structures_message_list">抽出した建造物ファイルはここに表示されます。</string>
-<string name="foreground_service">フォアグラウンドサービス</string>
+<string name="cursor_sensitivity_title">ゲームパッドカーソル感度</string>
+    <string name="foreground_service">フォアグラウンドサービス</string>
 <string name="foreground_service_desc">Bedrock がアクティブセッションを一時停止するのを防ぎ、プロセス、CPU、Wi-Fi をアクティブに保つことで、アプリを切り替えても Minecraft を実行し続けます。</string>
 <string name="foreground_service_warning">注意：スマートフォンの発熱やバッテリー消費が増える可能性があります。</string>
 <string name="foreground_service_channel">Minecraft バックグラウンド保護</string>

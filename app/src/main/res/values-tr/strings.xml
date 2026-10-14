@@ -1432,7 +1432,8 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="no_structures_found_list">Yapı dosyası bulunamadı</string>
 <string name="invalid_world_path">Geçersiz dünya yolu</string>
 <string name="no_structures_message_list">Çıkarılan yapı dosyaları burada görünecek.</string>
-<string name="foreground_service">Ön plan hizmeti</string>
+<string name="cursor_sensitivity_title">Gamepad imleç hassasiyeti</string>
+    <string name="foreground_service">Ön plan hizmeti</string>
 <string name="foreground_service_desc">Uygulama değiştirdiğinde Minecraft\'ı çalışır durumda tut; Bedrock\'un etkin oturumu askıya almasını engelle ve süreci, CPU\'yu ve Wi-Fi\'yi etkin tut.</string>
 <string name="foreground_service_warning">Not: Telefonunun daha hızlı ısınmasına ve pil kullanımının artmasına neden olabilir.</string>
 <string name="foreground_service_channel">Minecraft arka plan koruması</string>

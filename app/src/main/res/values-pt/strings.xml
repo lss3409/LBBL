@@ -1406,7 +1406,8 @@ A migração deve ser concluída antes que o LeviLauncher continue.</string>
 <string name="no_structures_found_list">Nenhum arquivo de estrutura encontrado</string>
 <string name="invalid_world_path">Caminho do mundo inválido</string>
 <string name="no_structures_message_list">Os arquivos de estrutura extraídos aparecerão aqui.</string>
-<string name="foreground_service">Serviço em primeiro plano</string>
+<string name="cursor_sensitivity_title">Sensibilidade do cursor do controle</string>
+    <string name="foreground_service">Serviço em primeiro plano</string>
 <string name="foreground_service_desc">Mantém o Minecraft em execução ao trocar de aplicativo, impedindo que o Bedrock suspenda a sessão ativa e mantendo o processo, a CPU e o Wi-Fi ativos.</string>
 <string name="foreground_service_warning">Aviso: pode fazer o telefone esquentar mais rápido e aumentar o consumo de bateria.</string>
 <string name="foreground_service_channel">Proteção em segundo plano do Minecraft</string>

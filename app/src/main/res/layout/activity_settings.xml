@@ -249,6 +249,50 @@
                                 android:trackTint="#555555" />
                         </LinearLayout>
 
+                        <!-- v0.4.11：手柄光标灵敏度（0.5x-3.0x） -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/misans"
+                                    android:text="@string/cursor_sensitivity_title"
+                                    android:textColor="@color/on_surface"
+                                    android:textSize="15sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/cursor_speed_value"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/misans"
+                                    android:text="1.0x"
+                                    android:textColor="@color/text_secondary"
+                                    android:textSize="13sp" />
+                            </LinearLayout>
+
+                            <com.google.android.material.slider.Slider
+                                android:id="@+id/slider_cursor_speed"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:stepSize="0.1"
+                                android:value="1.0"
+                                android:valueFrom="0.5"
+                                android:valueTo="3.0"
+                                app:thumbColor="@color/primary"
+                                app:trackColorActive="@color/primary" />
+                        </LinearLayout>
+
                         <View
                             android:layout_width="match_parent"
                             android:layout_height="1dp"

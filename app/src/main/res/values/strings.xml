@@ -1504,7 +1504,8 @@ Invite code: P/%1$s
 <string name="no_structures_message_list">Extracted structure files will appear here.</string>
 
     <!-- Foreground service -->
-<string name="foreground_service">Foreground service</string>
+<string name="cursor_sensitivity_title">Gamepad cursor sensitivity</string>
+    <string name="foreground_service">Foreground service</string>
 <string name="foreground_service_desc">Keep Minecraft running when you switch apps by preventing Bedrock from suspending the active session and keeping the process, CPU, and Wi-Fi active.</string>
 <string name="foreground_service_warning">Note: May make your phone heat up faster and increase battery usage.</string>
 <string name="foreground_service_channel">Minecraft background protection</string>

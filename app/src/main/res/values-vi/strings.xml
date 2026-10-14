@@ -1435,7 +1435,8 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="no_structures_found_list">Không tìm thấy tệp công trình</string>
 <string name="invalid_world_path">Đường dẫn thế giới không hợp lệ</string>
 <string name="no_structures_message_list">Các tệp công trình đã giải nén sẽ hiển thị tại đây.</string>
-<string name="foreground_service">Dịch vụ nền trước</string>
+<string name="cursor_sensitivity_title">Độ nhạy con trỏ tay cầm</string>
+    <string name="foreground_service">Dịch vụ nền trước</string>
 <string name="foreground_service_desc">Giữ Minecraft chạy khi bạn chuyển sang ứng dụng khác bằng cách ngăn Bedrock tạm dừng phiên đang hoạt động và giữ tiến trình, CPU cùng Wi-Fi luôn hoạt động.</string>
 <string name="foreground_service_warning">Lưu ý: Có thể khiến điện thoại nóng nhanh hơn và tốn pin hơn.</string>
 <string name="foreground_service_channel">Bảo vệ nền Minecraft</string>

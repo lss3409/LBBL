@@ -1436,7 +1436,8 @@
 <string name="no_structures_found_list">Файлы структур не найдены</string>
 <string name="invalid_world_path">Недопустимый путь к миру</string>
 <string name="no_structures_message_list">Извлечённые файлы структур появятся здесь.</string>
-<string name="foreground_service">Служба переднего плана</string>
+<string name="cursor_sensitivity_title">Чувствительность курсора геймпада</string>
+    <string name="foreground_service">Служба переднего плана</string>
 <string name="foreground_service_desc">Не даёт Bedrock приостанавливать активный сеанс и поддерживает активность процесса, CPU и Wi-Fi, чтобы Minecraft продолжал работать при переключении приложений.</string>
 <string name="foreground_service_warning">Внимание: телефон может нагреваться быстрее, а расход батареи увеличится.</string>
 <string name="foreground_service_channel">Защита Minecraft в фоне</string>

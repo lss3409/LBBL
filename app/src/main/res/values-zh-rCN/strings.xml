@@ -1460,7 +1460,8 @@
 <string name="invalid_world_path">世界路径无效</string>
 <string name="no_structures_message_list">导出的结构文件会显示在这里。</string>
     <!-- 前台服务 -->
-<string name="foreground_service">前台服务</string>
+<string name="cursor_sensitivity_title">手柄光标灵敏度</string>
+    <string name="foreground_service">前台服务</string>
 <string name="foreground_service_desc">切换应用时阻止 Bedrock 暂停当前会话，并保持进程、CPU 和 Wi-Fi 活跃，从而让 Minecraft 继续运行。</string>
 <string name="foreground_service_warning">注意：可能会让手机更快发热并增加电池消耗。</string>
 <string name="foreground_service_channel">Minecraft 后台保护</string>

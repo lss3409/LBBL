@@ -1433,7 +1433,8 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="no_structures_found_list">कोई संरचना फ़ाइल नहीं मिली</string>
 <string name="invalid_world_path">अमान्य दुनिया पथ</string>
 <string name="no_structures_message_list">निकाली गई संरचना फ़ाइलें यहाँ दिखाई देंगी।</string>
-<string name="foreground_service">फ़ोरग्राउंड सेवा</string>
+<string name="cursor_sensitivity_title">गेमपैड कर्सर संवेदनशीलता</string>
+    <string name="foreground_service">फ़ोरग्राउंड सेवा</string>
 <string name="foreground_service_desc">ऐप बदलने पर भी Minecraft चालू रखें: Bedrock को सक्रिय सत्र निलंबित करने से रोकें और प्रक्रिया, CPU तथा Wi-Fi सक्रिय रखें।</string>
 <string name="foreground_service_warning">ध्यान दें: इससे फ़ोन तेज़ी से गर्म हो सकता है और बैटरी खपत बढ़ सकती है।</string>
 <string name="foreground_service_channel">Minecraft बैकग्राउंड सुरक्षा</string>

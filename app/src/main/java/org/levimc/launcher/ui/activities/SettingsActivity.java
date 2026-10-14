@@ -346,6 +346,30 @@ public class SettingsActivity extends BaseActivity {
         switchForegroundService.setChecked(fs.isForegroundServiceEnabled());
         switchForegroundService.setOnCheckedChangeListener((btn, checked) -> fs.setForegroundServiceEnabled(checked));
 
+        // v0.4.11：手柄光标灵敏度（0.5x-3.0x，默认 1.0x）
+        com.google.android.material.slider.Slider sliderCursorSpeed =
+                findViewById(R.id.slider_cursor_speed);
+        TextView cursorSpeedValue = findViewById(R.id.cursor_speed_value);
+        if (sliderCursorSpeed != null) {
+            float saved = getSharedPreferences("settings", MODE_PRIVATE)
+                    .getFloat("gamepad_cursor_speed", 1f);
+            sliderCursorSpeed.setValue(saved);
+            if (cursorSpeedValue != null) {
+                cursorSpeedValue.setText(String.format(java.util.Locale.getDefault(),
+                        "%.1fx", saved));
+            }
+            sliderCursorSpeed.addOnChangeListener((s, value, fromUser) -> {
+                if (cursorSpeedValue != null) {
+                    cursorSpeedValue.setText(String.format(java.util.Locale.getDefault(),
+                            "%.1fx", value));
+                }
+                if (fromUser) {
+                    getSharedPreferences("settings", MODE_PRIVATE).edit()
+                            .putFloat("gamepad_cursor_speed", value).apply();
+                }
+            });
+        }
+
         setupGlobalConfigSection();
     }
 

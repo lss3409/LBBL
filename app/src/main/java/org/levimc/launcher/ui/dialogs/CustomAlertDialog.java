@@ -258,6 +258,13 @@ public class CustomAlertDialog extends Dialog {
             dismiss();
         });
 
+        // v0.4.11：手柄焦点语义——弹窗打开后焦点自动落正按钮（确认），
+        // 取消/中立按钮不可聚焦：A 键不会"空按退出"（此前焦点随机
+        // 落到取消按钮，A 键=退出，用户实测"A 键有时候还是会变成退出"）
+        btnNegative.setFocusable(false);
+        btnNeutral.setFocusable(false);
+        btnPositive.setFocusable(true);
+
         Window window = getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
@@ -342,6 +349,31 @@ public class CustomAlertDialog extends Dialog {
             );
             window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
         }
+        // v0.4.11：手柄支持——弹窗窗口也挂焦点描边监听（Dialog 的
+        // 焦点变化不经过 Activity 的 decor 树）+ 注册活动弹窗供
+        // LT/RT 滚动键查找弹窗内滚动容器 + 焦点落到正按钮
+        if (getContext() instanceof BaseActivity) {
+            BaseActivity.registerActiveGamepadDialog(this);
+            View dec = getWindow() != null ? getWindow().getDecorView() : null;
+            if (dec != null) {
+                dec.getViewTreeObserver().addOnGlobalFocusChangeListener(
+                        (oldFocus, newFocus) -> {
+                            BaseActivity.clearFocusOutlineStatic(oldFocus);
+                            BaseActivity.applyFocusOutlineStatic(getContext(), newFocus);
+                        });
+                if (mPositiveButton != null && mPositiveButton.isShown()) {
+                    dec.post(() -> mPositiveButton.requestFocus());
+                }
+            }
+        }
+    }
+
+    @Override
+    public void dismiss() {
+        if (getContext() instanceof BaseActivity) {
+            BaseActivity.unregisterActiveGamepadDialog(this);
+        }
+        super.dismiss();
     }
 
     @Override

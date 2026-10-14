@@ -256,28 +256,58 @@ public class BaseActivity extends AppCompatActivity {
         return null;
     }
 
-    /** v0.4.4：滚动当前焦点所在的可滚动容器（X=上滚/Y=下滚 与
-     *  焦点导航到边界时共用）。向上/下滚动约 1/3 屏。 */
+    /** v0.4.4：滚动当前焦点所在的可滚动容器（LT/RT 与焦点导航到
+     *  边界时共用）。向上/下滚动约 1/3 屏。
+     *  v0.4.11：Activity 树找不到时查活动弹窗（导入弹窗等 Dialog
+     *  是独立窗口，不在 Activity decor 树里——"向下滑动按键在导入
+     *  菜单没生效"根因）。 */
     private boolean scrollGamepadContent(int direction) {
         View anchor = getCurrentFocus();
         if (anchor == null) {
             anchor = getWindow().getDecorView().findViewById(android.R.id.content);
         }
-        if (anchor == null) {
-            return false;
-        }
         android.graphics.Point size = new android.graphics.Point();
         getWindowManager().getDefaultDisplay().getSize(size);
         int step = Math.max(160, size.y / 3);
-        for (android.view.ViewParent p = anchor.getParent();
-                p instanceof View; p = p.getParent()) {
-            View pv = (View) p;
-            if (pv.canScrollVertically(direction)) {
-                pv.scrollBy(0, direction * step);
-                return true;
+        if (anchor != null) {
+            for (android.view.ViewParent p = anchor.getParent();
+                    p instanceof View; p = p.getParent()) {
+                View pv = (View) p;
+                if (pv.canScrollVertically(direction)) {
+                    pv.scrollBy(0, direction * step);
+                    return true;
+                }
+            }
+        }
+        // 活动弹窗内找（Dialog 独立窗口）
+        android.app.Dialog dlg = sActiveGamepadDialog;
+        if (dlg != null && dlg.isShowing() && dlg.getWindow() != null) {
+            View dec = dlg.getWindow().getDecorView();
+            if (dec instanceof ViewGroup) {
+                View sc = findScrollableIn((ViewGroup) dec, direction);
+                if (sc != null) {
+                    sc.scrollBy(0, direction * step);
+                    return true;
+                }
             }
         }
         return false;
+    }
+
+    private View findScrollableIn(ViewGroup group, int direction) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child.canScrollVertically(direction)) {
+                return child;
+            }
+            if (child instanceof ViewGroup) {
+                View found = findScrollableIn((ViewGroup) child, direction);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
     }
 
     private boolean clickGamepadFocused() {
@@ -342,7 +372,14 @@ public class BaseActivity extends AppCompatActivity {
                     long dt = cursorLastFrameNanos == 0
                             ? 16_666_666L : frameTimeNanos - cursorLastFrameNanos;
                     cursorLastFrameNanos = frameTimeNanos;
-                    float step = 1375f * (dt / 1e9f);
+                    // v0.4.11：灵敏度可调（设置页 0.5x-3.0x）
+                    float speedFactor = 1f;
+                    try {
+                        speedFactor = getSharedPreferences("settings", MODE_PRIVATE)
+                                .getFloat("gamepad_cursor_speed", 1f);
+                    } catch (Throwable ignored) {
+                    }
+                    float step = 1375f * speedFactor * (dt / 1e9f);
                     if (r3Held) {
                         // v0.4.7：R3+右摇杆=拖拽视图（类似鼠标按住右键
                         // 拖动），光标隐藏、位置不动
@@ -384,26 +421,14 @@ public class BaseActivity extends AppCompatActivity {
         if (gamepadCursor != null) {
             return;
         }
-        // v0.4.3：用户提供 SVG 贴图（白箭头 + 黑描边，drawable/gamepad_cursor）
-        // v0.4.10：底部加白色径向光晕（gamepad_cursor_glow）提升可见度；
-        // View 52×52，箭头 24×13.5 内嵌在 (12,12) 处，尖端锚点
-        // (12+4.7, 12+0.9)dp——参考主流手柄 UI 的发光光标设计
-        android.widget.ImageView iv = new android.widget.ImageView(this);
+        // v0.4.3：用户提供 SVG 贴图（白箭头 + 黑描边）
+        // v0.4.11：改 GamepadCursorView——shadowLayer 箭头自身发光
+        // （v0.4.10 独立光晕背景层被用户否决）；View 48×48，箭头
+        // 24×13.5 内嵌 (12,12)，尖端锚点 (12+4.7, 12+0.9)dp
         float d = getResources().getDisplayMetrics().density;
-        int size = (int) (52 * d);
-        android.graphics.drawable.Drawable glow =
-                ContextCompat.getDrawable(this, R.drawable.gamepad_cursor_glow);
-        android.graphics.drawable.Drawable arrow =
-                ContextCompat.getDrawable(this, R.drawable.gamepad_cursor);
-        android.graphics.drawable.LayerDrawable layer =
-                new android.graphics.drawable.LayerDrawable(
-                        new android.graphics.drawable.Drawable[]{glow, arrow});
-        int arrowL = (int) (12 * d);
-        int arrowT = (int) (12 * d);
-        layer.setLayerInset(1, arrowL, arrowT,
-                size - arrowL - (int) (24 * d),
-                size - arrowT - (int) (13.5f * d));
-        iv.setImageDrawable(layer);
+        int size = (int) (48 * d);
+        org.levimc.launcher.ui.views.GamepadCursorView iv =
+                new org.levimc.launcher.ui.views.GamepadCursorView(this);
         iv.setLayoutParams(new ViewGroup.LayoutParams(size, size));
         // 高 elevation 保证图层排序盖过按钮/FAB；outline 置空不画系统
         // 阴影（贴图自带黑描边）。translation 每帧变化时系统阴影区域
@@ -577,19 +602,24 @@ public class BaseActivity extends AppCompatActivity {
     }
 
     private void applyFocusOutline(View v) {
+        applyFocusOutlineStatic(this, v);
+    }
+
+    /** v0.4.11：静态版描边（CustomAlertDialog 的 Dialog 窗口复用）。 */
+    public static void applyFocusOutlineStatic(android.content.Context ctx, View v) {
         if (v == null) {
             return;
         }
         try {
             int accent = 0xFF5B9CF6;
             try {
-                int a = new PersonalizationManager(this).getAccentColor();
+                int a = new PersonalizationManager(ctx).getAccentColor();
                 if (a != 0) {
                     accent = a;
                 }
             } catch (Throwable ignored) {
             }
-            float d = getResources().getDisplayMetrics().density;
+            float d = ctx.getResources().getDisplayMetrics().density;
             android.graphics.drawable.GradientDrawable outline =
                     new android.graphics.drawable.GradientDrawable();
             outline.setStroke((int) (2.5f * d), accent);
@@ -600,11 +630,30 @@ public class BaseActivity extends AppCompatActivity {
     }
 
     private void clearFocusOutline(View v) {
+        clearFocusOutlineStatic(v);
+    }
+
+    /** v0.4.11：静态版清描边。 */
+    public static void clearFocusOutlineStatic(View v) {
         if (v != null) {
             try {
                 v.setForeground(null);
             } catch (Throwable ignored) {
             }
+        }
+    }
+
+    /** v0.4.11：当前活动的手柄感知弹窗（LT/RT 滚动键在弹窗内
+     *  找滚动容器用；弹窗内焦点描边由 CustomAlertDialog 自挂监听）。 */
+    private static android.app.Dialog sActiveGamepadDialog;
+
+    public static void registerActiveGamepadDialog(android.app.Dialog d) {
+        sActiveGamepadDialog = d;
+    }
+
+    public static void unregisterActiveGamepadDialog(android.app.Dialog d) {
+        if (sActiveGamepadDialog == d) {
+            sActiveGamepadDialog = null;
         }
     }
 

@@ -1429,7 +1429,8 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="no_structures_found_list">Tidak ada file struktur ditemukan</string>
 <string name="invalid_world_path">Jalur dunia tidak valid</string>
 <string name="no_structures_message_list">File struktur yang diekstrak akan muncul di sini.</string>
-<string name="foreground_service">Layanan latar depan</string>
+<string name="cursor_sensitivity_title">Sensitivitas kursor gamepad]</string>
+    <string name="foreground_service">Layanan latar depan</string>
 <string name="foreground_service_desc">Jaga Minecraft tetap berjalan saat Anda berpindah aplikasi dengan mencegah Bedrock menangguhkan sesi aktif dan menjaga proses, CPU, serta Wi-Fi tetap aktif.</string>
 <string name="foreground_service_warning">Catatan: Dapat membuat ponsel lebih cepat panas dan meningkatkan penggunaan baterai.</string>
 <string name="foreground_service_channel">Proteksi latar belakang Minecraft</string>
