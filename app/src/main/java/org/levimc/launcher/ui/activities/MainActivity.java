@@ -138,14 +138,27 @@ import okhttp3.OkHttpClient;
     private CustomAlertDialog clipboardDialog;
 
     /** v0.4.38：剪贴板邀请码检测（夸克式）——复制了 LBBL 邀请文本
-     *  回启动器自动弹「加入房间」确认窗，确认后深链直达联机页填码。 */
+     *  回启动器自动弹「加入房间」确认窗，确认后深链直达联机页填码。
+     *  v0.4.40：加时效（剪贴板内容超过 15 分钟不弹）+ 点加入直接进房间。 */
+    private static final long CLIP_AGE_MAX_MS = 15 * 60_000L;
+
     private void checkClipboardInvite() {
         try {
             ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             if (cm == null || !cm.hasPrimaryClip()) {
                 return;
             }
-            ClipData.Item item = cm.getPrimaryClip().getItemAt(0);
+            ClipData cd = cm.getPrimaryClip();
+            // v0.4.40：时效——剪贴板内容太旧（15 分钟）视为过期邀请不弹
+            long ts = 0;
+            try {
+                ts = cd.getDescription() == null ? 0 : cd.getDescription().getTimestamp();
+            } catch (Exception ignored) {
+            }
+            if (ts > 0 && System.currentTimeMillis() - ts > CLIP_AGE_MAX_MS) {
+                return;
+            }
+            ClipData.Item item = cd.getItemAt(0);
             if (item == null || item.getText() == null) {
                 return;
             }
@@ -175,8 +188,10 @@ import okhttp3.OkHttpClient;
                     .setTitleText(getString(R.string.online_clipboard_title))
                     .setMessage(getString(R.string.online_clipboard_msg, display))
                     .setPositiveButton(getString(R.string.online_clipboard_join), d -> {
+                        // v0.4.40：direct=1——联机页直接发起加入，不再弹加入窗
                         Intent intent = new Intent(this, OnlineActivity.class);
-                        intent.setData(Uri.parse("lbb://invite?code=" + Uri.encode(display)));
+                        intent.setData(Uri.parse("lbb://invite?code="
+                                + Uri.encode(display) + "&direct=1"));
                         startActivity(intent);
                     })
                     .setNegativeButton(getString(R.string.cancel), null);

@@ -259,7 +259,8 @@ public final class OnlineActivity extends BaseActivity
         handleInviteDeepLink();
     }
 
-    /** v0.4.34：解析 lbb://invite?code= 深链，自动弹加入框并预填邀请码。 */
+    /** v0.4.34：解析 lbb://invite?code= 深链，自动弹加入框并预填邀请码。
+     *  v0.4.40：direct=1（剪贴板直达）跳过确认窗直接发起加入。 */
     private void handleInviteDeepLink() {
         try {
             Intent intent = getIntent();
@@ -267,6 +268,7 @@ public final class OnlineActivity extends BaseActivity
                 return;
             }
             String code = intent.getData().getQueryParameter("code");
+            boolean direct = "1".equals(intent.getData().getQueryParameter("direct"));
             intent.setData(null); // 只消费一次（防 recreate 重复弹窗）
             if (code == null || code.trim().isEmpty()) {
                 return;
@@ -275,7 +277,11 @@ public final class OnlineActivity extends BaseActivity
             if (formatted.isEmpty()) {
                 return;
             }
-            getWindow().getDecorView().post(() -> showJoinDialogWithCode(formatted));
+            if (direct) {
+                getWindow().getDecorView().post(() -> joinDirectly(formatted));
+            } else {
+                getWindow().getDecorView().post(() -> showJoinDialogWithCode(formatted));
+            }
         } catch (Exception ignored) {
         }
     }
@@ -1057,33 +1063,8 @@ public final class OnlineActivity extends BaseActivity
         v.findViewById(R.id.join_cancel_button).setOnClickListener(x -> dialog.dismiss());
         v.findViewById(R.id.join_confirm_button).setOnClickListener(x -> {
             String raw = input.getText() == null ? "" : input.getText().toString();
-            InviteCode.Result r = InviteCode.parse(InviteCode.formatInput(raw));
-            if (!r.ok()) {
-                feedback.setVisibility(View.VISIBLE);
-                feedback.setTextColor(getResources().getColor(R.color.error, getTheme()));
-                feedback.setText(errorText(r.error));
-                return;
-            }
-            // 校验通过：进入连接步骤动画
-            feedback.setVisibility(View.GONE);
-            input.setEnabled(false);
-            v.findViewById(R.id.join_paste_button).setEnabled(false);
-            v.findViewById(R.id.join_confirm_button).setVisibility(View.GONE);
-            v.findViewById(R.id.join_cancel_button).setVisibility(View.GONE);
-            buildSteps(steps);
-            setStepState(0, true);
-            pendingParsed.clear();
-            pendingParsed.add(r.parsed);
-            Intent vpnIntent = VpnService.prepare(this);
-            if (vpnIntent != null) {
-                status.setVisibility(View.VISIBLE);
-                status.setText(getString(R.string.online_vpn_needed));
-                // v574：VPN 提示小字跟随个性化 accent（XML 里 primary 深绿）
-                status.setTextColor(accentColor());
-                startActivityForResult(vpnIntent, REQ_VPN);
-            } else {
-                doJoinFromDialog(r.parsed);
-            }
+            // v0.4.40：确认逻辑抽取——与剪贴板直接加入共用
+            confirmJoin(v, raw);
         });
         dialog.setOnDismissListener(d -> {
             joinDialog = null;
@@ -1095,6 +1076,56 @@ public final class OnlineActivity extends BaseActivity
                 setHomeState(EasyTierManager.State.IDLE, null);
             }
         });
+    }
+
+    /** v0.4.40：加入确认逻辑（确认按钮点击与剪贴板直接加入共用）。
+     *  校验邀请码 → 步骤动画 → VPN 授权检查 → doJoinFromDialog。 */
+    private void confirmJoin(View root, String raw) {
+        EditText input = root.findViewById(R.id.join_code_input);
+        TextView feedback = root.findViewById(R.id.join_feedback);
+        LinearLayout steps = root.findViewById(R.id.join_steps_container);
+        TextView status = root.findViewById(R.id.join_status);
+        InviteCode.Result r = InviteCode.parse(InviteCode.formatInput(raw));
+        if (!r.ok()) {
+            feedback.setVisibility(View.VISIBLE);
+            feedback.setTextColor(getResources().getColor(R.color.error, getTheme()));
+            feedback.setText(errorText(r.error));
+            return;
+        }
+        // 校验通过：进入连接步骤动画
+        feedback.setVisibility(View.GONE);
+        input.setEnabled(false);
+        root.findViewById(R.id.join_paste_button).setEnabled(false);
+        root.findViewById(R.id.join_confirm_button).setVisibility(View.GONE);
+        root.findViewById(R.id.join_cancel_button).setVisibility(View.GONE);
+        buildSteps(steps);
+        setStepState(0, true);
+        pendingParsed.clear();
+        pendingParsed.add(r.parsed);
+        Intent vpnIntent = VpnService.prepare(this);
+        if (vpnIntent != null) {
+            status.setVisibility(View.VISIBLE);
+            status.setText(getString(R.string.online_vpn_needed));
+            // v574：VPN 提示小字跟随个性化 accent（XML 里 primary 深绿）
+            status.setTextColor(accentColor());
+            startActivityForResult(vpnIntent, REQ_VPN);
+        } else {
+            doJoinFromDialog(r.parsed);
+        }
+    }
+
+    /** v0.4.40：剪贴板「加入房间」直达——弹加入窗（作步骤进度载体）后
+     *  自动走确认流程，玩家无需再点「加入」。 */
+    private void joinDirectly(String code) {
+        showJoinDialog();
+        if (joinDialog == null) {
+            return;
+        }
+        String formatted = InviteCode.formatInput(code);
+        EditText input = joinDialog.findViewById(R.id.join_code_input);
+        input.setText(formatted);
+        input.setSelection(input.length());
+        confirmJoin(joinDialog, formatted);
     }
 
     private void doJoinFromDialog(InviteCode.Parsed parsed) {
