@@ -283,7 +283,6 @@ public class SettingsActivity extends BaseActivity {
 
         // Keep English at the top (default language).
         // Sort all other languages alphabetically by their display name.
-        // v0.4.24：末尾加愚人节微软机翻（locale tag "zz"→values-zz/）
         String[] languageOptions = {
                 getString(R.string.english),
                 getString(R.string.chinese),
@@ -295,8 +294,7 @@ public class SettingsActivity extends BaseActivity {
                 getString(R.string.russian),
                 getString(R.string.spanish),
                 getString(R.string.turkish),
-                getString(R.string.vietnamese),
-                getString(R.string.april_fools_language)
+                getString(R.string.vietnamese)
         };
 
         String currentCode = languageManager.getCurrentLanguage();
@@ -311,7 +309,6 @@ public class SettingsActivity extends BaseActivity {
             case "es" -> 8;
             case "tr", "tr-TR" -> 9;
             case "vi" -> 10;
-            case "jbo" -> 11;
             default -> 0;
         };
 
@@ -338,7 +335,6 @@ public class SettingsActivity extends BaseActivity {
                     case 8 -> "es";
                     case 9 -> "tr";
                     case 10 -> "vi";
-                    case 11 -> "jbo";
                     default -> "en";
                 };
                 if (!code.equals(languageManager.getCurrentLanguage())) {
@@ -643,57 +639,6 @@ public class SettingsActivity extends BaseActivity {
 
     private void setupPersonalizeSection() {
         ThemeManager themeManager = new ThemeManager(this);
-        FeatureSettings fs = FeatureSettings.getInstance();
-
-        // v0.4.24：Windows XP 音效开关 + 试听
-        SwitchMaterial switchWinSounds = findViewById(R.id.switch_win_sounds);
-        if (switchWinSounds != null) {
-            switchWinSounds.setChecked(fs.isWinSoundsEnabled());
-            switchWinSounds.setOnCheckedChangeListener((btn, checked) -> {
-                fs.setWinSoundsEnabled(checked);
-                if (checked) {
-                    org.levimc.launcher.util.WinSoundPlayer.get(this)
-                            .play(org.levimc.launcher.util.WinSoundPlayer.SOUND_DING);
-                }
-            });
-        }
-        com.google.android.material.button.MaterialButton btnSoundPreview =
-                findViewById(R.id.btn_sound_preview);
-        if (btnSoundPreview != null) {
-            // 试听按钮染个性化强调色（铁律：文字按钮 styleSecondary 色）
-            if (personalizationManager != null && personalizationManager.hasCustomAccent()) {
-                btnSoundPreview.setTextColor(personalizationManager.getAccentColor());
-                btnSoundPreview.setStrokeColor(ColorStateList.valueOf(
-                        personalizationManager.getAccentColor()));
-            }
-            // v0.4.25：试听菜单（点击即播；force 绕过开关）
-            // v0.4.26：用户要求去掉启动音——剩 5 项
-            String[] previewNames = {
-                    getString(R.string.sound_preview_ding),
-                    getString(R.string.sound_preview_error),
-                    getString(R.string.sound_preview_tada),
-                    getString(R.string.sound_preview_recycle),
-                    getString(R.string.sound_preview_shutdown)
-            };
-            final int[] previewSounds = {
-                    org.levimc.launcher.util.WinSoundPlayer.SOUND_DING,
-                    org.levimc.launcher.util.WinSoundPlayer.SOUND_ERROR,
-                    org.levimc.launcher.util.WinSoundPlayer.SOUND_TADA,
-                    org.levimc.launcher.util.WinSoundPlayer.SOUND_RECYCLE,
-                    org.levimc.launcher.util.WinSoundPlayer.SOUND_SHUTDOWN
-            };
-            btnSoundPreview.setOnClickListener(v -> {
-                android.widget.PopupMenu popup = new android.widget.PopupMenu(this, v);
-                for (int i = 0; i < previewNames.length; i++) {
-                    final int sound = previewSounds[i];
-                    popup.getMenu().add(previewNames[i]).setOnMenuItemClickListener(item -> {
-                        org.levimc.launcher.util.WinSoundPlayer.get(this).play(sound, true);
-                        return true;
-                    });
-                }
-                popup.show();
-            });
-        }
 
         View itemSystem = findViewById(R.id.theme_item_system);
         View itemLight = findViewById(R.id.theme_item_light);
@@ -1416,8 +1361,8 @@ public class SettingsActivity extends BaseActivity {
                 openUrl("https://zh.minecraft.wiki/", getString(R.string.help_mcwiki)));
         findViewById(R.id.help_bilibili).setOnClickListener(v ->
                 openUrl("https://www.bilibili.com/", getString(R.string.help_bilibili)));
-        // v0.4.24：日志上报（收集打包 → 邮件预填发送）
-        // v0.4.25：用户提供的云上传贴图 + 完成后绿勾贴图显示 2 秒
+        // v0.4.24：日志上报（收集打包 → 系统邮件预填发送）
+        // v0.4.25：用户提供的云上传贴图
         com.google.android.material.button.MaterialButton btnReportLogs =
                 findViewById(R.id.btn_report_logs);
         if (btnReportLogs != null) {
@@ -1428,8 +1373,7 @@ public class SettingsActivity extends BaseActivity {
                 btnReportLogs.setIconTint(android.content.res.ColorStateList.valueOf(
                         personalizationManager.getAccentColor()));
             }
-            btnReportLogs.setOnClickListener(v -> org.levimc.launcher.util.LogReporter.report(
-                    this, () -> showReportUploaded(btnReportLogs)));
+            btnReportLogs.setOnClickListener(v -> org.levimc.launcher.util.LogReporter.report(this));
         }
         // v0.0.24：minebbs/littleskin 死 UI 清理（此前 setVisibility(GONE) 残留）
     }
@@ -1439,25 +1383,6 @@ public class SettingsActivity extends BaseActivity {
         intent.putExtra(WebViewActivity.EXTRA_URL, url);
         intent.putExtra(WebViewActivity.EXTRA_TITLE, title);
         startActivity(intent);
-    }
-
-    /** v0.4.25：上报完成——按钮贴图切绿勾 2 秒后恢复云上传贴图。 */
-    private void showReportUploaded(com.google.android.material.button.MaterialButton btn) {
-        if (btn == null) {
-            return;
-        }
-        Toast.makeText(this, R.string.report_logs_uploaded, Toast.LENGTH_SHORT).show();
-        btn.setIconResource(R.drawable.ic_check);
-        btn.setIconTint(ColorStateList.valueOf(0xFF4CAF50));
-        btn.postDelayed(() -> {
-            btn.setIconResource(R.drawable.ic_report_upload);
-            if (personalizationManager != null && personalizationManager.hasCustomAccent()) {
-                btn.setIconTint(ColorStateList.valueOf(personalizationManager.getAccentColor()));
-            } else {
-                btn.setIconTint(ColorStateList.valueOf(
-                        ContextCompat.getColor(this, R.color.primary)));
-            }
-        }, 2000);
     }
 
     private void setupNavBar() {

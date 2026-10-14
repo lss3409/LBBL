@@ -3,15 +3,12 @@ package org.levimc.launcher.util;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
-import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
-import android.util.Base64;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.EditText;
@@ -37,40 +34,25 @@ import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-/** v0.4.24：日志上报。
- *  v0.4.26：SMTP 直发（smtp.qq.com:465 SSL，授权码内置 Base64 混淆，
- *  参考用户密码轮换工具）——真正发送完成才回调 onDone（绿勾提示）；
- *  发送前弹窗可填崩溃描述 + 改发件邮箱/授权码（prefs 记忆）；
- *  失败时提供系统邮件备选。 */
+/** v0.4.24：日志上报——收集崩溃日志/调试日志/设备信息打包 zip，
+ *  走系统邮件预填发送给开发者（lishushu8888@outlook.com）。
+ *  v0.4.28：SMTP 直发放弃（用户拍板），恢复系统邮件；发送前弹窗
+ *  可填崩溃描述（写入邮件正文）。 */
 public final class LogReporter {
 
-    private static final String PREFS = "log_reporter";
-    private static final String KEY_FROM = "from_email";
-    private static final String KEY_AUTH = "auth_code";
-
     private static final String REPORT_TO = "lishushu8888@outlook.com";
-    private static final String SMTP_HOST = "smtp.qq.com";
-    private static final int SMTP_PORT = 465;
 
     private LogReporter() {
     }
 
-    /** 点击上报：先弹描述/发件弹窗 → 后台收集 + SMTP 发送。
-     *  onDone：邮件真正发送成功后主线程回调。 */
-    public static void report(Activity activity, Runnable onDone) {
-        showReportDialog(activity, onDone);
+    /** 点击上报：弹描述弹窗 → 后台收集 → 拉起系统邮件（预填收件人）。 */
+    public static void report(Activity activity) {
+        showReportDialog(activity);
     }
 
-    // ---------------- 发送前弹窗 ----------------
+    // ---------------- 发送前弹窗（只填崩溃描述） ----------------
 
-    /** v0.4.26：首次（未配置发件）弹描述+邮箱+授权码；之后只弹描述。
-     *  发件邮箱/授权码一律空白让用户自己填（不内置预填）。 */
-    private static void showReportDialog(Activity activity, Runnable onDone) {
-        SharedPreferences prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        String savedFrom = prefs.getString(KEY_FROM, "");
-        String savedAuth = prefs.getString(KEY_AUTH, "");
-        final boolean configured = !savedFrom.isEmpty() && !savedAuth.isEmpty();
-
+    private static void showReportDialog(Activity activity) {
         int onSurface = ContextCompat.getColor(activity, R.color.on_surface);
         int hintColor = ContextCompat.getColor(activity, R.color.text_secondary);
         float density = activity.getResources().getDisplayMetrics().density;
@@ -80,73 +62,35 @@ public final class LogReporter {
         int pad = (int) (12 * density);
         root.setPadding(pad, 0, pad, 0);
 
-        EditText descInput = makeEdit(activity, onSurface, hintColor, true);
+        EditText descInput = new EditText(activity);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        descInput.setLayoutParams(lp);
+        descInput.setBackgroundResource(R.drawable.bg_spinner_outline);
+        descInput.setPadding(pad, pad, pad, pad);
+        descInput.setTextColor(onSurface);
+        descInput.setHintTextColor(hintColor);
+        descInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         descInput.setHint(activity.getString(R.string.report_crash_desc_hint));
         descInput.setMinLines(3);
+        descInput.setGravity(Gravity.TOP);
+        descInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         root.addView(descInput);
-
-        EditText fromInput = null;
-        EditText authInput = null;
-        if (!configured) {
-            fromInput = makeEdit(activity, onSurface, hintColor, false);
-            fromInput.setHint(activity.getString(R.string.report_from_email));
-            root.addView(fromInput);
-
-            authInput = makeEdit(activity, onSurface, hintColor, false);
-            authInput.setHint(activity.getString(R.string.report_auth_code));
-            root.addView(authInput);
-        }
-        final EditText fFrom = fromInput;
-        final EditText fAuth = authInput;
 
         new CustomAlertDialog(activity)
                 .setTitleText(activity.getString(R.string.report_logs))
                 .setCustomView(root)
-                .setPositiveButton(activity.getString(R.string.report_send_button), v -> {
+                .setPositiveButton(activity.getString(R.string.report_logs), v -> {
                     String desc = descInput.getText().toString().trim();
-                    String from = configured ? savedFrom
-                            : (fFrom != null ? fFrom.getText().toString().trim() : "");
-                    String auth = configured ? savedAuth
-                            : (fAuth != null ? fAuth.getText().toString().trim() : "");
-                    if (from.isEmpty() || auth.isEmpty()) {
-                        Toast.makeText(activity, R.string.report_need_account,
-                                Toast.LENGTH_LONG).show();
-                        return;
-                    }
-                    prefs.edit().putString(KEY_FROM, from).putString(KEY_AUTH, auth).apply();
-                    collectAndSend(activity, desc, from, auth, onDone);
+                    collectAndSend(activity, desc);
                 })
                 .setNegativeButton(activity.getString(R.string.cancel), null)
                 .show();
     }
 
-    private static EditText makeEdit(Context context, int textColor, int hintColor, boolean multiline) {
-        EditText et = new EditText(context);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        int margin = (int) (8 * context.getResources().getDisplayMetrics().density);
-        lp.bottomMargin = margin;
-        et.setLayoutParams(lp);
-        et.setBackgroundResource(R.drawable.bg_spinner_outline);
-        int pad = (int) (12 * context.getResources().getDisplayMetrics().density);
-        et.setPadding(pad, pad, pad, pad);
-        et.setTextColor(textColor);
-        et.setHintTextColor(hintColor);
-        et.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-        et.setSingleLine(!multiline);
-        et.setInputType(multiline
-                ? InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE
-                : InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        if (multiline) {
-            et.setGravity(Gravity.TOP);
-        }
-        return et;
-    }
+    // ---------------- 收集 + 拉起邮件 ----------------
 
-    // ---------------- 收集 + 发送 ----------------
-
-    private static void collectAndSend(Activity activity, String desc, String from,
-                                       String auth, Runnable onDone) {
+    private static void collectAndSend(Activity activity, String desc) {
         Toast.makeText(activity, R.string.report_logs_collecting, Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             String error = null;
@@ -169,72 +113,17 @@ public final class LogReporter {
                     }
                     return;
                 }
-                Toast.makeText(activity, R.string.report_sending, Toast.LENGTH_SHORT).show();
-                sendViaSmtp(activity, from, auth, desc, result, onDone);
+                if (!sendMail(activity, result, desc)) {
+                    Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
+                }
             });
         }, "log-reporter").start();
     }
 
-    /** SMTP 直发；失败弹窗提供系统邮件备选。 */
-    private static void sendViaSmtp(Activity activity, String from, String auth,
-                                    String desc, File zip, Runnable onDone) {
-        String version = "";
-        try {
-            version = activity.getPackageManager()
-                    .getPackageInfo(activity.getPackageName(), 0).versionName;
-        } catch (Exception ignored) {
-        }
-        String subject = "[LBBL Log Report] v" + version;
-        StringBuilder body = new StringBuilder();
-        if (desc != null && !desc.isEmpty()) {
-            body.append("崩溃描述：\n").append(desc).append("\n\n");
-        }
-        body.append("（日志由 LBBL 自动收集，见附件 zip）\n");
-        body.append("Version: ").append(version).append('\n');
-        body.append("Device: ").append(Build.MANUFACTURER).append(' ')
-                .append(Build.MODEL).append('\n');
-        body.append("Android: ").append(Build.VERSION.RELEASE)
-                .append(" (SDK ").append(Build.VERSION.SDK_INT).append(")\n");
-
-        SmtpSender.send(SMTP_HOST, SMTP_PORT, from, auth, from,
-                new String[]{REPORT_TO}, subject, body.toString(), zip,
-                new SmtpSender.Callback() {
-                    @Override
-                    public void onSuccess() {
-                        Handler main = new Handler(Looper.getMainLooper());
-                        main.post(() -> {
-                            Toast.makeText(activity, R.string.report_logs_uploaded,
-                                    Toast.LENGTH_SHORT).show();
-                            if (onDone != null) {
-                                onDone.run();
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onFailure(String error) {
-                        Handler main = new Handler(Looper.getMainLooper());
-                        main.post(() -> showSendFailed(activity, error, zip));
-                    }
-                });
-    }
-
-    /** 发送失败：提示原因 + 系统邮件备选。 */
-    private static void showSendFailed(Activity activity, String error, File zip) {
-        new CustomAlertDialog(activity)
-                .setTitleText(activity.getString(R.string.report_send_failed_title))
-                .setMessage(activity.getString(R.string.report_send_failed, error))
-                .setPositiveButton(activity.getString(R.string.report_send_fallback), v -> {
-                    if (!sendMail(activity, zip)) {
-                        Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
-                    }
-                })
-                .setNegativeButton(activity.getString(R.string.cancel), null)
-                .show();
-    }
-
-    /** 系统邮件预填（备选路径；不回调 onDone——无法确认发送完成）。 */
-    private static boolean sendMail(Activity activity, File zip) {
+    /** 系统邮件预填（收件人+主题+描述正文+zip 附件）。
+     *  type 用 message/rfc822：Outlook 才会当邮件草稿并预填收件人
+     *  （v0.4.28 修复「点发送跑到草稿里没收件人」）。 */
+    private static boolean sendMail(Activity activity, File zip, String desc) {
         try {
             Uri uri = FileProvider.getUriForFile(activity,
                     activity.getPackageName() + ".fileprovider", zip);
@@ -245,9 +134,20 @@ public final class LogReporter {
             } catch (Exception ignored) {
             }
             Intent intent = new Intent(Intent.ACTION_SEND_MULTIPLE);
-            intent.setType("application/zip");
+            intent.setType("message/rfc822");
             intent.putExtra(Intent.EXTRA_EMAIL, new String[]{REPORT_TO});
             intent.putExtra(Intent.EXTRA_SUBJECT, "[LBBL Log Report] v" + version);
+            StringBuilder body = new StringBuilder();
+            if (desc != null && !desc.isEmpty()) {
+                body.append(desc).append("\n\n");
+            }
+            body.append("（日志由 LBBL 自动收集，见附件 zip）\n");
+            body.append("Version: ").append(version).append('\n');
+            body.append("Device: ").append(Build.MANUFACTURER).append(' ')
+                    .append(Build.MODEL).append('\n');
+            body.append("Android: ").append(Build.VERSION.RELEASE)
+                    .append(" (SDK ").append(Build.VERSION.SDK_INT).append(")\n");
+            intent.putExtra(Intent.EXTRA_TEXT, body.toString());
             ArrayList<Uri> uris = new ArrayList<>();
             uris.add(uri);
             intent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
@@ -267,7 +167,7 @@ public final class LogReporter {
         }
     }
 
-    // ---------------- 日志收集（同 v0.4.24） ----------------
+    // ---------------- 日志收集 ----------------
 
     /** 收集日志打包 zip（cache/logs/ 下）。没有日志时抛异常。 */
     private static File collect(Context context) throws Exception {

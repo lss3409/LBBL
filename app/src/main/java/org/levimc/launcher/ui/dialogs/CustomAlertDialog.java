@@ -339,12 +339,6 @@ public class CustomAlertDialog extends Dialog {
         if (window != null) {
             window.setFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
         }
-        // v0.4.24：XP 弹窗提示音（开关关闭时静默）
-        try {
-            org.levimc.launcher.util.WinSoundPlayer.get(getContext())
-                    .play(org.levimc.launcher.util.WinSoundPlayer.SOUND_DING);
-        } catch (Exception ignored) {
-        }
         super.show();
         if (window != null) {
             window.getDecorView().setSystemUiVisibility(

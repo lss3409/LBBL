@@ -1944,24 +1944,7 @@ Invite code: P/%1$s
     <string name="nether_mode_height">Height Map</string>
     <string name="splash_preparing_to_launch">Preparing to launch</string>
     <!-- v0.4.24: Windows sounds -->
-    <string name="sound_effects_title">Windows Sounds</string>
-    <string name="sound_effects_desc">Play classic Windows XP sounds on startup, dialogs, crashes and more (meme edition)</string>
-    <string name="sound_effects_preview">Preview</string>
-    <string name="sound_preview_ding">Dialog sound</string>
-    <string name="sound_preview_error">Error sound</string>
-    <string name="sound_preview_tada">Success sound</string>
-    <string name="sound_preview_recycle">Delete sound</string>
-    <string name="sound_preview_shutdown">Exit sound</string>
-    <string name="report_logs_uploaded">Logs sent ✓</string>
     <string name="report_crash_desc_hint">Describe what happened (optional)</string>
-    <string name="report_from_email">Sender email</string>
-    <string name="report_auth_code">SMTP auth code</string>
-    <string name="report_sending">Sending logs…</string>
-    <string name="report_send_failed">Failed to send: %1$s</string>
-    <string name="report_send_failed_title">Send Failed</string>
-    <string name="report_send_button">Send</string>
-    <string name="report_need_account">Please enter your sender email and SMTP auth code</string>
-    <string name="report_send_fallback">Send via email app</string>
     <!-- v0.4.24: Log reporting -->
     <string name="report_logs">Report Logs</string>
     <string name="report_logs_desc">Package crash logs and debug logs and send them to the developer to help fix bugs.</string>
@@ -1971,5 +1954,4 @@ Invite code: P/%1$s
     <string name="report_logs_empty">No log files found</string>
     <string name="report_logs_no_app">No email app available</string>
     <!-- v0.4.24: April Fools language -->
-    <string name="april_fools_language">微软机翻 (Microsoft Machine Translation)</string>
 </resources>

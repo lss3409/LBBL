@@ -1781,24 +1781,7 @@
     <string name="nether_mode_height">高度图</string>
     <string name="splash_preparing_to_launch">正在准备启动</string>
     <!-- v0.4.24: Windows 音效 -->
-    <string name="sound_effects_title">Windows 音效</string>
-    <string name="sound_effects_desc">启动、弹窗、崩溃等场景播放经典 Windows XP 音效（整活版）</string>
-    <string name="sound_effects_preview">试听</string>
-    <string name="sound_preview_ding">弹窗提示音</string>
-    <string name="sound_preview_error">错误音</string>
-    <string name="sound_preview_tada">成功音</string>
-    <string name="sound_preview_recycle">删除音</string>
-    <string name="sound_preview_shutdown">退出音</string>
-    <string name="report_logs_uploaded">日志已发送 ✓</string>
     <string name="report_crash_desc_hint">描述一下发生了什么（选填）</string>
-    <string name="report_from_email">发件邮箱</string>
-    <string name="report_auth_code">SMTP 授权码</string>
-    <string name="report_sending">正在发送日志…</string>
-    <string name="report_send_failed">发送失败：%1$s</string>
-    <string name="report_send_failed_title">发送失败</string>
-    <string name="report_send_button">发送</string>
-    <string name="report_need_account">请填写发件邮箱和 SMTP 授权码</string>
-    <string name="report_send_fallback">用系统邮件发送</string>
     <!-- v0.4.24: 日志上报 -->
     <string name="report_logs">上报日志</string>
     <string name="report_logs_desc">把崩溃日志和调试日志打包发给开发者，帮助修复 bug。</string>
@@ -1808,5 +1791,4 @@
     <string name="report_logs_empty">没有找到日志文件</string>
     <string name="report_logs_no_app">没有能发送邮件的应用</string>
     <!-- v0.4.24: 愚人节语言 -->
-    <string name="april_fools_language">微软机翻 (Microsoft Machine Translation)</string>
 </resources>
