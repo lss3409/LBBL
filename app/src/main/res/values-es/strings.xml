@@ -1248,8 +1248,7 @@ La migración debe completarse antes de continuar con LeviLauncher.</string>
 <string name="online_state_idle">Sin conexión</string>
 <string name="online_state_connected_fmt">Conectado · IP virtual %1$s</string>
     <string name="online_clipboard_title">Invitación de LBBL detectada</string>
-    <string name="online_clipboard_msg">Código de invitación en el portapapeles: %1$s
-¿Unirse a la sala?</string>
+    <string name="online_clipboard_msg">Código de invitación en el portapapeles: %1$s\n¿Unirse a la sala?</string>
     <string name="online_clipboard_join">Unirse a la sala</string>
 <string name="online_state_discovering">Buscando anfitrión en la red local…</string>
 <string name="online_my_room">Tu sala</string>

@@ -1269,8 +1269,7 @@ Virtual IP: %1$s
 Join my Minecraft world! Invite code: P/%1$s
 Open LBBL → Online → Join, then paste the code</string>
     <string name="online_clipboard_title">LBBL invite detected</string>
-    <string name="online_clipboard_msg">Invite code in clipboard: %1$s
-Join this room?</string>
+    <string name="online_clipboard_msg">Invite code in clipboard: %1$s\nJoin this room?</string>
     <string name="online_clipboard_join">Join room</string>
 <string name="online_state_discovering">Looking for host on the local network…</string>
 <string name="online_my_room">Your Room</string>

@@ -1274,8 +1274,7 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="online_state_idle">Bağlı değil</string>
 <string name="online_state_connected_fmt">Bağlandı · Sanal IP %1$s</string>
     <string name="online_clipboard_title">LBBL daveti algılandı</string>
-    <string name="online_clipboard_msg">Panoda davet kodu: %1$s
-Odaya katılınsın mı?</string>
+    <string name="online_clipboard_msg">Panoda davet kodu: %1$s\nOdaya katılınsın mı?</string>
     <string name="online_clipboard_join">Odaya katıl</string>
 <string name="online_state_discovering">Yerel ağda sunucu aranıyor…</string>
 <string name="online_my_room">Senin Odan</string>

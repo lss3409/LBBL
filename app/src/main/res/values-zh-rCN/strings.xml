@@ -1261,8 +1261,7 @@
 来我的世界联机！邀请码：P/%1$s
 打开 LBBL 启动器 → 联机 → 加入房间，粘贴邀请码即可</string>
     <string name="online_clipboard_title">检测到 LBBL 联机邀请</string>
-    <string name="online_clipboard_msg">剪贴板中有邀请码：%1$s
-是否加入房间？</string>
+    <string name="online_clipboard_msg">剪贴板中有邀请码：%1$s\n是否加入房间？</string>
     <string name="online_clipboard_join">加入房间</string>
 <string name="online_state_discovering">正在局域网内寻找房主…</string>
 <string name="online_my_room">我的房间</string>

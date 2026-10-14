@@ -1271,8 +1271,7 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="online_state_idle">Tidak terhubung</string>
 <string name="online_state_connected_fmt">Terhubung · IP Virtual %1$s</string>
     <string name="online_clipboard_title">Undangan LBBL terdeteksi</string>
-    <string name="online_clipboard_msg">Kode undangan di papan klip: %1$s
-Bergabung ke ruangan?</string>
+    <string name="online_clipboard_msg">Kode undangan di papan klip: %1$s\nBergabung ke ruangan?</string>
     <string name="online_clipboard_join">Bergabung ke ruangan</string>
 <string name="online_state_discovering">Mencari host di jaringan lokal…</string>
 <string name="online_my_room">Ruangan Anda</string>
