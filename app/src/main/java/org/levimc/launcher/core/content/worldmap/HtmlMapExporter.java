@@ -1,12 +1,12 @@
 package org.levimc.launcher.core.content.worldmap;
 
 /**
- * v0.4.48：HTML 地图导出（全新实现，替代旧 Leaflet 版——旧版导出
- * 后在浏览器打不开）。
+ * v0.4.49：HTML 地图导出重写为纯代码渲染（用户要求）——
+ * 不再内嵌 PNG 图片，而是把像素色块做「调色板 + 游程编码（RLE）」
+ * 打包成二进制数据，HTML 内手写 Canvas 解码绘制。
  *
- * 方案：WorldMap 数据拼整图 → PNG → base64 内嵌单文件 HTML，
- * 查看器为手写 Canvas 拖拽/缩放（零外部依赖、离线可用、任意浏览器）。
- * 超大地图自动降采样到 4096 上限。
+ * 收益：缩放上限极高（每方块可放大到整屏）、放大用最近邻采样
+ * 色块锐利不模糊、文件不受图片编码限制（色块地图 RLE 压缩率更高）。
  */
 public final class HtmlMapExporter {
 
@@ -20,6 +20,7 @@ public final class HtmlMapExporter {
     public static java.io.File export(WorldMapRenderer.WorldMap map, java.io.File outDir, String fileName,
                                       String title, long seed, String version,
                                       int playerX, int playerZ, int spawnX, int spawnZ,
+                                      int deathX, int deathZ,
                                       java.util.List<String[]> points) throws Exception {
         if (map == null || map.width <= 0 || map.height <= 0) {
             throw new Exception("no map data");
@@ -31,17 +32,11 @@ public final class HtmlMapExporter {
         int w = full[0], h = full[1];
         int[] px = new int[w * h];
         System.arraycopy(full, 2, px, 0, w * h);
-        android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
-                w, h, android.graphics.Bitmap.Config.ARGB_8888);
-        bmp.setPixels(px, 0, w, 0, 0, w, h);
-        java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(w * h);
-        bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, baos);
-        bmp.recycle();
-        String b64 = android.util.Base64.encodeToString(
-                baos.toByteArray(), android.util.Base64.NO_WRAP);
 
+        String data = encodeRle(px);
         String html = buildHtml(title, seed, version, w, h,
-                map.minBlockX, map.minBlockZ, playerX, playerZ, spawnX, spawnZ, points, b64);
+                map.minBlockX, map.minBlockZ, playerX, playerZ, spawnX, spawnZ,
+                deathX, deathZ, points, data);
 
         java.io.File out = new java.io.File(outDir, fileName);
         try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
@@ -91,7 +86,6 @@ public final class HtmlMapExporter {
             }
             int baseBx = cx * 16;
             int baseBz = cz * 16;
-            // 该 chunk 与地图 bounds 的交集（按 block 计）
             int sx = Math.max(0, map.minBlockX - baseBx);
             int sz = Math.max(0, map.minBlockZ - baseBz);
             int ex = Math.min(16, map.minBlockX + map.width - baseBx);
@@ -108,7 +102,6 @@ public final class HtmlMapExporter {
                 int chunkRow = lz * 16;
                 int dstRow = oz * w + 2;
                 for (int lx = sx; lx < ex; lx++) {
-                    // 降采样：只取 scale 对齐的像素（scale=1 全填）
                     if (lx % scale != 0) {
                         continue;
                     }
@@ -124,10 +117,45 @@ public final class HtmlMapExporter {
         return out;
     }
 
+    /** 调色板 + 游程编码：paletteCount(2B) + RGB×n(3B each) +
+     *  runs(index 2B + count 2B)… → base64。 */
+    private static String encodeRle(int[] px) throws java.io.IOException {
+        java.util.LinkedHashMap<Integer, Integer> palette = new java.util.LinkedHashMap<>();
+        int[] index = new int[px.length];
+        for (int i = 0; i < px.length; i++) {
+            Integer id = palette.get(px[i]);
+            if (id == null) {
+                id = palette.size();
+                palette.put(px[i], id);
+            }
+            index[i] = id;
+        }
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(px.length);
+        java.io.DataOutputStream dos = new java.io.DataOutputStream(bos);
+        dos.writeShort(palette.size());
+        for (int c : palette.keySet()) {
+            dos.writeByte((c >> 16) & 0xFF);
+            dos.writeByte((c >> 8) & 0xFF);
+            dos.writeByte(c & 0xFF);
+        }
+        for (int i = 0; i < index.length; ) {
+            int v = index[i];
+            int j = i + 1;
+            while (j < index.length && index[j] == v && j - i < 65535) {
+                j++;
+            }
+            dos.writeShort(v);
+            dos.writeShort(j - i);
+            i = j;
+        }
+        return android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP);
+    }
+
     private static String buildHtml(String title, long seed, String version,
                                     int w, int h, int minX, int minZ,
                                     int playerX, int playerZ, int spawnX, int spawnZ,
-                                    java.util.List<String[]> points, String b64) {
+                                    int deathX, int deathZ,
+                                    java.util.List<String[]> points, String data) {
         StringBuilder sb = new StringBuilder(64 * 1024);
         sb.append("<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n")
           .append("<meta charset=\"UTF-8\">\n")
@@ -135,13 +163,13 @@ public final class HtmlMapExporter {
           .append("<title>LBBL 地图 - ").append(esc(title)).append("</title>\n")
           .append("<style>\n")
           .append("*{margin:0;padding:0;box-sizing:border-box}\n")
-          .append("html,body{width:100%;height:100%;overflow:hidden;background:#1a1d21;")
+          .append("html,body{width:100%;height:100%;overflow:hidden;background:#14161a;")
           .append("font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;color:#dde}\n")
           .append("#cv{display:block;cursor:grab;touch-action:none}\n")
           .append("#cv.drag{cursor:grabbing}\n")
           .append("#hud{position:fixed;left:10px;top:10px;background:rgba(20,22,26,.85);")
-          .append("border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.7;")
-          .append("pointer-events:none;max-width:60vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n")
+          .append("border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.8;")
+          .append("pointer-events:none;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n")
           .append("#legend{position:fixed;right:10px;top:10px;background:rgba(20,22,26,.85);")
           .append("border-radius:10px;padding:10px 12px;font-size:12px;max-height:70vh;")
           .append("overflow-y:auto;max-width:40vw}\n")
@@ -157,15 +185,15 @@ public final class HtmlMapExporter {
           .append("<div id=\"legend\"><div class=\"t\">标点</div></div>\n")
           .append("<div id=\"tip\">拖拽移动 · 滚轮/双指缩放 · 双击复位</div>\n")
           .append("<script>\n(function(){\n");
-        sb.append("var IMG='data:image/png;base64,").append(b64).append("';\n");
+        sb.append("var DATA='").append(data).append("';\n");
         sb.append("var MAP_W=").append(w).append(",MAP_H=").append(h)
           .append(",MIN_X=").append(minX).append(",MIN_Z=").append(minZ).append(";\n");
         sb.append("var PLAYER_X=").append(playerX).append(",PLAYER_Z=").append(playerZ)
-          .append(",SPAWN_X=").append(spawnX).append(",SPAWN_Z=").append(spawnZ).append(";\n");
-        sb.append("var INFO='").append(esc(title))
-          .append(" · v").append(esc(version))
-          .append(" · 种子 ").append(seed).append(" · 尺寸 ").append(w).append('x').append(h)
-          .append(" 方块';\n");
+          .append(",SPAWN_X=").append(spawnX).append(",SPAWN_Z=").append(spawnZ)
+          .append(",DEATH_X=").append(deathX).append(",DEATH_Z=").append(deathZ).append(";\n");
+        sb.append("var TITLE='").append(esc(title))
+          .append("',VER='").append(esc(version))
+          .append("',SEED=").append(seed).append(";\n");
         sb.append("var POINTS=[");
         if (points != null) {
             boolean first = true;
@@ -186,20 +214,40 @@ public final class HtmlMapExporter {
         sb.append("];\n");
         sb.append(
             "var cv=document.getElementById('cv'),ctx=cv.getContext('2d');\n"
-          + "var img=new Image();img.onload=function(){fit();draw();};img.src=IMG;\n"
+          + "var off=document.createElement('canvas'),octx;\n"
           + "var scale=1,tx=0,ty=0,dragging=false,lx=0,ly=0;\n"
           + "var dpr=window.devicePixelRatio||1;\n"
+          + "var MIN_S=0.02,MAX_S=2048;\n"
           + "function resize(){cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;"
           + "cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';}\n"
           + "function fit(){var s=Math.min(innerWidth/MAP_W,innerHeight/MAP_H)*0.92;"
           + "scale=s;tx=(innerWidth-MAP_W*s)/2;ty=(innerHeight-MAP_H*s)/2;}\n"
           + "function blockAt(mx,my){return{x:Math.floor((mx-tx)/scale)+MIN_X,"
           + "z:Math.floor((my-ty)/scale)+MIN_Z};}\n"
+          // ---- 解码 RLE ----
+          + "function decodeRle(){\n"
+          + "  var bin=atob(DATA),u8=new Uint8Array(bin.length),i;\n"
+          + "  for(i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);\n"
+          + "  var dv=new DataView(u8.buffer);\n"
+          + "  var n=dv.getUint16(0,true),pal=[],o=2,k;\n"
+          + "  for(i=0;i<n;i++){pal.push([u8[o],u8[o+1],u8[o+2]]);o+=3;}\n"
+          + "  off.width=MAP_W;off.height=MAP_H;octx=off.getContext('2d');\n"
+          + "  var img=octx.createImageData(MAP_W,MAP_H),d=img.data,p=0;\n"
+          + "  var total=MAP_W*MAP_H;\n"
+          + "  while(p<total){\n"
+          + "    var idx=dv.getUint16(o,true);o+=2;\n"
+          + "    var cnt=dv.getUint16(o,true);o+=2;\n"
+          + "    var c=pal[idx]||[0,0,0];\n"
+          + "    for(k=0;k<cnt;k++){var q=(p+k)*4;d[q]=c[0];d[q+1]=c[1];d[q+2]=c[2];d[q+3]=255;}\n"
+          + "    p+=cnt;\n"
+          + "  }\n"
+          + "  octx.putImageData(img,0,0);\n"
+          + "}\n"
           + "function draw(){\n"
           + "  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);\n"
           + "  ctx.translate(tx*dpr,ty*dpr);ctx.scale(scale*dpr,scale*dpr);\n"
-          + "  ctx.imageSmoothingEnabled=scale<2;\n"
-          + "  ctx.drawImage(img,0,0,MAP_W,MAP_H);\n"
+          + "  ctx.imageSmoothingEnabled=false;\n"
+          + "  ctx.drawImage(off,0,0,MAP_W,MAP_H);\n"
           + "  var r=Math.max(3,1.2/scale);\n"
           + "  if(SPAWN_X>=0){ctx.fillStyle='#ffd54f';ctx.beginPath();"
           + "ctx.arc(SPAWN_X-MIN_X,SPAWN_Z-MIN_Z,r*1.7,0,6.283);ctx.fill();"
@@ -207,33 +255,59 @@ public final class HtmlMapExporter {
           + "  if(PLAYER_X>=0){ctx.fillStyle='#4caf50';ctx.beginPath();"
           + "ctx.arc(PLAYER_X-MIN_X,PLAYER_Z-MIN_Z,r*1.4,0,6.283);ctx.fill();"
           + "ctx.strokeStyle='#fff';ctx.lineWidth=r*0.4;ctx.stroke();}\n"
+          + "  if(DEATH_X>=0){ctx.fillStyle='#e53935';ctx.beginPath();"
+          + "ctx.arc(DEATH_X-MIN_X,DEATH_Z-MIN_Z,r*1.3,0,6.283);ctx.fill();"
+          + "ctx.strokeStyle='#fff';ctx.lineWidth=r*0.35;ctx.stroke();}\n"
           + "  for(var i=0;i<POINTS.length;i++){var p=POINTS[i];"
           + "ctx.fillStyle=p.c;ctx.beginPath();"
           + "ctx.arc(p.x-MIN_X,p.z-MIN_Z,r,0,6.283);ctx.fill();"
           + "ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=r*0.35;ctx.stroke();}\n"
           + "}\n"
+          + "function setHud(x,z){\n"
+          + "  var s=TITLE+' · v'+VER+' · 种子 '+SEED+' · 尺寸 '+MAP_W+'x'+MAP_H+' 方块 · 缩放 '+Math.round(scale*100)/100+'x';\n"
+          + "  if(x!==null)s+=' · 坐标 X '+x+' Z '+z;\n"
+          + "  document.getElementById('hud').textContent=s;\n"
+          + "}\n"
+          + "function zoomAt(mx,my,ns){\n"
+          + "  ns=Math.min(MAX_S,Math.max(MIN_S,ns));\n"
+          + "  tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;draw();\n"
+          + "  setHud(null,0);\n"
+          + "}\n"
           + "cv.addEventListener('pointerdown',function(e){dragging=true;lx=e.clientX;ly=e.clientY;"
           + "cv.classList.add('drag');});\n"
           + "window.addEventListener('pointermove',function(e){"
           + "if(dragging){tx+=e.clientX-lx;ty+=e.clientY-ly;lx=e.clientX;ly=e.clientY;draw();}"
-          + "var b=blockAt(e.clientX,e.clientY);"
-          + "document.getElementById('hud').textContent=INFO+' · X '+b.x+' Z '+b.z;"
+          + "var b=blockAt(e.clientX,e.clientY);setHud(b.x,b.z);"
           + "});\n"
           + "window.addEventListener('pointerup',function(){dragging=false;"
           + "cv.classList.remove('drag');});\n"
           + "cv.addEventListener('wheel',function(e){e.preventDefault();"
-          + "var f=Math.exp(-e.deltaY*0.0015);var ns=Math.min(64,Math.max(0.05,scale*f));"
-          + "var mx=e.clientX,my=e.clientY;"
-          + "tx=mx-(mx-tx)*(ns/scale);ty=my-(my-ty)*(ns/scale);scale=ns;draw();"
+          + "var f=Math.exp(-e.deltaY*0.0015);zoomAt(e.clientX,e.clientY,scale*f);"
           + "},{passive:false});\n"
-          + "cv.addEventListener('dblclick',function(){fit();draw();});\n"
+          // 触屏双指捏合
+          + "var pinch0=0,pinchScale=1;\n"
+          + "function tdist(t){var dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;"
+          + "return Math.sqrt(dx*dx+dy*dy);}\n"
+          + "cv.addEventListener('touchstart',function(e){"
+          + "if(e.touches.length==2){pinch0=tdist(e.touches);pinchScale=scale;dragging=false;}"
+          + "},{passive:true});\n"
+          + "cv.addEventListener('touchmove',function(e){"
+          + "if(e.touches.length==2){e.preventDefault();"
+          + "var d=tdist(e.touches);if(pinch0>0&&d>0){"
+          + "var mx=(e.touches[0].clientX+e.touches[1].clientX)/2;"
+          + "var my=(e.touches[0].clientY+e.touches[1].clientY)/2;"
+          + "zoomAt(mx,my,pinchScale*d/pinch0);}}"
+          + "},{passive:false});\n"
+          + "cv.addEventListener('touchend',function(e){"
+          + "if(e.touches.length<2){pinch0=0;}});\n"
+          + "cv.addEventListener('dblclick',function(){fit();draw();setHud(null,0);});\n"
           + "window.addEventListener('resize',function(){resize();draw();});\n"
           + "var lg=document.getElementById('legend');\n"
           + "if(POINTS.length){var s='<div class=\"t\">标点 ('+POINTS.length+')</div>';"
           + "for(var i=0;i<POINTS.length;i++){s+='<div class=\"p\"><span class=\"dot\" style=\"background:'"
           + "+(POINTS[i].c)+'\"></span>'+POINTS[i].n+'</div>';}lg.innerHTML=s;}\n"
           + "else{lg.style.display='none';}\n"
-          + "draw();\n"
+          + "decodeRle();fit();draw();setHud(null,0);\n"
           + "})();\n</script>\n</body>\n</html>\n");
         return sb.toString();
     }

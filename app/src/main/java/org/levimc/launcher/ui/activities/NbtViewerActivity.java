@@ -1644,36 +1644,43 @@ public class NbtViewerActivity extends BaseActivity {
             // ——延迟前缀读回填（下界/末地不读：玩家数据是主世界的，
             // 显示无意义）。大小世界两个分支统一走这里。
             if (fMap != null && "overworld".equals(dim)) {
-                flushHandler.postDelayed(() -> {
-                    renderPool.execute(() -> {
-                        CpuScheduler.pinCurrentThreadToBigCores();
-                        final PlayerInfo pinfo = readPlayerInfoByPrefix(dbDir);
-                        runOnUiThread(() -> {
-                            if (isFinishing() || isDestroyed() || !isCurrentLoad(gen)) {
-                                return;
+                // v0.4.49：读失败重试 3 次（「玩家位置时有时无」——读竞争
+                // 导致的临时失败自愈；存档确实无数据时 3 次后放弃）
+                final int[] attempts = {0};
+                final Runnable[] retry = new Runnable[1];
+                retry[0] = () -> renderPool.execute(() -> {
+                    CpuScheduler.pinCurrentThreadToBigCores();
+                    final PlayerInfo pinfo = readPlayerInfoByPrefix(dbDir);
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed() || !isCurrentLoad(gen)) {
+                            return;
+                        }
+                        if (pinfo.blockX >= 0) {
+                            fMap.playerRawBlockX = pinfo.blockX;
+                            fMap.playerRawBlockY = pinfo.blockY;
+                            fMap.playerRawBlockZ = pinfo.blockZ;
+                            fMap.playerBlockX = pinfo.blockX;
+                            fMap.playerBlockY = pinfo.blockY;
+                            fMap.playerBlockZ = pinfo.blockZ;
+                            if (fMap.blockScale > 1) {
+                                fMap.playerBlockX = Math.floorDiv(
+                                        fMap.playerBlockX, fMap.blockScale);
+                                fMap.playerBlockZ = Math.floorDiv(
+                                        fMap.playerBlockZ, fMap.blockScale);
                             }
-                            if (pinfo.blockX >= 0) {
-                                fMap.playerRawBlockX = pinfo.blockX;
-                                fMap.playerRawBlockY = pinfo.blockY;
-                                fMap.playerRawBlockZ = pinfo.blockZ;
-                                fMap.playerBlockX = pinfo.blockX;
-                                fMap.playerBlockY = pinfo.blockY;
-                                fMap.playerBlockZ = pinfo.blockZ;
-                                if (fMap.blockScale > 1) {
-                                    fMap.playerBlockX = Math.floorDiv(
-                                            fMap.playerBlockX, fMap.blockScale);
-                                    fMap.playerBlockZ = Math.floorDiv(
-                                            fMap.playerBlockZ, fMap.blockScale);
-                                }
-                                fMap.playerUniqueId = pinfo.uniqueId;
-                                fMap.playerUuid = pinfo.uuid;
-                                if (currentMap == fMap) {
-                                    binding.worldMapImage.invalidate();
-                                }
+                            fMap.playerUniqueId = pinfo.uniqueId;
+                            fMap.playerUuid = pinfo.uuid;
+                            fMap.deathBlockX = pinfo.deathBlockX;
+                            fMap.deathBlockZ = pinfo.deathBlockZ;
+                            if (currentMap == fMap) {
+                                binding.worldMapImage.invalidate();
                             }
-                        });
+                        } else if (attempts[0]++ < 3) {
+                            flushHandler.postDelayed(retry[0], 1500);
+                        }
                     });
-                }, 2500);
+                });
+                flushHandler.postDelayed(retry[0], 1500);
             }
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed() || !isCurrentLoad(gen)) return;
@@ -2233,8 +2240,11 @@ public class NbtViewerActivity extends BaseActivity {
                         worldMap.playerBlockZ = Math.floorDiv(worldMap.playerBlockZ, worldMap.blockScale);
                     }
                     worldMap.playerUniqueId = pinfo.uniqueId;
+                    worldMap.deathBlockX = pinfo.deathBlockX;
+                    worldMap.deathBlockZ = pinfo.deathBlockZ;
                     Log.i(TAG, "玩家位置: " + worldMap.playerBlockX + ","
-                            + worldMap.playerBlockY + "," + worldMap.playerBlockZ);
+                            + worldMap.playerBlockY + "," + worldMap.playerBlockZ
+                            + " 死亡: " + worldMap.deathBlockX + "," + worldMap.deathBlockZ);
                 }
                 worldMap.playerUuid = pinfo.uuid;
                 if (root != null) {
@@ -3426,6 +3436,24 @@ public class NbtViewerActivity extends BaseActivity {
                     }
                     showExportNotification(70, "");
                 }
+                // v0.4.49：导出前确保玩家/死亡位置已读——地图页的玩家
+                // 读取是延迟 2.5s 的前缀读，导出时可能还没完成（「时有时无」）
+                if (exportMap.playerBlockX < 0 && currentWorldDir != null) {
+                    PlayerInfo pi = readPlayerInfoByPrefix(new File(currentWorldDir, "db"));
+                    if (pi.blockX >= 0) {
+                        exportMap.playerBlockX = pi.blockX;
+                        exportMap.playerBlockY = pi.blockY;
+                        exportMap.playerBlockZ = pi.blockZ;
+                        if (exportMap.blockScale > 1) {
+                            exportMap.playerBlockX = Math.floorDiv(
+                                    exportMap.playerBlockX, exportMap.blockScale);
+                            exportMap.playerBlockZ = Math.floorDiv(
+                                    exportMap.playerBlockZ, exportMap.blockScale);
+                        }
+                    }
+                    exportMap.deathBlockX = pi.deathBlockX;
+                    exportMap.deathBlockZ = pi.deathBlockZ;
+                }
                 java.util.List<String[]> pts = new java.util.ArrayList<>();
                 synchronized (mapPoints) {
                     for (BlueprintDb.Point p : mapPoints) {
@@ -3447,14 +3475,14 @@ public class NbtViewerActivity extends BaseActivity {
                     dir.mkdirs();
                 }
                 showExportNotification(80, "");
-                // v0.4.48：全新 HTML 导出（HtmlMapExporter：拼图 PNG base64
-                // 单文件 + 手写 Canvas 查看器，替代旧 Leaflet 版）
+                // v0.4.48：全新 HTML 导出；v0.4.49 纯代码渲染（RLE 色块
+                // 数据 + Canvas 最近邻绘制，无限缩放不模糊）
                 // 文件名带维度后缀——不同维度的导出互不覆盖
                 File out = org.levimc.launcher.core.content.worldmap.HtmlMapExporter.export(
                         exportMap, dir,
                         worldDir.getName() + "_map_" + dimName + ".html",
                         worldDir.getName() + " (" + dimName + ")", fSeed, fVersion,
-                        px, pz, sx, sz, pts);
+                        px, pz, sx, sz, exportMap.deathBlockX, exportMap.deathBlockZ, pts);
                 final File fOut = out;
                 runOnUiThread(() -> {
                     htmlExporting = false;
@@ -3547,6 +3575,9 @@ public class NbtViewerActivity extends BaseActivity {
         long uniqueId = -1;
         /** player_<uuid> key 的 MsaId 36 字符 UUID（1.21 存档真实 UUID 来源）。 */
         String uuid;
+        /** v0.4.49：上一次死亡位置（LastDeathPos/DeathPositionX/Z，-1 = 无）。 */
+        int deathBlockX = -1;
+        int deathBlockZ = -1;
     }
 
     /** v459：从 player entries 解析玩家位置/UUID。
@@ -3609,6 +3640,22 @@ public class NbtViewerActivity extends BaseActivity {
                     }
                     NbtTag deathX = playerRoot.getTag("DeathPositionX");
                     NbtTag deathZ = playerRoot.getTag("DeathPositionZ");
+                    // v0.4.49：死亡位置记录——1.19+ 走 LastDeathPos
+                    // （List<float> x3），旧格式走 DeathPositionX/Z。
+                    NbtTag ldp = playerRoot.getTag("LastDeathPos");
+                    if (ldp != null && ldp.getType() == NbtTag.TAG_LIST
+                            && ldp.getList().size() >= 3) {
+                        float dx = ldp.getList().get(0).getFloat();
+                        float dz = ldp.getList().get(2).getFloat();
+                        if (Math.abs(dx) < 3e7f && Math.abs(dz) < 3e7f) {
+                            info.deathBlockX = (int) Math.floor(dx);
+                            info.deathBlockZ = (int) Math.floor(dz);
+                        }
+                    } else if (deathX != null && deathZ != null) {
+                        info.deathBlockX = deathX.getInt();
+                        info.deathBlockZ = deathZ.getInt();
+                    }
+                    // 死亡存档无 Pos：用死亡位置回退显示玩家位置（老行为）
                     if (deathX != null && deathZ != null) {
                         info.blockX = deathX.getInt();
                         info.blockZ = deathZ.getInt();

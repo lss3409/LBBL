@@ -1169,6 +1169,10 @@ public class WorldMapRenderer {
         /** 出生点位置（block 坐标，-1 = 无） */
         public int spawnBlockX = -1;
         public int spawnBlockZ = -1;
+        /** v0.4.49：玩家上一次死亡位置（block 坐标，-1 = 无）——
+         *  ~local_player 的 LastDeathPos（1.19+）或 DeathPositionX/Z（旧格式）。 */
+        public int deathBlockX = -1;
+        public int deathBlockZ = -1;
 
         /** v0.4.7：方块坐标处的群系 id（手柄光标悬停显示群系名用）。
          *  小世界走全图 biomeColors；大世界走 chunkBiomeColors。 */
