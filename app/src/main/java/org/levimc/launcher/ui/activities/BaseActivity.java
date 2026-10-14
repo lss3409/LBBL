@@ -862,11 +862,15 @@ public class BaseActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        // v0.4.31 临时性能打点（定位点设置栏卡顿，定位后删除）
+        long perfT = System.currentTimeMillis();
         ThemeManager themeManager = new ThemeManager(this);
         themeManager.applyTheme();
+        android.util.Log.i("PerfSettings", "theme +" + (System.currentTimeMillis() - perfT));
         appliedThemeGeneration = ThemeManager.getThemeChangeGeneration();
         appliedPersonalizationGeneration = PersonalizationManager.getChangeGeneration();
         super.onCreate(savedInstanceState);
+        android.util.Log.i("PerfSettings", "super +" + (System.currentTimeMillis() - perfT));
         navAccountLoginLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> handleNavAccountLoginResult(result.getResultCode(), result.getData()));
