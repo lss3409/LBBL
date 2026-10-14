@@ -1784,6 +1784,13 @@
     <string name="sound_effects_title">Windows 音效</string>
     <string name="sound_effects_desc">启动、弹窗、崩溃等场景播放经典 Windows XP 音效（整活版）</string>
     <string name="sound_effects_preview">试听</string>
+    <string name="sound_preview_startup">启动音</string>
+    <string name="sound_preview_ding">弹窗提示音</string>
+    <string name="sound_preview_error">错误音</string>
+    <string name="sound_preview_tada">成功音</string>
+    <string name="sound_preview_recycle">删除音</string>
+    <string name="sound_preview_shutdown">退出音</string>
+    <string name="report_logs_uploaded">上传完成 ✓</string>
     <!-- v0.4.24: 日志上报 -->
     <string name="report_logs">上报日志</string>
     <string name="report_logs_desc">把崩溃日志和调试日志打包发给开发者，帮助修复 bug。</string>

@@ -37,8 +37,9 @@ public final class LogReporter {
     private LogReporter() {
     }
 
-    /** 点击上报：后台线程收集 → 主线程拉起邮件。 */
-    public static void report(Activity activity) {
+    /** 点击上报：后台线程收集 → 主线程拉起邮件。
+     *  onDone：调起邮件后主线程回调（上传完成贴图用）。 */
+    public static void report(Activity activity, Runnable onDone) {
         Toast.makeText(activity, R.string.report_logs_collecting, Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             String error = null;
@@ -61,7 +62,9 @@ public final class LogReporter {
                     }
                     return;
                 }
-                sendMail(activity, result);
+                if (sendMail(activity, result) && onDone != null) {
+                    onDone.run();
+                }
             });
         }, "log-reporter").start();
     }
@@ -201,8 +204,8 @@ public final class LogReporter {
         }
     }
 
-    /** 邮件预填发送（附件走 FileProvider）。 */
-    private static void sendMail(Activity activity, File zip) {
+    /** 邮件预填发送（附件走 FileProvider）。调起成功返回 true。 */
+    private static boolean sendMail(Activity activity, File zip) {
         try {
             Uri uri = FileProvider.getUriForFile(activity,
                     activity.getPackageName() + ".fileprovider", zip);
@@ -224,13 +227,15 @@ public final class LogReporter {
                     activity.getString(R.string.report_logs_done));
             if (chooser.resolveActivity(activity.getPackageManager()) == null) {
                 Toast.makeText(activity, R.string.report_logs_no_app, Toast.LENGTH_LONG).show();
-                return;
+                return false;
             }
             activity.startActivity(chooser);
+            return true;
         } catch (Exception e) {
             Toast.makeText(activity,
                     activity.getString(R.string.report_logs_failed, String.valueOf(e.getMessage())),
                     Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 }

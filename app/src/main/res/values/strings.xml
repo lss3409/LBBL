@@ -1947,6 +1947,13 @@ Invite code: P/%1$s
     <string name="sound_effects_title">Windows Sounds</string>
     <string name="sound_effects_desc">Play classic Windows XP sounds on startup, dialogs, crashes and more (meme edition)</string>
     <string name="sound_effects_preview">Preview</string>
+    <string name="sound_preview_startup">Startup sound</string>
+    <string name="sound_preview_ding">Dialog sound</string>
+    <string name="sound_preview_error">Error sound</string>
+    <string name="sound_preview_tada">Success sound</string>
+    <string name="sound_preview_recycle">Delete sound</string>
+    <string name="sound_preview_shutdown">Exit sound</string>
+    <string name="report_logs_uploaded">Upload complete ✓</string>
     <!-- v0.4.24: Log reporting -->
     <string name="report_logs">Report Logs</string>
     <string name="report_logs_desc">Package crash logs and debug logs and send them to the developer to help fix bugs.</string>

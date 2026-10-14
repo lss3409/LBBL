@@ -461,15 +461,18 @@
                                 android:trackTint="#555555" />
                         </LinearLayout>
 
+                        <!-- v0.4.25：试听按钮加启动器按键背景（描边样式，
+                             与 btn_report_logs 同款），点击弹试听菜单 -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_sound_preview"
-                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
                             android:layout_height="40dp"
                             android:layout_marginTop="8dp"
                             android:fontFamily="@font/misans"
                             android:text="@string/sound_effects_preview"
-                            android:textColor="@color/primary" />
+                            android:textColor="@color/primary"
+                            app:strokeColor="@color/primary" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -1153,6 +1156,7 @@
                             android:textColor="@color/text_secondary"
                             android:textSize="12sp" />
 
+                        <!-- v0.4.25：用户提供的云上传贴图（iconTint 兼容强调色） -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_report_logs"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -1162,6 +1166,9 @@
                             android:fontFamily="@font/misans"
                             android:text="@string/report_logs"
                             android:textColor="@color/primary"
+                            app:icon="@drawable/ic_report_upload"
+                            app:iconGravity="textStart"
+                            app:iconTint="@color/primary"
                             app:strokeColor="@color/primary" />
                     </LinearLayout>
 
