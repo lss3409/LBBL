@@ -181,6 +181,8 @@ public class BaseActivity extends AppCompatActivity {
     }
 
     private boolean moveGamepadFocus(int direction) {
+        // v0.4.18：焦点导航激活描边门控
+        gamepadNavActive = true;
         // v0.4.10：焦点导航 = 显式切回焦点模式（光标可见时先隐藏并
         // 恢复描边，不再"光标让位吞掉输入"）
         if (isGamepadCursorVisible()) {
@@ -683,6 +685,9 @@ public class BaseActivity extends AppCompatActivity {
         // clickAtGamepadCursor 的模拟事件走 root.dispatchTouchEvent，
         // 不经过 Activity 层，不会误触发
         if (ev.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+            // v0.4.18：真实触摸退出焦点导航模式（描边停用直到下次
+            // 手柄方向输入）
+            gamepadNavActive = false;
             if (isGamepadCursorVisible()) {
                 hideGamepadCursor();
             }
@@ -696,13 +701,20 @@ public class BaseActivity extends AppCompatActivity {
     }
 
     // ---------- v0.4.0：手柄焦点描边 ----------
+    /** v0.4.18：焦点描边门控——只在手柄焦点导航激活时描边。
+     *  切 Activity/点击按钮时系统自动聚焦首个 focusable（常为
+     *  "启动"tab），无条件描边会在点击后闪现（用户实测
+     *  "每次点击按钮四个栏位老是出现描边"）。 */
+    private boolean gamepadNavActive;
+
     /** 焦点变化时给当前焦点视图加强调色描边（手柄导航视觉引导）。 */
     private void setupGamepadFocusOutline() {
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(
                 (oldFocus, newFocus) -> {
                     clearFocusOutline(oldFocus);
                     // v0.4.4：触屏/光标压制期间不描边（恢复时主动补描）
-                    if (!outlineSuppressedByTouch && !outlineSuppressedByCursor) {
+                    if (gamepadNavActive && !outlineSuppressedByTouch
+                            && !outlineSuppressedByCursor) {
                         applyFocusOutline(newFocus);
                     }
                 });
@@ -1276,6 +1288,9 @@ public class BaseActivity extends AppCompatActivity {
         // v0.4.9：touch mode 下跳过——用户已在触摸时不抢焦点不描边
         if (getIntent().getBooleanExtra("gamepad_tab_nav", false)) {
             getIntent().removeExtra("gamepad_tab_nav");
+            // v0.4.18：LB/RB 手柄切 tab = 焦点导航激活（描边启用）；
+            // 光标点击/触摸切 tab 无 extra → 不激活（不闪描边）
+            gamepadNavActive = true;
             View tab = gamepadFirstFocusView();
             if (tab != null) {
                 tab.postDelayed(() -> {
