@@ -146,7 +146,9 @@ public class SettingsActivity extends BaseActivity {
                             applyExtendedRootPath();
                         } else if (customStoragePathInput != null) {
                             customStoragePathInput.setText(path);
-                            applyCustomStoragePath();
+                            // v0.4.14：跳过确认弹窗直接生效（确认框在 SAF
+                            // 返回时序里弹不出来=选择后无反应根因）
+                            applyCustomStoragePath(true);
                         }
                     }
                 }
@@ -1145,6 +1147,11 @@ public class SettingsActivity extends BaseActivity {
         Button btnSelect = findViewById(R.id.btn_apply_extended_root_path);
         Button btnReset = findViewById(R.id.btn_reset_extended_root_path);
 
+        // v0.4.14：示例路径 hint（旧自定义存储输入框同款）
+        if (extendedRootPathInput != null) {
+            extendedRootPathInput.setHint(LauncherStorage.getExtendedRootPath(this));
+        }
+
         if (btnSelect != null) {
             btnSelect.setOnClickListener(v -> {
                 extendedPickerTarget = true;
@@ -1204,6 +1211,13 @@ public class SettingsActivity extends BaseActivity {
     }
 
     private void applyCustomStoragePath() {
+        applyCustomStoragePath(false);
+    }
+
+    /** v0.4.14：skipConfirm=选择器回调直用（用户已在 SAF 里选了，
+     *  再弹确认框导致"选择后无反应"——确认框在 SAF 返回时序里
+     *  弹不出来）；手动点应用按钮保留确认弹窗。 */
+    private void applyCustomStoragePath(boolean skipConfirm) {
         if (customStoragePathInput == null) return;
         String path = customStoragePathInput.getText().toString().trim();
         if (path.isEmpty()) {
@@ -1212,15 +1226,20 @@ public class SettingsActivity extends BaseActivity {
             refreshVersionsAfterStorageChange();
             return;
         }
+        Runnable doApply = () -> {
+            LauncherStorage.setCustomStoragePath(this, path);
+            refreshCustomStoragePathUi();
+            refreshVersionsAfterStorageChange();
+        };
+        if (skipConfirm) {
+            doApply.run();
+            return;
+        }
         // 自定义路径确认弹窗：提示可能导致导入大型包变慢
         new CustomAlertDialog(this)
                 .setTitleText(getString(R.string.custom_path_confirm_title))
                 .setMessage(getString(R.string.custom_path_confirm_message))
-                .setPositiveButton(getString(R.string.apply), v -> {
-                    LauncherStorage.setCustomStoragePath(this, path);
-                    refreshCustomStoragePathUi();
-                    refreshVersionsAfterStorageChange();
-                })
+                .setPositiveButton(getString(R.string.apply), v -> doApply.run())
                 .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
