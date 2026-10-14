@@ -2290,7 +2290,11 @@ public class NbtViewerActivity extends BaseActivity {
                 // 重进地图，desert_temple/outpost 又出现）
                 synchronized (currentStructures) {
                     currentStructures.clear();
-                    currentStructures.addAll(fStructures);
+                    // v0.4.48：超平坦/全新世界无结构数据时 fStructures 为
+                    // null——addAll(null) NPE 崩溃（用户实测超平坦世界）
+                    if (fStructures != null) {
+                        currentStructures.addAll(fStructures);
+                    }
                     if (!WorldMapRenderer.enableStructureDetection) {
                         allStructuresBackup.clear();
                         allStructuresBackup.addAll(currentStructures);
@@ -3443,9 +3447,11 @@ public class NbtViewerActivity extends BaseActivity {
                     dir.mkdirs();
                 }
                 showExportNotification(80, "");
-                // v482：连线/结构/实体/史莱姆图层已删除——只导标点
+                // v0.4.48：全新 HTML 导出（HtmlMapExporter：拼图 PNG base64
+                // 单文件 + 手写 Canvas 查看器，替代旧 Leaflet 版）
                 // 文件名带维度后缀——不同维度的导出互不覆盖
-                File out = WorldMapRenderer.exportWorldHtml(exportMap, dir,
+                File out = org.levimc.launcher.core.content.worldmap.HtmlMapExporter.export(
+                        exportMap, dir,
                         worldDir.getName() + "_map_" + dimName + ".html",
                         worldDir.getName() + " (" + dimName + ")", fSeed, fVersion,
                         px, pz, sx, sz, pts);
