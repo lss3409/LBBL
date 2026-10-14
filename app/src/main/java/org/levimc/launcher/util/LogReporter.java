@@ -53,6 +53,17 @@ public final class LogReporter {
         View v = activity.getLayoutInflater().inflate(R.layout.dialog_report_logs, null);
         EditText descInput = v.findViewById(R.id.report_desc_input);
         android.widget.RadioGroup group = v.findViewById(R.id.report_method_group);
+        // v0.4.39：单选圈染色跟随个性化强调色（铁律：UI 兼容强调色）
+        android.content.res.ColorStateList accentTint =
+                android.content.res.ColorStateList.valueOf(accentOf(activity));
+        android.widget.RadioButton mailBtn = v.findViewById(R.id.report_method_mail);
+        android.widget.RadioButton siteBtn = v.findViewById(R.id.report_method_site);
+        if (mailBtn != null) {
+            mailBtn.setButtonTintList(accentTint);
+        }
+        if (siteBtn != null) {
+            siteBtn.setButtonTintList(accentTint);
+        }
         new CustomAlertDialog(activity)
                 .setTitleText(activity.getString(R.string.report_logs))
                 .setCustomView(v)
@@ -252,7 +263,9 @@ public final class LogReporter {
                 .show();
     }
 
-    /** 系统邮件发送：正文=描述+日志文本（收件人预填，发件人=设备邮箱账户）。 */
+    /** 系统邮件发送：正文只放简述，完整日志打包 zip 附件（FileProvider URI）。
+     *  v0.4.39：正文内嵌几 MB 日志会超 Binder 事务上限（1MB）→ Outlook
+     *  TransactionTooLarge 崩溃——恢复 v0.4.24 的 zip 附件方案。 */
     private static boolean sendMail(Activity activity, String desc, String text) {
         try {
             String version = "";
@@ -261,15 +274,23 @@ public final class LogReporter {
                         .getPackageInfo(activity.getPackageName(), 0).versionName;
             } catch (Exception ignored) {
             }
-            String body = text;
+            StringBuilder body = new StringBuilder();
             if (desc != null && !desc.isEmpty()) {
-                body = "崩溃描述：\n" + desc + "\n\n" + text;
+                body.append("崩溃描述：\n").append(desc).append("\n\n");
             }
+            body.append("完整日志见附件 lbbl-report.zip");
             Intent intent = new Intent(Intent.ACTION_SEND);
             intent.setType("message/rfc822");
             intent.putExtra(Intent.EXTRA_EMAIL, new String[]{REPORT_TO});
             intent.putExtra(Intent.EXTRA_SUBJECT, "[LBBL Log Report] v" + version);
-            intent.putExtra(Intent.EXTRA_TEXT, body);
+            intent.putExtra(Intent.EXTRA_TEXT, body.toString());
+            java.io.File zip = buildReportZip(activity, desc, text);
+            if (zip != null) {
+                Uri uri = FileProvider.getUriForFile(
+                        activity, activity.getPackageName() + ".fileprovider", zip);
+                intent.putExtra(Intent.EXTRA_STREAM, uri);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
             Intent chooser = Intent.createChooser(intent,
                     activity.getString(R.string.report_logs_done));
             if (chooser.resolveActivity(activity.getPackageManager()) == null) {
@@ -279,6 +300,30 @@ public final class LogReporter {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    /** v0.4.39：描述+完整日志打包 zip（cache/logs/lbbl-report.zip，覆盖写）。 */
+    private static java.io.File buildReportZip(Context context, String desc, String text) {
+        try {
+            java.io.File dir = new java.io.File(context.getCacheDir(), "logs");
+            if (!dir.exists() && !dir.mkdirs()) {
+                return null;
+            }
+            java.io.File zip = new java.io.File(dir, "lbbl-report.zip");
+            try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(
+                    new java.io.FileOutputStream(zip))) {
+                zos.putNextEntry(new java.util.zip.ZipEntry("lbbl-report.txt"));
+                if (desc != null && !desc.isEmpty()) {
+                    zos.write(("崩溃描述：\n" + desc + "\n\n")
+                            .getBytes(StandardCharsets.UTF_8));
+                }
+                zos.write(text.getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
+            return zip;
+        } catch (Exception e) {
+            return null;
         }
     }
 

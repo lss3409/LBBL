@@ -1788,7 +1788,7 @@
     <!-- v0.4.24: 日志上报 -->
     <string name="report_logs">上报日志</string>
     <string name="report_logs_desc">日志默认通过系统邮件发送到开发者邮箱（也可选择上传到 logshare.cn 生成公开分享链接）。</string>
-    <string name="report_method_mail">发送到我的邮箱</string>
+    <string name="report_method_mail">发送到邮箱</string>
     <string name="report_method_site">上传到网站</string>
     <string name="report_send">发送</string>
     <string name="report_desc_sub">描述一下发生了什么（选填），描述会随日志一起上传。</string>

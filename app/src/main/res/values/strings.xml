@@ -1951,7 +1951,7 @@ Invite code: P/%1$s
     <!-- v0.4.24: Log reporting -->
     <string name="report_logs">Report Logs</string>
     <string name="report_logs_desc">Logs are sent to the developer\'s email by default (or uploaded to logshare.cn if selected).</string>
-    <string name="report_method_mail">Send to my email</string>
+    <string name="report_method_mail">Send to email</string>
     <string name="report_method_site">Upload to website</string>
     <string name="report_send">Send</string>
     <string name="report_desc_sub">Describe what happened (optional). Your description is uploaded together with the logs.</string>
