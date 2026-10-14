@@ -43,6 +43,15 @@ public class SplashActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         syncSystemLocale();
         super.onCreate(savedInstanceState);
+        // v0.4.41：进程热启动（MainActivity 仍在栈中）跳过动画——
+        // 桌面点图标不再每次走 Splash（此前用户误以为后台被杀）
+        org.levimc.launcher.ui.activities.MainActivity main =
+                org.levimc.launcher.ui.activities.MainActivity.sInstance;
+        if (main != null && !main.isDestroyed() && !main.isFinishing()) {
+            finish();
+            overridePendingTransition(0, 0);
+            return;
+        }
         // v549：启动器活跃时间戳（详情卡「最近在线」随心跳广播）
         org.levimc.launcher.core.online.PlayerIdentity.touchLastActive(this);
         // v564：联机调试文件日志初始化（vivo logcat 抓不到应用日志）

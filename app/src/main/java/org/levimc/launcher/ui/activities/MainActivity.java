@@ -130,6 +130,9 @@ import okhttp3.OkHttpClient;
     /** 主页是否在前台（游戏后台被退出时据此决定是否静默重启，避免弹出多余过渡 UI）。 */
     public static volatile boolean sForeground = false;
 
+    /** v0.4.41：当前 MainActivity 实例（Splash 热启动跳过动画用）。 */
+    public static volatile MainActivity sInstance;
+
     /** v518 久置自愈：后台久置后回前台，同进程渲染可能整体停摆（游戏黑屏+主页只剩背景色）。 */
     private long lastPauseElapsed = 0L;
     private static final long LONG_PAUSE_HEAL_MS = 5 * 60_000L;
@@ -205,6 +208,8 @@ import okhttp3.OkHttpClient;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // v0.4.41：实例引用（Splash 热启动跳过动画判断用）
+        sInstance = this;
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         closeLauncherRestartAfterFirstDraw();
@@ -1623,6 +1628,10 @@ import okhttp3.OkHttpClient;
 
     @Override
     protected void onDestroy() {
+        // v0.4.41：实例清空（避免 Splash 引用已销毁的实例）
+        if (sInstance == this) {
+            sInstance = null;
+        }
         // v0.0.24：账号任务线程池释放（此前从未 shutdown，泄漏单线程）
         if (accountExecutor != null) {
             accountExecutor.shutdownNow();
