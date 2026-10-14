@@ -131,12 +131,13 @@ public final class HtmlMapExporter {
             index[i] = id;
         }
         java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(px.length);
-        java.io.DataOutputStream dos = new java.io.DataOutputStream(bos);
-        dos.writeShort(palette.size());
+        // 小端写（JS 端 DataView.getUint16(..., true) 小端读——大端写会
+        // 字节序错位，HTML 黑屏根因）
+        writeShortLE(bos, palette.size());
         for (int c : palette.keySet()) {
-            dos.writeByte((c >> 16) & 0xFF);
-            dos.writeByte((c >> 8) & 0xFF);
-            dos.writeByte(c & 0xFF);
+            bos.write((c >> 16) & 0xFF);
+            bos.write((c >> 8) & 0xFF);
+            bos.write(c & 0xFF);
         }
         for (int i = 0; i < index.length; ) {
             int v = index[i];
@@ -144,8 +145,8 @@ public final class HtmlMapExporter {
             while (j < index.length && index[j] == v && j - i < 65535) {
                 j++;
             }
-            dos.writeShort(v);
-            dos.writeShort(j - i);
+            writeShortLE(bos, v);
+            writeShortLE(bos, j - i);
             i = j;
         }
         return android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP);
@@ -310,6 +311,12 @@ public final class HtmlMapExporter {
           + "decodeRle();fit();draw();setHud(null,0);\n"
           + "})();\n</script>\n</body>\n</html>\n");
         return sb.toString();
+    }
+
+    /** 小端写 16 位（JS 端 DataView.getUint16(..., true) 小端读）。 */
+    private static void writeShortLE(java.io.ByteArrayOutputStream bos, int v) {
+        bos.write(v & 0xFF);
+        bos.write((v >> 8) & 0xFF);
     }
 
     private static String esc(String s) {
