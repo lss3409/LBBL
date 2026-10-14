@@ -1411,9 +1411,9 @@ public final class OnlineActivity extends BaseActivity
         dialog.show();
         // v0.0.21：二维码生成移到后台线程——首次点击卡顿根因
         // （主线程 ZXing 编码 480×480 + 类首次加载）
-        // v0.4.29：二维码内容改为邀请网页链接（扫一扫打开启动器 UI 页面）
+        // v0.4.36：二维码恢复邀请码文本（LBBL 扫码加入读的就是码）
         new Thread(() -> {
-            android.graphics.Bitmap qr = QrUtils.generate(inviteUrl(currentCode), 480);
+            android.graphics.Bitmap qr = QrUtils.generate("P/" + currentCode, 480);
             runOnUiThread(() -> {
                 if (!dialog.isShowing() || isFinishing()) {
                     return;
@@ -1432,19 +1432,41 @@ public final class OnlineActivity extends BaseActivity
         if (currentCode == null) {
             return;
         }
-        Intent send = new Intent(Intent.ACTION_SEND);
-        send.setType("text/plain");
-        // v0.4.29：分享文本带邀请网页链接（点开展示启动器 UI + 邀请码）
-        send.putExtra(Intent.EXTRA_TEXT,
-                getString(R.string.online_share_text, "P/" + currentCode)
-                        + "\n" + inviteUrl(currentCode));
-        startActivity(Intent.createChooser(send, getString(R.string.online_share_code)));
+        // v0.4.36：分享本地 HTML 邀请卡文件（浏览器直接打开，白色
+        // 启动器 UI + 一键唤起启动器自动填码），文本说明附带
+        try {
+            String html = readAsset("invite_page.html")
+                    .replace("{{CODE}}", "P/" + currentCode);
+            File dir = new File(getCacheDir(), "invite");
+            if (!dir.exists() && !dir.mkdirs()) {
+                return;
+            }
+            File file = new File(dir, "LBBL-Invite-" + currentCode + ".html");
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(file)) {
+                fos.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                    this, getPackageName() + ".fileprovider", file);
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("text/html");
+            send.putExtra(Intent.EXTRA_STREAM, uri);
+            send.putExtra(Intent.EXTRA_TEXT,
+                    getString(R.string.online_share_text, "P/" + currentCode)
+                            + "\n（附件是邀请卡，用浏览器打开）");
+            send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(send, getString(R.string.online_share_code)));
+        } catch (Exception e) {
+            Toast.makeText(this, R.string.share_import_failed, Toast.LENGTH_SHORT).show();
+        }
     }
 
-    /** v0.4.29：邀请网页链接（GitHub Pages 静态页展示启动器 UI）。 */
-    private String inviteUrl(String code) {
-        return "https://lss3409.github.io/?code="
-                + android.net.Uri.encode("P/" + code);
+    /** v0.4.36：读 assets 邀请卡模板。 */
+    private String readAsset(String name) throws java.io.IOException {
+        try (java.io.InputStream is = getAssets().open(name)) {
+            byte[] buf = new byte[is.available()];
+            int n = is.read(buf);
+            return new String(buf, 0, Math.max(n, 0), java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 
     /** v541：当前个性化强调色。 */
