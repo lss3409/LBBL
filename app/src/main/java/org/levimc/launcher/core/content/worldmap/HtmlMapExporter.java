@@ -17,7 +17,7 @@ public final class HtmlMapExporter {
     }
 
     /** 导出单文件 HTML。points 每项 = {名称, x, z, 颜色#RRGGBB}（block 坐标）。 */
-    public static java.io.File export(WorldMap map, java.io.File outDir, String fileName,
+    public static java.io.File export(WorldMapRenderer.WorldMap map, java.io.File outDir, String fileName,
                                       String title, long seed, String version,
                                       int playerX, int playerZ, int spawnX, int spawnZ,
                                       java.util.List<String[]> points) throws Exception {
@@ -52,7 +52,7 @@ public final class HtmlMapExporter {
 
     /** 拼整图像素：小世界直接取整图数组；大世界按 16×16 chunk 填充。
      *  返回 {width, height, pixels...}（降采样后）。 */
-    private static int[] composePixels(WorldMap map) {
+    private static int[] composePixels(WorldMapRenderer.WorldMap map) {
         int scale = 1;
         while (map.width / scale > MAX_DIM || map.height / scale > MAX_DIM) {
             scale <<= 1;
@@ -65,7 +65,7 @@ public final class HtmlMapExporter {
 
         if (map.colors != null) {
             // 小世界：整图数组逐像素降采样（取左上）
-            int src = map.colors;
+            int[] src = map.colors;
             int sw = map.width;
             for (int z = 0; z < h; z++) {
                 int srcZ = z * scale * sw;
