@@ -134,8 +134,11 @@ public class SettingsActivity extends BaseActivity {
         folderPickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.OpenDocumentTree(),
                 uri -> {
+                    android.util.Log.d("StoragePicker", "picker result uri=" + uri
+                            + " extendedTarget=" + extendedPickerTarget);
                     if (uri != null) {
                         String path = getPathFromTreeUri(uri);
+                        android.util.Log.d("StoragePicker", "parsed path=" + path);
                         if (path == null) {
                             return;
                         }
