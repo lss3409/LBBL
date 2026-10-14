@@ -260,10 +260,11 @@ public class CustomAlertDialog extends Dialog {
         });
 
         // v0.4.11：手柄焦点语义——弹窗打开后焦点自动落正按钮（确认），
-        // 取消/中立按钮不可聚焦：A 键不会"空按退出"（此前焦点随机
-        // 落到取消按钮，A 键=退出，用户实测"A 键有时候还是会变成退出"）
-        btnNegative.setFocusable(false);
-        btnNeutral.setFocusable(false);
+        // A 键不会"空按退出"。
+        // v0.4.17：取消/中立按钮恢复可聚焦——系统手柄 DPAD 导航
+        // 需要能移动到取消（用户实测"取消按键手柄点不到"）；焦点
+        // 初始仍落正按钮（show 时 requestFocus），主动导航到取消
+        // 再按 A = 取消是正确语义
         btnPositive.setFocusable(true);
 
         Window window = getWindow();
@@ -355,6 +356,12 @@ public class CustomAlertDialog extends Dialog {
         // LT/RT 滚动键查找弹窗内滚动容器 + 焦点落到正按钮
         if (getContext() instanceof BaseActivity) {
             BaseActivity.registerActiveGamepadDialog(this);
+            // v0.4.17：弹窗打开时隐藏虚拟光标——Dialog window 层级
+            // 高于 Activity，光标被遮住且事件到不了 Activity
+            // （"弹窗里动不了鼠标"根因）；弹窗期间用系统手柄焦点
+            // 导航（DPAD/左摇杆自动翻译+A 确认+B 取消），关闭后
+            // 右摇杆恢复光标
+            BaseActivity.hideGamepadCursorFromDialog();
             View dec = getWindow() != null ? getWindow().getDecorView() : null;
             if (dec != null) {
                 dec.getViewTreeObserver().addOnGlobalFocusChangeListener(

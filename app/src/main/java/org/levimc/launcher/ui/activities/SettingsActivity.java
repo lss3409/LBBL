@@ -364,6 +364,12 @@ public class SettingsActivity extends BaseActivity {
                 findViewById(R.id.slider_cursor_speed);
         TextView cursorSpeedValue = findViewById(R.id.cursor_speed_value);
         if (sliderCursorSpeed != null) {
+            // v0.4.17：滑块跟随个性化强调色（与开关/按钮一致）
+            PersonalizationManager pmSpeed = new PersonalizationManager(this);
+            int accentSpeed = pmSpeed.hasCustomAccent() ? pmSpeed.getAccentColor()
+                    : ContextCompat.getColor(this, R.color.primary);
+            sliderCursorSpeed.setThumbTintList(ColorStateList.valueOf(accentSpeed));
+            sliderCursorSpeed.setTrackActiveTintList(ColorStateList.valueOf(accentSpeed));
             float saved = getSharedPreferences("settings", MODE_PRIVATE)
                     .getFloat("gamepad_cursor_speed", 1f);
             sliderCursorSpeed.setValue(saved);

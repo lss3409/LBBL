@@ -77,8 +77,6 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent event) {
         if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
-            // 手柄任何按键：退出触屏模式，恢复焦点描边（触屏时被隐藏）
-            onGamepadInputResume();
             // v0.4.10：非 A 键 = 显式切回焦点模式（A 键在光标可见时
             // 是光标点击语义，不切模式）
             if (isGamepadCursorVisible()
@@ -91,6 +89,10 @@ public class BaseActivity extends AppCompatActivity {
                 case android.view.KeyEvent.KEYCODE_DPAD_DOWN:
                 case android.view.KeyEvent.KEYCODE_DPAD_LEFT:
                 case android.view.KeyEvent.KEYCODE_DPAD_RIGHT:
+                    // v0.4.17：焦点导航类输入才恢复触屏压制的描边——
+                    // A 键点击时恢复描边会在 tab 上闪一帧
+                    // （"鼠标点击时启动栏跳一帧描边"根因）
+                    onGamepadInputResume();
                     // v0.4.10：D-pad = 显式切回焦点模式（moveGamepadFocus
                     // 内部先隐藏光标恢复描边再导航）
                     return moveGamepadFocus(event.getKeyCode()
@@ -743,6 +745,25 @@ public class BaseActivity extends AppCompatActivity {
         }
     }
 
+    /** v0.4.17：当前 resumed 的 BaseActivity（弹窗打开时隐藏光标用）。 */
+    private static BaseActivity sResumedActivity;
+
+    /** v0.4.17：弹窗打开时隐藏虚拟光标（Dialog window 层级更高，
+     *  光标被遮住且事件到不了 Activity；弹窗期间走系统手柄焦点
+     *  导航，关闭后右摇杆恢复光标）。 */
+    public static void hideGamepadCursorFromDialog() {
+        BaseActivity act = sResumedActivity;
+        if (act != null && act.isGamepadCursorVisible()) {
+            act.hideGamepadCursor();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sResumedActivity = this;
+        int currentGen = ThemeManager.getThemeChangeGeneration();
+
     /** v0.3.0：LB(-1)/RB(+1) 切换底部导航栏位（4 tab 循环）。 */
     protected boolean onGamepadTabSwitch(int delta) {
         if (!navBarInjected) {
@@ -1242,6 +1263,9 @@ public class BaseActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        if (sResumedActivity == this) {
+            sResumedActivity = null;
+        }
         hideSystemUI();
         // v0.2.0：离开页面暂停视频背景（省电）
         try {
