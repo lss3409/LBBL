@@ -328,6 +328,78 @@ public class BaseActivity extends AppCompatActivity {
     private float cursorRx, cursorRy;
     private boolean cursorFramePosted;
     private long cursorLastFrameNanos;
+    private long lastCursorBgSample;
+
+    /** v0.4.15：光标下方像素背景色（自适应配色）——沿命中 View 链
+     *  向上找第一个非透明实色背景；找不到回退窗口背景色。 */
+    private int sampleBackgroundColor(float x, float y) {
+        ViewGroup decor = (ViewGroup) getWindow().getDecorView();
+        View hit = findViewAt(decor, x, y);
+        View v = hit;
+        while (v != null) {
+            int c = extractSolidColor(v.getBackground());
+            if (c != 0) {
+                return c;
+            }
+            android.view.ViewParent p = v.getParent();
+            v = p instanceof View ? (View) p : null;
+        }
+        // 回退：窗口 decor 背景 / 主题窗口背景色
+        int dec = extractSolidColor(decor.getBackground());
+        if (dec != 0) {
+            return dec;
+        }
+        return 0xFF171717; // 默认暗背景
+    }
+
+    private View findViewAt(ViewGroup group, float x, float y) {
+        for (int i = group.getChildCount() - 1; i >= 0; i--) {
+            View child = group.getChildAt(i);
+            if (child.getVisibility() != View.VISIBLE) {
+                continue;
+            }
+            float lx = x - child.getX();
+            float ly = y - child.getY();
+            if (lx >= 0 && ly >= 0 && lx <= child.getWidth() && ly <= child.getHeight()) {
+                if (child instanceof ViewGroup) {
+                    View deeper = findViewAt((ViewGroup) child, lx, ly);
+                    if (deeper != null) {
+                        return deeper;
+                    }
+                }
+                return child;
+            }
+        }
+        return null;
+    }
+
+    /** 提取 drawable 的实色（ColorDrawable/GradientDrawable 纯色）；
+     *  透明或非实色返回 0。 */
+    private int extractSolidColor(android.graphics.drawable.Drawable d) {
+        if (d == null) {
+            return 0;
+        }
+        try {
+            if (d instanceof android.graphics.drawable.ColorDrawable) {
+                int c = ((android.graphics.drawable.ColorDrawable) d).getColor();
+                return c & 0xFF000000 | c;
+            }
+            if (d instanceof android.graphics.drawable.GradientDrawable) {
+                // 纯色 GradientDrawable（getColor 成功=单色；多色抛异常）
+                try {
+                    android.graphics.drawable.GradientDrawable gd =
+                            (android.graphics.drawable.GradientDrawable) d;
+                    int c = gd.getColor().getDefaultColor();
+                    if ((c >>> 24) != 0) {
+                        return c;
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
     /** 光标可见期间焦点描边被压制（避免「光标在动、描边还在跳」的
      *  双指示器冲突），隐藏后恢复。 */
     private boolean outlineSuppressedByCursor;
@@ -399,9 +471,22 @@ public class BaseActivity extends AppCompatActivity {
                             getResources().getDisplayMetrics().heightPixels,
                             cursorY + cursorRy * step));
                     // 尖端锚定：箭头尖端在 viewport (357,70)/1820×1024，
-                    // 内嵌偏移 (12,12)dp（v0.4.10 光晕版）
-                    gamepadCursor.setTranslationX(cursorX - 16.7f * d);
-                    gamepadCursor.setTranslationY(cursorY - 12.9f * d);
+                    // 内嵌偏移 (15,15)dp（v0.4.15 放大版）
+                    gamepadCursor.setTranslationX(cursorX - 20.9f * d);
+                    gamepadCursor.setTranslationY(cursorY - 16.1f * d);
+                    // v0.4.15：背景色自适应（250ms 节流采样光标下
+                    // 像素背景亮度，亮背景换黑箭头）
+                    long nowMs = android.os.SystemClock.uptimeMillis();
+                    if (nowMs - lastCursorBgSample >= 250
+                            && gamepadCursor instanceof org.levimc.launcher.ui.views.GamepadCursorView) {
+                        lastCursorBgSample = nowMs;
+                        int bg = sampleBackgroundColor(cursorX, cursorY);
+                        float lum = (android.graphics.Color.red(bg) * 0.299f
+                                + android.graphics.Color.green(bg) * 0.587f
+                                + android.graphics.Color.blue(bg) * 0.114f);
+                        ((org.levimc.launcher.ui.views.GamepadCursorView) gamepadCursor)
+                                .setAdaptive(lum > 150f);
+                    }
                     if (gamepadCursor.getVisibility() != android.view.View.VISIBLE) {
                         gamepadCursor.setVisibility(android.view.View.VISIBLE);
                         // 光标出现：压制焦点描边，输入只信任光标
@@ -422,11 +507,11 @@ public class BaseActivity extends AppCompatActivity {
             return;
         }
         // v0.4.3：用户提供 SVG 贴图（白箭头 + 黑描边）
-        // v0.4.11：改 GamepadCursorView——shadowLayer 箭头自身发光
-        // （v0.4.10 独立光晕背景层被用户否决）；View 48×48，箭头
-        // 24×13.5 内嵌 (12,12)，尖端锚点 (12+4.7, 12+0.9)dp
+        // v0.4.11：改 GamepadCursorView——shadowLayer 箭头自身发光。
+        // v0.4.15：放大（View 60×60，箭头 30×16.9 内嵌 (15,15)，
+        // 尖端锚点 (15+5.9, 15+1.1)dp）+ 背景色自适应
         float d = getResources().getDisplayMetrics().density;
-        int size = (int) (48 * d);
+        int size = (int) (60 * d);
         org.levimc.launcher.ui.views.GamepadCursorView iv =
                 new org.levimc.launcher.ui.views.GamepadCursorView(this);
         iv.setLayoutParams(new ViewGroup.LayoutParams(size, size));

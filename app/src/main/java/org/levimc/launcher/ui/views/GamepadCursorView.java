@@ -9,11 +9,12 @@ import android.view.View;
 import androidx.core.graphics.PathParser;
 
 /**
- * v0.4.11：手柄虚拟光标——白箭头 + 黑描边 + shadowLayer 自发光
- * （v0.4.10 的独立光晕背景层被用户否决，改为箭头本身发光，
- * 参考主流手柄 UI 的发光光标设计）。pathData 来自用户提供的
+ * v0.4.11：手柄虚拟光标——箭头 + 描边 + shadowLayer 自发光。
+ * v0.4.15：①放大（箭头 30×16.9dp，View 60×60）；②自适应背景色——
+ * 背景亮 → 黑箭头白描边+白光晕；背景暗 → 白箭头黑描边（经典
+ * 高对比光标方案，参考主流手柄 UI）。pathData 来自用户提供的
  * SVG（gamepad_cursor.xml 同源，viewport 1820×1024）。
- * 尖端锚点：(12+4.7, 12+0.9)dp（View 48×48，箭头 24×13.5 内嵌）。
+ * 尖端锚点：(15+5.9, 15+1.1)dp（View 60×60，箭头内嵌 (15,15)）。
  */
 public class GamepadCursorView extends View {
 
@@ -27,17 +28,43 @@ public class GamepadCursorView extends View {
     private final Paint bodyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Path outlinePath;
     private Path bodyPath;
+    /** true=深色箭头（用于亮背景）；false=白色箭头（用于暗背景）。 */
+    private boolean darkArrow;
 
     public GamepadCursorView(Context context) {
         super(context);
-        outlinePaint.setColor(0xFF1A1A1A);
-        outlinePaint.setStyle(Paint.Style.FILL);
-        outlinePaint.setShadowLayer(10 * getResources().getDisplayMetrics().density,
-                0, 0, 0xB3FFFFFF); // 白色自发光
-        bodyPaint.setColor(0xFFFFFFFF);
-        bodyPaint.setStyle(Paint.Style.FILL);
-        bodyPaint.setShadowLayer(8 * getResources().getDisplayMetrics().density,
-                0, 0, 0x99FFFFFF); // 白色自发光
+        applyAdaptive(false);
+    }
+
+    /** v0.4.15：按背景亮度切换配色（背景亮→黑箭头白描边）。 */
+    public void setAdaptive(boolean darkArrow) {
+        if (this.darkArrow == darkArrow) {
+            return;
+        }
+        this.darkArrow = darkArrow;
+        applyAdaptive(darkArrow);
+        invalidate();
+    }
+
+    private void applyAdaptive(boolean dark) {
+        float d = getResources().getDisplayMetrics().density;
+        if (dark) {
+            // 亮背景：黑箭头 + 白描边 + 白色光晕
+            outlinePaint.setColor(0xFFFFFFFF);
+            outlinePaint.setStyle(Paint.Style.FILL);
+            outlinePaint.setShadowLayer(6 * d, 0, 0, 0x80FFFFFF);
+            bodyPaint.setColor(0xFF141414);
+            bodyPaint.setStyle(Paint.Style.FILL);
+            bodyPaint.setShadowLayer(6 * d, 0, 0, 0x66FFFFFF);
+        } else {
+            // 暗背景：白箭头 + 黑描边 + 白光晕（v0.4.11 样式）
+            outlinePaint.setColor(0xFF1A1A1A);
+            outlinePaint.setStyle(Paint.Style.FILL);
+            outlinePaint.setShadowLayer(10 * d, 0, 0, 0xB3FFFFFF);
+            bodyPaint.setColor(0xFFFFFFFF);
+            bodyPaint.setStyle(Paint.Style.FILL);
+            bodyPaint.setShadowLayer(8 * d, 0, 0, 0x99FFFFFF);
+        }
     }
 
     @Override
@@ -54,11 +81,11 @@ public class GamepadCursorView extends View {
                 return;
             }
         }
-        // 箭头 24×13.5dp 内嵌在 (12,12)dp；viewport 1820×1024
-        float sx = 24 * d / 1820f;
-        float sy = 13.5f * d / 1024f;
+        // v0.4.15：箭头 30×16.9dp 内嵌在 (15,15)dp；viewport 1820×1024
+        float sx = 30 * d / 1820f;
+        float sy = 16.9f * d / 1024f;
         canvas.save();
-        canvas.translate(12 * d, 12 * d);
+        canvas.translate(15 * d, 15 * d);
         canvas.scale(sx, sy);
         canvas.drawPath(outlinePath, outlinePaint);
         canvas.drawPath(bodyPath, bodyPaint);
