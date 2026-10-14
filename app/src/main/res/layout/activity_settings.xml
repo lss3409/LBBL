@@ -1136,24 +1136,11 @@
                                 android:importantForAutofill="no" />
 
                             <Button
-                                android:id="@+id/btn_pick_custom_storage_path"
-                                android:layout_width="wrap_content"
-                                android:layout_height="40dp"
-                                android:layout_marginStart="8dp"
-                                android:text="@string/custom_storage_path_select"
-                                android:textAllCaps="false"
-                                android:fontFamily="@font/misans"
-                                android:textSize="12sp"
-                                android:textColor="@color/on_surface"
-                                android:backgroundTint="@color/surface_variant"
-                                android:paddingHorizontal="12dp" />
-
-                            <Button
                                 android:id="@+id/btn_apply_custom_storage_path"
                                 android:layout_width="wrap_content"
                                 android:layout_height="40dp"
                                 android:layout_marginStart="8dp"
-                                android:text="@string/custom_storage_path_apply"
+                                android:text="@string/custom_storage_path_select"
                                 android:textAllCaps="false"
                                 android:fontFamily="@font/misans"
                                 android:textSize="12sp"

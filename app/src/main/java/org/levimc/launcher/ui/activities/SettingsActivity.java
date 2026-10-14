@@ -1119,16 +1119,16 @@ public class SettingsActivity extends BaseActivity {
         }
 
         if (btnSelectApply != null) {
-            // v0.4.19：应用按钮固定语义（选择器独立按钮 btn_pick_*）
-            btnSelectApply.setOnClickListener(v -> applyCustomStoragePath());
-        }
-        // v0.4.19：独立「选择」按钮——输入框有旧文本时也能随时
-        // 打开文件管理器（此前按钮双态，输入框非空时只有「应用」）
-        Button btnPick = findViewById(R.id.btn_pick_custom_storage_path);
-        if (btnPick != null) {
-            btnPick.setOnClickListener(v -> {
-                extendedPickerTarget = false;
-                openFolderPicker();
+            // v0.4.20：双态按钮——输入框空=「选择」（开文件管理器，
+            // 选完直接默认应用）；有文本=「应用」（应用输入内容）
+            btnSelectApply.setOnClickListener(v -> {
+                if (getString(R.string.custom_storage_path_select)
+                        .contentEquals(btnSelectApply.getText())) {
+                    extendedPickerTarget = false;
+                    openFolderPicker();
+                } else {
+                    applyCustomStoragePath();
+                }
             });
         }
         if (btnReset != null) {
@@ -1164,13 +1164,32 @@ public class SettingsActivity extends BaseActivity {
         // v0.4.14：示例路径 hint（旧自定义存储输入框同款）
         if (extendedRootPathInput != null) {
             extendedRootPathInput.setHint(LauncherStorage.getExtendedRootPath(this));
+            // v0.4.20：双态按钮联动——输入框空=「选择」/有文本=「应用」
+            extendedRootPathInput.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    updateExtendedApplyButtonState();
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
         }
 
         if (btnSelect != null) {
+            // v0.4.20：双态按钮（与自定义存储区块一致）
             btnSelect.setOnClickListener(v -> {
-                extendedPickerTarget = true;
-                if (folderPickerLauncher != null) {
-                    folderPickerLauncher.launch(null);
+                if (getString(R.string.custom_storage_path_select)
+                        .contentEquals(btnSelect.getText())) {
+                    extendedPickerTarget = true;
+                    if (folderPickerLauncher != null) {
+                        folderPickerLauncher.launch(null);
+                    }
+                } else {
+                    applyExtendedRootPath();
                 }
             });
         }
@@ -1184,6 +1203,18 @@ public class SettingsActivity extends BaseActivity {
             });
         }
         refreshExtendedRootPathUi();
+        updateExtendedApplyButtonState();
+    }
+
+    private void updateExtendedApplyButtonState() {
+        Button btn = findViewById(R.id.btn_apply_extended_root_path);
+        if (btn == null) {
+            return;
+        }
+        boolean hasText = extendedRootPathInput != null
+                && !extendedRootPathInput.getText().toString().trim().isEmpty();
+        btn.setText(hasText ? R.string.custom_storage_path_apply
+                : R.string.custom_storage_path_select);
     }
 
     private void refreshExtendedRootPathUi() {
