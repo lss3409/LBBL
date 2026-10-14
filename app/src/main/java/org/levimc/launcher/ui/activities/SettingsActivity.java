@@ -1231,6 +1231,8 @@ public class SettingsActivity extends BaseActivity {
         String path = extendedRootPathInput.getText().toString().trim();
         LauncherStorage.setExtendedRootPath(this, path.isEmpty() ? null : path);
         refreshExtendedRootPathUi();
+        // v0.4.21：应用后清空输入框——按钮回到「选择」
+        extendedRootPathInput.setText("");
         // 地图烘焙缓存位置变化：旧缓存读不到会自动重烘（缓存可再生）
     }
 
@@ -1286,6 +1288,9 @@ public class SettingsActivity extends BaseActivity {
             LauncherStorage.setCustomStoragePath(this, path);
             refreshCustomStoragePathUi();
             refreshVersionsAfterStorageChange();
+            // v0.4.21：应用后清空输入框——按钮回到「选择」方便
+            // 下次直接点开文件管理器（文本框残留文本时按钮是「应用」）
+            customStoragePathInput.setText("");
         };
         if (skipConfirm) {
             doApply.run();
