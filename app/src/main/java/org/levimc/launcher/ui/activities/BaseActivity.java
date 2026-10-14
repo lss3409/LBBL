@@ -344,12 +344,13 @@ public class BaseActivity extends AppCompatActivity {
             android.view.ViewParent p = v.getParent();
             v = p instanceof View ? (View) p : null;
         }
-        // 回退：窗口 decor 背景 / 主题窗口背景色
+        // 回退：窗口 decor 背景 / 中性灰（v0.4.16：中性灰下黑箭头白描边
+        // 双可见，避免暗背景假设在亮背景上"闪白帧"）
         int dec = extractSolidColor(decor.getBackground());
         if (dec != 0) {
             return dec;
         }
-        return 0xFF171717; // 默认暗背景
+        return 0xFF888888;
     }
 
     private View findViewAt(ViewGroup group, float x, float y) {
@@ -474,20 +475,20 @@ public class BaseActivity extends AppCompatActivity {
                     // 内嵌偏移 (15,15)dp（v0.4.15 放大版）
                     gamepadCursor.setTranslationX(cursorX - 20.9f * d);
                     gamepadCursor.setTranslationY(cursorY - 16.1f * d);
-                    // v0.4.15：背景色自适应（250ms 节流采样光标下
-                    // 像素背景亮度，亮背景换黑箭头）
+                    // v0.4.16：背景色动态取色（互补色+亮度反转）。
+                    // 光标从隐藏→显示的首帧强制采样（不等 250ms 节流，
+                    // 消除"按完按键后一帧显示为白色"——隐藏期间背景
+                    // 可能已变，首帧还用旧配色与背景同色）
+                    boolean firstFrame = gamepadCursor.getVisibility()
+                            != android.view.View.VISIBLE;
                     long nowMs = android.os.SystemClock.uptimeMillis();
-                    if (nowMs - lastCursorBgSample >= 250
-                            && gamepadCursor instanceof org.levimc.launcher.ui.views.GamepadCursorView) {
+                    if (gamepadCursor instanceof org.levimc.launcher.ui.views.GamepadCursorView
+                            && (firstFrame || nowMs - lastCursorBgSample >= 250)) {
                         lastCursorBgSample = nowMs;
-                        int bg = sampleBackgroundColor(cursorX, cursorY);
-                        float lum = (android.graphics.Color.red(bg) * 0.299f
-                                + android.graphics.Color.green(bg) * 0.587f
-                                + android.graphics.Color.blue(bg) * 0.114f);
                         ((org.levimc.launcher.ui.views.GamepadCursorView) gamepadCursor)
-                                .setAdaptive(lum > 150f);
+                                .setAdaptive(sampleBackgroundColor(cursorX, cursorY));
                     }
-                    if (gamepadCursor.getVisibility() != android.view.View.VISIBLE) {
+                    if (firstFrame) {
                         gamepadCursor.setVisibility(android.view.View.VISIBLE);
                         // 光标出现：压制焦点描边，输入只信任光标
                         View f = getCurrentFocus();

@@ -28,43 +28,43 @@ public class GamepadCursorView extends View {
     private final Paint bodyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Path outlinePath;
     private Path bodyPath;
-    /** true=深色箭头（用于亮背景）；false=白色箭头（用于暗背景）。 */
-    private boolean darkArrow;
+    private int lastBg = Integer.MIN_VALUE;
 
     public GamepadCursorView(Context context) {
         super(context);
-        applyAdaptive(false);
+        applyAdaptive(0xFF171717);
     }
 
-    /** v0.4.15：按背景亮度切换配色（背景亮→黑箭头白描边）。 */
-    public void setAdaptive(boolean darkArrow) {
-        if (this.darkArrow == darkArrow) {
+    /** v0.4.16：按背景色动态取色——主体=互补色相+亮度反转（高饱和），
+     *  描边=按背景亮度取白/黑。背景红→青箭头、背景蓝→橙箭头、
+     *  背景白→黑箭头、背景黑→白箭头，连续动态调整。 */
+    public void setAdaptive(int bgColor) {
+        if (lastBg == bgColor) {
             return;
         }
-        this.darkArrow = darkArrow;
-        applyAdaptive(darkArrow);
+        lastBg = bgColor;
+        applyAdaptive(bgColor);
         invalidate();
     }
 
-    private void applyAdaptive(boolean dark) {
+    private void applyAdaptive(int bgColor) {
         float d = getResources().getDisplayMetrics().density;
-        if (dark) {
-            // 亮背景：黑箭头 + 白描边 + 白色光晕
-            outlinePaint.setColor(0xFFFFFFFF);
-            outlinePaint.setStyle(Paint.Style.FILL);
-            outlinePaint.setShadowLayer(6 * d, 0, 0, 0x80FFFFFF);
-            bodyPaint.setColor(0xFF141414);
-            bodyPaint.setStyle(Paint.Style.FILL);
-            bodyPaint.setShadowLayer(6 * d, 0, 0, 0x66FFFFFF);
-        } else {
-            // 暗背景：白箭头 + 黑描边 + 白光晕（v0.4.11 样式）
-            outlinePaint.setColor(0xFF1A1A1A);
-            outlinePaint.setStyle(Paint.Style.FILL);
-            outlinePaint.setShadowLayer(10 * d, 0, 0, 0xB3FFFFFF);
-            bodyPaint.setColor(0xFFFFFFFF);
-            bodyPaint.setStyle(Paint.Style.FILL);
-            bodyPaint.setShadowLayer(8 * d, 0, 0, 0x99FFFFFF);
-        }
+        float[] hsv = new float[3];
+        android.graphics.Color.colorToHSV(bgColor, hsv);
+        // 主体：互补色相 + 高饱和 + 亮度反转（亮背景暗箭头/暗背景亮箭头）
+        float bodyHue = (hsv[0] + 180f) % 360f;
+        float bodySat = Math.max(hsv[1], 0.85f);
+        float bodyVal = hsv[2] > 0.5f ? 0.12f : 0.95f;
+        int body = android.graphics.Color.HSVToColor(new float[]{bodyHue, bodySat, bodyVal});
+        // 描边：按背景亮度取白/黑，与主体形成双对比
+        int outline = hsv[2] > 0.5f ? 0xFFFFFFFF : 0xFF141414;
+        int glow = outline;
+        outlinePaint.setColor(outline);
+        outlinePaint.setStyle(Paint.Style.FILL);
+        outlinePaint.setShadowLayer(8 * d, 0, 0, glow & 0x00FFFFFF | 0x99000000);
+        bodyPaint.setColor(body);
+        bodyPaint.setStyle(Paint.Style.FILL);
+        bodyPaint.setShadowLayer(6 * d, 0, 0, glow & 0x00FFFFFF | 0x66000000);
     }
 
     @Override
