@@ -185,7 +185,7 @@ public class WorldMapView extends View {
     }
 
     /** 清空全部 chunk 渲染数据（渲染参数变化时调用——如忽略光源开关）：
-     *  只清 chunkColors 不够——旧 tile/LOD 会残留旧渲染结果
+     *  只清 chunkColors 不够——旧 tile 会残留旧渲染结果
      *  （"开了忽略光源还是显示黄色"的根因）。 */
     public void clearChunkData() {
         for (Bitmap b : chunkTiles.values()) {
@@ -193,20 +193,11 @@ public class WorldMapView extends View {
         }
         chunkTiles.clear();
         chunkDataCache.clear();
-        if (lodMini != null) {
-            lodMini.recycle();
-            lodMini = null;
-        }
         invalidate();
     }
 
-    /** 烘焙/增量更新渲染完成后调用：LOD 增量更新并重绘。 */
+    /** 烘焙/增量更新渲染完成后调用（v0.4.59：LOD 已删除，只需重绘）。 */
     public void onChunksRendered(java.util.Set<Long> chunkKeys) {
-        // 新 chunk 已渲染：LOD 缩略图增量更新对应像素（此前置空全量重建
-        // ——2.5 万 chunk × 256 像素众数统计每秒触发一次，0.3 倍率缩小
-        // 视图卡死的根因。增量只重算几个 chunk、各 setPixel 一个点）
-        updateLodPixels(chunkKeys);
-        // chunk tile 路径：tile 在下一帧 onDraw 惰性生成，只需重绘
         invalidate();
     }
 
@@ -249,10 +240,6 @@ public class WorldMapView extends View {
         }
         chunkTiles.clear();
         chunkDataCache.clear();
-        if (lodMini != null) {
-            lodMini.recycle();
-            lodMini = null;
-        }
         // v0.4.52：换图后旧全图失效（新图数据不同，调用方会重拼）
         clearFullMapImage();
         // v0.4.54：换图后旧史莱姆遮罩失效
@@ -387,10 +374,6 @@ public class WorldMapView extends View {
             b.recycle();
         }
         chunkTiles.clear();
-        if (lodMini != null) {
-            lodMini.recycle();
-            lodMini = null;
-        }
         invalidateFullRender();
     }
 
@@ -401,10 +384,6 @@ public class WorldMapView extends View {
             b.recycle();
         }
         chunkTiles.clear();
-        if (lodMini != null) {
-            lodMini.recycle();
-            lodMini = null;
-        }
         invalidateFullRender();
     }
 
@@ -869,12 +848,8 @@ public class WorldMapView extends View {
                     return false;
                 }
             };
-    /** 缩略 LOD 位图（每 chunk 1 像素）：视口 chunk 数过多时整图一次 drawBitmap。 */
-    private Bitmap lodMini;
-    /** LOD 模式（迟滞切换：>5000 进入 <3500 退出，缩放中不切换）。 */
-    private boolean lodMode;
-
-    /** 大世界底层绘制：视口 chunk 多时画 LOD 缩略图，否则 tile 平铺。 */
+    /** 大世界底层绘制：chunk tile 平铺（v0.4.59 LOD 已删除——全图纹理
+     *  模式接管缩小场景；本路径只在放大时走，视口 chunk 数有限）。 */
     private void drawChunkLayer(android.graphics.Canvas canvas) {
         int viewW = getWidth();
         int viewH = getHeight();
@@ -893,29 +868,6 @@ public class WorldMapView extends View {
         int firstCz = Math.max(minCz, Math.floorDiv((int) Math.floor(topWorld), 16));
         int lastCx = Math.min(maxCx, Math.floorDiv((int) Math.ceil(rightWorld), 16));
         int lastCz = Math.min(maxCz, Math.floorDiv((int) Math.ceil(bottomWorld), 16));
-        int visibleChunks = (lastCx - firstCx + 1) * (lastCz - firstCz + 1);
-        // LOD 单阈值 + 缩放中不切换：缩放结束后按当前视口重判定——
-        // 迟滞区间(3500-5000)会卡在 LOD 模式导致放大回来不渲染
-        // （"缩放到一定比例停止渲染"的根因）
-        if (!scaling) {
-            lodMode = visibleChunks > 4096;
-        }
-        if (lodMode) {
-            // LOD：全图缩略一次 drawBitmap（缩小到整图可视时视口含全图 chunk，
-            // tile 平铺 2.5 万次 drawBitmap 每帧会卡死）
-            ensureLodMini();
-            if (lodMini != null) {
-                float left = worldToScreenX(minCx * 16f);
-                float top = worldToScreenY(minCz * 16f);
-                android.graphics.RectF dst = new android.graphics.RectF(left, top,
-                        left + (maxCx - minCx + 1) * 16f * ppb,
-                        top + (maxCz - minCz + 1) * 16f * ppb);
-                Paint p = new Paint();
-                p.setFilterBitmap(true);
-                canvas.drawBitmap(lodMini, null, dst, p);
-            }
-            return;
-        }
         Paint tilePaint = new Paint();
         tilePaint.setFilterBitmap(false); // 最近邻放大，保持块状像素风
         android.graphics.RectF dst = new android.graphics.RectF();
@@ -957,128 +909,9 @@ public class WorldMapView extends View {
         return tile;
     }
 
-    /** 生成/刷新 LOD 缩略图（每 chunk 1 像素代表色；
-     *  biome 图层开启时用 biome 纯色版——缩小后糊成像素是 LOD 的妥协，
-     *  但群系视图本应显示纯色） */
-    private void ensureLodMini() {
-        if (map == null || map.chunkColors == null) {
-            return;
-        }
-        int minCx = Math.floorDiv(map.minBlockX, 16);
-        int minCz = Math.floorDiv(map.minBlockZ, 16);
-        int maxCx = Math.floorDiv(map.minBlockX + map.width - 1, 16);
-        int maxCz = Math.floorDiv(map.minBlockZ + map.height - 1, 16);
-        int cw = maxCx - minCx + 1;
-        int ch = maxCz - minCz + 1;
-        if (cw <= 0 || ch <= 0 || cw * ch > 16 * 1024 * 1024) {
-            return;
-        }
-        Bitmap mini = Bitmap.createBitmap(cw, ch, Bitmap.Config.ARGB_8888);
-        // v465：createBitmap 的像素内存未初始化——未渲染 chunk 的
-        // 像素显示内存残留色（ART 回收页常见绿色调，r≈0 b≈0 纯绿），
-        // 即"沙滩区块诡异绿色"根因。先清透明：未渲染 chunk 透出
-        // 地图背景（v457 未渲染区块背景语义），与视口 tile 一致
-        mini.eraseColor(0x00000000);
-        for (java.util.Map.Entry<Long, int[]> e : map.chunkColors.entrySet()) {
-            int cx = (int) (e.getKey() >> 32);
-            int cz = (int) (long) e.getKey();
-            int px = cx - minCx;
-            int pz = cz - minCz;
-            if (px < 0 || px >= cw || pz < 0 || pz >= ch) {
-                continue;
-            }
-            int[] src = e.getValue();
-            if (showBiomeLayer && map.chunkBiomeColors != null) {
-                int[] bc = map.chunkBiomeColors.get(e.getKey());
-                if (bc != null) {
-                    src = bc;
-                }
-            }
-            // 代表色 = 采样众数（16 点均匀采样——HashMap 全量统计在
-            // 2.5 万 chunk 上重建一次卡 1-3 秒，"0.3 倍率卡死"的根因）
-            int best = sampleDominant(src);
-            if (best != 0) {
-                mini.setPixel(px, pz, best);
-            }
-        }
-        if (lodMini != null) {
-            lodMini.recycle();
-        }
-        lodMini = mini;
-    }
-
-    /** LOD 增量更新：只重算新渲染 chunk 对应的 1 像素（全量重建在大
-     *  世界上每秒触发一次会卡死缩小视图）。 */
-    private void updateLodPixels(java.util.Set<Long> chunkKeys) {
-        if (lodMini == null || chunkKeys == null || chunkKeys.isEmpty()
-                || map == null || map.chunkColors == null) {
-            return;
-        }
-        int minCx = Math.floorDiv(map.minBlockX, 16);
-        int minCz = Math.floorDiv(map.minBlockZ, 16);
-        for (Long k : chunkKeys) {
-            int cx = (int) (k >> 32);
-            int cz = (int) (long) k;
-            int px = cx - minCx;
-            int pz = cz - minCz;
-            if (px < 0 || px >= lodMini.getWidth()
-                    || pz < 0 || pz >= lodMini.getHeight()) {
-                continue;
-            }
-            int[] src = map.chunkColors.get(k);
-            if (src == null) {
-                continue;
-            }
-            if (showBiomeLayer && map.chunkBiomeColors != null) {
-                int[] bc = map.chunkBiomeColors.get(k);
-                if (bc != null) {
-                    src = bc;
-                }
-            }
-            int best = sampleDominant(src);
-            if (best != 0) {
-                lodMini.setPixel(px, pz, best);
-            }
-        }
-    }
-
-    /** 16 点均匀采样众数（LOD 每 chunk 1 像素代表色）。HashMap 全量
-     *  统计 256 像素在 2.5 万 chunk 上重建一次卡 1-3 秒；采样版只有
-     *  16 次线性槽位扫描，量级低一个数量级。 */
-    private static int sampleDominant(int[] src) {
-        int[] samples = new int[16];
-        int[] counts = new int[16];
-        int sc = 0;
-        for (int i = 0; i < 256; i += 16) {
-            int v = src[i];
-            if ((v & 0xFF000000) == 0) {
-                continue;
-            }
-            int slot = -1;
-            for (int j = 0; j < sc; j++) {
-                if (samples[j] == v) {
-                    slot = j;
-                    break;
-                }
-            }
-            if (slot < 0) {
-                samples[sc] = v;
-                counts[sc] = 1;
-                sc++;
-            } else {
-                counts[slot]++;
-            }
-        }
-        int best = 0;
-        int bestN = 0;
-        for (int j = 0; j < sc; j++) {
-            if (counts[j] > bestN) {
-                bestN = counts[j];
-                best = samples[j];
-            }
-        }
-        return best;
-    }
+    /* v0.4.59：LOD（缩略图/众数采样/增量更新）整体删除——
+     * 全图纹理模式接管缩小场景（HTML 同款零糊渲染），本路径
+     * 只在放大时走（视口 chunk 数有限，tile 平铺流畅）。 */
 
     /**
      * 重采样行区间 [sy0, sy1) 到缓存位图（仅小世界 colors 数组路径）。

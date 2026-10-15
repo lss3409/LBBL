@@ -2004,17 +2004,12 @@ public class NbtViewerActivity extends BaseActivity {
         });
     }
 
-    /** SeedFinder 来源的结构类型名集合（重扫时先移除旧结果防重复）。 */
-    private static final java.util.Set<String> SEED_STRUCTURE_TYPES =
-            new java.util.HashSet<>(java.util.Arrays.asList(
-                    "desert_pyramid", "jungle_temple", "swamp_hut", "igloo",
-                    "village", "ocean_ruin", "shipwreck", "ocean_monument",
-                    "woodland_mansion", "pillager_outpost", "ruined_portal",
-                    "ancient_city", "buried_treasure", "mineshaft",
-                    "trail_ruins", "trial_chambers"));
-
+    /** SeedFinder 来源的标记判定（重扫时先移除旧结果防重复）。
+     *  v0.4.59：按 predicted 标志而非 type——此前按类型名集合判定会
+     *  把存档解析出的人为村庄（type 同为 "village"）一并删掉
+     *  （"人为产生的村庄没有显示"根因）。 */
     private static boolean seedFromSet(WorldMapRenderer.StructureMarker m) {
-        return SEED_STRUCTURE_TYPES.contains(m.type);
+        return m.predicted;
     }
 
     /** 从数据库读取标点/连线并同步到地图视图。 */
