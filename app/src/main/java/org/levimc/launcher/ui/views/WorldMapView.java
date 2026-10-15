@@ -534,7 +534,10 @@ public class WorldMapView extends View {
             @Override
             public void onAnimationEnd(android.animation.Animator animation) {
                 scalePreviewActive = false;
-                invalidate();
+                // v0.4.69：跳转结束强制全量重采样——此前仅 invalidate，
+                // 若 ppb 未变且跳转距离小于视口宽，farMoved 判定不触发，
+                // 平移缓存位图只覆盖旧视口，"跳转目标区块不渲染"的根因
+                invalidateFullRender();
                 notifyViewChanged();
             }
         });
