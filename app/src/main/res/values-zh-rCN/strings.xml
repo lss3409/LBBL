@@ -1534,7 +1534,7 @@
 <string name="btn_data_panel">数据</string>
 <string name="lb_info">世界信息</string>
 <string name="lb_layers">图层</string>
-<string name="lb_points">标点</string>
+<string name="lb_points">标点&amp;结构</string>
 <string name="lb_settings">设置</string>
 <string name="nether_y_title">下界渲染层</string>
 <string name="nether_y_all">全部</string>
@@ -1554,7 +1554,7 @@
 <string name="layer_structure">结构</string>
 <string name="layer_slime">史莱姆区块</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">搜索标点…</string>
+<string name="point_search_hint">搜索标点&amp;结构…</string>
 <string name="no_points">暂无标点，长按地图添加</string>
 <string name="point_need_two">至少需要 2 个标点才能连线/测距</string>
 <string name="point_color">颜色</string>
@@ -1831,4 +1831,5 @@
     <string name="structure_label_mineshaft">废弃矿井</string>
     <string name="structure_label_trail_ruins">遗迹废墟</string>
     <string name="structure_label_trial_chambers">试炼密室</string>
+    <string name="no_structures">无结构</string>
 </resources>

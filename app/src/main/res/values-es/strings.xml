@@ -1476,7 +1476,7 @@ La migración debe completarse antes de continuar con LeviLauncher.</string>
 <string name="btn_data_panel">Datos</string>
 <string name="lb_info">Información del mundo</string>
 <string name="lb_layers">Capas</string>
-<string name="lb_points">Puntos</string>
+<string name="lb_points">Puntos y estructuras</string>
 <string name="lb_settings">Ajustes</string>
 <string name="nether_y_title">Capas de renderizado del Nether</string>
 <string name="nether_y_all">Todas</string>
@@ -1496,7 +1496,7 @@ La migración debe completarse antes de continuar con LeviLauncher.</string>
 <string name="layer_structure">Estructuras</string>
 <string name="layer_slime">Chunks de slime</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">Buscar puntos…</string>
+<string name="point_search_hint">Buscar puntos y estructuras…</string>
 <string name="no_points">No hay puntos. Mantén pulsado el mapa para añadir.</string>
 <string name="point_need_two">Se necesitan al menos 2 puntos para enlazar o medir</string>
 <string name="point_color">Color</string>
@@ -1890,4 +1890,5 @@ Código de invitación: P/%1$s
     <string name="structure_label_mineshaft">Mina abandonada</string>
     <string name="structure_label_trail_ruins">Ruinas de senderos</string>
     <string name="structure_label_trial_chambers">Cámaras del desafío</string>
+    <string name="no_structures">Sin estructuras</string>
 </resources>

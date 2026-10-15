@@ -1578,7 +1578,7 @@ Invite code: P/%1$s
 <string name="btn_data_panel">Data</string>
 <string name="lb_info">World Info</string>
 <string name="lb_layers">Layers</string>
-<string name="lb_points">Points</string>
+<string name="lb_points">Points &amp; Structures</string>
 <string name="lb_settings">Settings</string>
 <string name="nether_y_title">Nether render layers</string>
 <string name="nether_y_all">All</string>
@@ -1598,7 +1598,7 @@ Invite code: P/%1$s
 <string name="layer_structure">Structures</string>
 <string name="layer_slime">Slime Chunks</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">Search points…</string>
+<string name="point_search_hint">Search points &amp; structures…</string>
 <string name="no_points">No points. Long-press the map to add.</string>
 <string name="point_need_two">Need at least 2 points to link/measure</string>
 <string name="point_color">Color</string>
@@ -1994,4 +1994,5 @@ Invite code: P/%1$s
     <string name="structure_label_mineshaft">Mineshaft</string>
     <string name="structure_label_trail_ruins">Trail Ruins</string>
     <string name="structure_label_trial_chambers">Trial Chambers</string>
+    <string name="no_structures">No structures</string>
 </resources>

@@ -175,6 +175,12 @@ public class NbtViewerActivity extends BaseActivity {
 
     /** 合并视口按需渲染检测到的结构标记（去重后追加进结构图层）。 */
     private void mergeOnDemandStructures() {
+        // v0.4.64：palette 特征检测只产主世界结构（detectOnDemandStructure
+        // 里非主世界直接 return）——下界/末地合并会把主世界队列取出来
+        // （"切到下界还显示主世界结构"的根因）
+        if (!"overworld".equals(mapDimension)) {
+            return;
+        }
         java.util.List<WorldMapRenderer.StructureMarker> ods =
                 WorldMapRenderer.takeOnDemandStructures();
         for (WorldMapRenderer.StructureMarker m : ods) {
@@ -984,87 +990,154 @@ public class NbtViewerActivity extends BaseActivity {
     }
 
     /** 左栏 Tab3 标点列表渲染（搜索过滤 + 点击跳转视角）。 */
+    /** v0.4.64：标点&结构列表分类过滤（0=全部 1=标点 2=结构）。 */
+    private int pointListFilter = 0;
+
     private void renderLeftPointList(String query) {
         binding.pointListContainer.removeAllViews();
         String q = query != null ? query.toLowerCase().trim() : "";
-        boolean any = false;
-        for (BlueprintDb.Point p : mapPoints) {
-            if (!p.dimension.equals(mapDimension)) {
-                continue;
-            }
-            if (!q.isEmpty()
-                    && !p.name.toLowerCase().contains(q)
-                    && !(p.x + "," + p.z).contains(q)) {
-                continue;
-            }
-            any = true;
-            TextView item = new TextView(this);
-            // v481：标点总览的圆点按标点自定义颜色显示（此前文本
-            // "●" 永远是默认黑色——用户反馈）
-            String dotColor = p.color != null && !p.color.isEmpty()
-                    ? p.color : categoryColor(p.category);
-            int dotRgb;
-            try {
-                dotRgb = android.graphics.Color.parseColor(dotColor);
-            } catch (Exception e) {
-                dotRgb = 0xFFFFD54F;
-            }
-            android.text.SpannableString ss = new android.text.SpannableString(
-                    "● " + p.name + "  (" + p.x + "," + p.z + ")");
-            ss.setSpan(new android.text.style.ForegroundColorSpan(dotRgb),
-                    0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            item.setText(ss);
-            item.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
-            item.setTextSize(12);
-            item.setPadding(0, (int) (7 * getResources().getDisplayMetrics().density),
-                    0, (int) (7 * getResources().getDisplayMetrics().density));
-            item.setClickable(true);
-            item.setFocusable(true);
-            item.setOnClickListener(v -> {
-                if (!p.dimension.equals(mapDimension)) {
-                    mapDimension = p.dimension;
-                    loadMapForDimension(p.dimension);
-                }
-                binding.worldMapImage.animateTo(p.x, p.z);
+        float d = getResources().getDisplayMetrics().density;
+
+        // ---- 分类选项行：全部 / 标点 / 结构 ----
+        LinearLayout chipRow = new LinearLayout(this);
+        chipRow.setOrientation(LinearLayout.HORIZONTAL);
+        chipRow.setPadding(0, (int) (4 * d), 0, (int) (2 * d));
+        String[] chips = {
+                getString(R.string.filter_all), getString(R.string.lb_points),
+                getString(R.string.layer_structure)
+        };
+        for (int i = 0; i < chips.length; i++) {
+            final int fidx = i;
+            TextView chip = new TextView(this);
+            chip.setText(chips[i]);
+            chip.setTextSize(11);
+            chip.setPadding((int) (10 * d), (int) (4 * d),
+                    (int) (10 * d), (int) (4 * d));
+            chip.setBackgroundResource(R.drawable.bg_filter_chip);
+            // 选中态：强调色文字 + 加粗（兼容个性化强调色）
+            chip.setTextColor(pointListFilter == fidx
+                    ? accentColor : ContextCompat.getColor(this, R.color.on_surface));
+            chip.setTypeface(null, pointListFilter == fidx
+                    ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
+            chip.setClickable(true);
+            chip.setFocusable(true);
+            chip.setOnClickListener(v -> {
+                pointListFilter = fidx;
+                renderLeftPointList(binding.pointSearchInput.getText().toString());
             });
-            binding.pointListContainer.addView(item);
+            chipRow.addView(chip);
         }
-        // v0.4.61：结构标记列表（存档结构 + SeedFinder 预测），点击跳转
-        // ——与玩家标点同款交互
-        List<WorldMapRenderer.StructureMarker> structs;
-        synchronized (currentStructures) {
-            structs = new ArrayList<>(currentStructures);
-        }
-        for (WorldMapRenderer.StructureMarker m : structs) {
-            String label = WorldMapView.structureLabel(this, m.type);
-            if (!q.isEmpty()
-                    && !label.toLowerCase().contains(q)
-                    && !(m.x + "," + m.z).contains(q)) {
-                continue;
+        binding.pointListContainer.addView(chipRow);
+
+        // ---- 双列：左标点 / 右结构，ScrollView 限高防溢出屏幕 ----
+        boolean showPoints = pointListFilter != 2;
+        boolean showStructs = pointListFilter != 1;
+        LinearLayout cols = new LinearLayout(this);
+        cols.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout leftCol = new LinearLayout(this);
+        leftCol.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout rightCol = new LinearLayout(this);
+        rightCol.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        cols.addView(leftCol, colLp);
+        cols.addView(rightCol, colLp);
+
+        int pointCount = 0;
+        if (showPoints) {
+            for (BlueprintDb.Point p : mapPoints) {
+                if (!p.dimension.equals(mapDimension)) {
+                    continue;
+                }
+                if (!q.isEmpty()
+                        && !p.name.toLowerCase().contains(q)
+                        && !(p.x + "," + p.z).contains(q)) {
+                    continue;
+                }
+                pointCount++;
+                TextView item = new TextView(this);
+                // v481：标点总览的圆点按标点自定义颜色显示（此前文本
+                // "●" 永远是默认黑色——用户反馈）
+                String dotColor = p.color != null && !p.color.isEmpty()
+                        ? p.color : categoryColor(p.category);
+                int dotRgb;
+                try {
+                    dotRgb = android.graphics.Color.parseColor(dotColor);
+                } catch (Exception e) {
+                    dotRgb = 0xFFFFD54F;
+                }
+                android.text.SpannableString ss = new android.text.SpannableString(
+                        "● " + p.name + "  (" + p.x + "," + p.z + ")");
+                ss.setSpan(new android.text.style.ForegroundColorSpan(dotRgb),
+                        0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                item.setText(ss);
+                item.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
+                item.setTextSize(12);
+                item.setPadding(0, (int) (7 * d), (int) (6 * d), (int) (7 * d));
+                item.setClickable(true);
+                item.setFocusable(true);
+                item.setOnClickListener(v -> {
+                    if (!p.dimension.equals(mapDimension)) {
+                        mapDimension = p.dimension;
+                        loadMapForDimension(p.dimension);
+                    }
+                    binding.worldMapImage.animateTo(p.x, p.z);
+                });
+                leftCol.addView(item);
             }
-            any = true;
-            TextView item = new TextView(this);
-            android.text.SpannableString ss = new android.text.SpannableString(
-                    "▣ " + label + "  (" + m.x + "," + m.z + ")");
-            ss.setSpan(new android.text.style.ForegroundColorSpan(0xFF7E57C2),
-                    0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            item.setText(ss);
-            item.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
-            item.setTextSize(12);
-            item.setPadding(0, (int) (7 * getResources().getDisplayMetrics().density),
-                    0, (int) (7 * getResources().getDisplayMetrics().density));
-            item.setClickable(true);
-            item.setFocusable(true);
-            item.setOnClickListener(v -> binding.worldMapImage.animateTo(m.x, m.z));
-            binding.pointListContainer.addView(item);
         }
-        if (!any) {
+        int structCount = 0;
+        if (showStructs) {
+            List<WorldMapRenderer.StructureMarker> structs;
+            synchronized (currentStructures) {
+                structs = new ArrayList<>(currentStructures);
+            }
+            for (WorldMapRenderer.StructureMarker m : structs) {
+                String label = WorldMapView.structureLabel(this, m.type);
+                if (!q.isEmpty()
+                        && !label.toLowerCase().contains(q)
+                        && !(m.x + "," + m.z).contains(q)) {
+                    continue;
+                }
+                structCount++;
+                TextView item = new TextView(this);
+                android.text.SpannableString ss = new android.text.SpannableString(
+                        "▣ " + label + "  (" + m.x + "," + m.z + ")");
+                ss.setSpan(new android.text.style.ForegroundColorSpan(0xFF7E57C2),
+                        0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                item.setText(ss);
+                item.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
+                item.setTextSize(12);
+                item.setPadding(0, (int) (7 * d), (int) (6 * d), (int) (7 * d));
+                item.setClickable(true);
+                item.setFocusable(true);
+                item.setOnClickListener(v -> binding.worldMapImage.animateTo(m.x, m.z));
+                rightCol.addView(item);
+            }
+        }
+        if (pointCount == 0 && showPoints) {
             TextView empty = new TextView(this);
             empty.setText(R.string.no_points);
             empty.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
             empty.setTextSize(12);
-            binding.pointListContainer.addView(empty);
+            leftCol.addView(empty);
         }
+        if (structCount == 0 && showStructs) {
+            TextView empty = new TextView(this);
+            empty.setText(R.string.no_structures);
+            empty.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+            empty.setTextSize(12);
+            rightCol.addView(empty);
+        }
+
+        // 双列包 ScrollView：内容多时面板内滚动，不超出屏幕底部
+        android.widget.ScrollView sc = new android.widget.ScrollView(this);
+        sc.setVerticalScrollBarEnabled(false);
+        sc.setFillViewport(false);
+        LinearLayout.LayoutParams scLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, (int) (300 * d));
+        sc.addView(cols);
+        binding.pointListContainer.addView(sc, scLp);
     }
 
     // ---------------------------------------------------------------- 标点 / 连线 / 蓝图码
@@ -1555,8 +1628,13 @@ public class NbtViewerActivity extends BaseActivity {
                     }, 6000);
                 } else {
                     // 小世界切维度：优先读缓存（v390），miss 才全量渲染+存缓存
+                    // v0.4.64：allowStale=true——LevelDB 每次打开都会更新
+                    // db 目录 LOG 文件 mtime，指纹必变；此前默认 false
+                    // 导致每次切维度缓存都判失效、全量重渲染 30-60 秒
+                    // （"切到地狱再切回来卡在正在加载地图数据"的根因）。
+                    // 先显旧图后台刷新，与首开骨架同款语义
                     try {
-                        worldMap = WorldMapRenderer.loadSmallMapCache(dbDir, dimId);
+                        worldMap = WorldMapRenderer.loadSmallMapCache(dbDir, dimId, true);
                     } catch (Exception ignored) {
                         worldMap = null;
                     }
@@ -1610,6 +1688,45 @@ public class NbtViewerActivity extends BaseActivity {
                         // v436：小世界切维度缓存命中——实体/结构/矿石
                         // 不阻塞首屏，延迟 6 秒后台补（此前缓存命中分支
                         // 完全不解析，实体/结构图层空）
+                        // v0.4.64：stale 旧图先显，后台全量重渲染替换
+                        // （与首开 onDataLoaded 同款；指纹修复后仅在
+                        // 玩家真的玩过世界时才触发）
+                        if (worldMap.cacheStale) {
+                            final WorldMapRenderer.WorldMap fOldMap = worldMap;
+                            final File fStaleDb = dbDir;
+                            final int fStaleDim = dimId;
+                            final int fStaleGen = gen;
+                            executor.execute(() -> {
+                                try {
+                                    List<LevelDBEntry> es = null;
+                                    try {
+                                        es = NativeLevelDb.readAllEntries(fStaleDb);
+                                    } catch (Throwable ignored) {
+                                    }
+                                    if (es == null) {
+                                        LevelDBReader r = new LevelDBReader(fStaleDb);
+                                        es = r.readAllEntries();
+                                        r.close();
+                                    }
+                                    WorldMapRenderer.WorldMap fresh =
+                                            WorldMapRenderer.buildSatelliteMap(es, fStaleDim);
+                                    if (fresh != null) {
+                                        WorldMapRenderer.saveSmallMapCache(fresh, fStaleDb, fStaleDim);
+                                        WorldMapRenderer.saveOreMarkers(fresh, fStaleDb, fStaleDim);
+                                        runOnUiThread(() -> {
+                                            if (!isFinishing() && !isDestroyed()
+                                                    && isCurrentLoad(fStaleGen)
+                                                    && currentMap == fOldMap) {
+                                                currentMap = fresh;
+                                                binding.worldMapImage.setWorldMap(fresh, true);
+                                                composeFullMapAsync(fresh);
+                                            }
+                                        });
+                                    }
+                                } catch (Throwable ignored) {
+                                }
+                            });
+                        }
                         entities = new java.util.ArrayList<>();
                         structures = new java.util.ArrayList<>();
                         final WorldMapRenderer.WorldMap fMapC = worldMap;

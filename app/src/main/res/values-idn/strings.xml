@@ -1499,7 +1499,7 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="btn_data_panel">Data</string>
 <string name="lb_info">Info Dunia</string>
 <string name="lb_layers">Lapisan</string>
-<string name="lb_points">Titik</string>
+<string name="lb_points">Titik &amp; Struktur</string>
 <string name="lb_settings">Pengaturan</string>
 <string name="nether_y_title">Lapisan render Nether</string>
 <string name="nether_y_all">Semua</string>
@@ -1519,7 +1519,7 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="layer_structure">Struktur</string>
 <string name="layer_slime">Chunk Slime</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">Cari titik…</string>
+<string name="point_search_hint">Cari titik &amp; struktur…</string>
 <string name="no_points">Tidak ada titik. Tekan lama peta untuk menambahkan.</string>
 <string name="point_need_two">Perlu setidaknya 2 titik untuk menautkan/mengukur</string>
 <string name="point_color">Warna</string>
@@ -1913,4 +1913,5 @@ Kode undangan: P/%1$s
     <string name="structure_label_mineshaft">Tambang Terbengkalai</string>
     <string name="structure_label_trail_ruins">Reruntuhan Jejak</string>
     <string name="structure_label_trial_chambers">Ruang Percobaan</string>
+    <string name="no_structures">Tidak ada struktur</string>
 </resources>

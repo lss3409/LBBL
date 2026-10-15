@@ -2683,10 +2683,19 @@ public class WorldMapRenderer {
         File[] files = dbDir.listFiles();
         if (files != null) {
             for (File f : files) {
-                if (f.isFile()) {
-                    total += f.length();
-                    latest = Math.max(latest, f.lastModified());
+                // v0.4.64：只统计 LevelDB 数据文件（.ldb 表 + .log WAL）——
+                // LOG/LOCK/CURRENT/MANIFEST 是 LevelDB 元数据，每次打开
+                // db 都会更新 mtime，全文件统计导致指纹永远变、小世界
+                // 缓存每次切维度都判失效全量重渲染（"切维度卡加载"根因）
+                if (!f.isFile()) {
+                    continue;
                 }
+                String n = f.getName().toLowerCase();
+                if (!n.endsWith(".ldb") && !n.endsWith(".log")) {
+                    continue;
+                }
+                total += f.length();
+                latest = Math.max(latest, f.lastModified());
             }
         }
         return new long[]{total, latest};
@@ -5406,7 +5415,10 @@ public class WorldMapRenderer {
     /** 取按需渲染检测到的结构标记（调用方合并进结构图层）。 */
     public static List<StructureMarker> takeOnDemandStructures() {
         synchronized (onDemandStructures) {
-            return new ArrayList<>(onDemandStructures);
+            java.util.List<StructureMarker> out = new ArrayList<>(onDemandStructures);
+            // v0.4.64：取出即清空——防多次 take 重复合并
+            onDemandStructures.clear();
+            return out;
         }
     }
 

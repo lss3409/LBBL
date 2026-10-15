@@ -1473,7 +1473,7 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="btn_data_panel">データ</string>
 <string name="lb_info">ワールド情報</string>
 <string name="lb_layers">レイヤー</string>
-<string name="lb_points">ポイント</string>
+<string name="lb_points">ポイントと構造物</string>
 <string name="lb_settings">設定</string>
 <string name="nether_y_title">ネザーの描画レイヤー</string>
 <string name="nether_y_all">すべて</string>
@@ -1493,7 +1493,7 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="layer_structure">建造物</string>
 <string name="layer_slime">スライムチャンク</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">ポイントを検索…</string>
+<string name="point_search_hint">ポイントと構造物を検索…</string>
 <string name="no_points">ポイントがありません。マップを長押しして追加してください。</string>
 <string name="point_need_two">リンク/測定には最低2つのポイントが必要です</string>
 <string name="point_color">色</string>
@@ -1887,4 +1887,5 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="structure_label_mineshaft">廃坑</string>
     <string name="structure_label_trail_ruins">道の遺跡</string>
     <string name="structure_label_trial_chambers">試練の間</string>
+    <string name="no_structures">構造物なし</string>
 </resources>

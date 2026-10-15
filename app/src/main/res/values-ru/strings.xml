@@ -1506,7 +1506,7 @@
 <string name="btn_data_panel">Данные</string>
 <string name="lb_info">Сведения о мире</string>
 <string name="lb_layers">Слои</string>
-<string name="lb_points">Точки</string>
+<string name="lb_points">Точки и структуры</string>
 <string name="lb_settings">Настройки</string>
 <string name="nether_y_title">Слои отображения Нижнего мира</string>
 <string name="nether_y_all">Все</string>
@@ -1526,7 +1526,7 @@
 <string name="layer_structure">Структуры</string>
 <string name="layer_slime">Слаймовые чанки</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">Поиск точек…</string>
+<string name="point_search_hint">Поиск точек и структур…</string>
 <string name="no_points">Точек нет. Удерживайте карту, чтобы добавить.</string>
 <string name="point_need_two">Для связи/измерения нужно не менее 2 точек</string>
 <string name="point_color">Цвет</string>
@@ -1920,4 +1920,5 @@
     <string name="structure_label_mineshaft">Заброшенная шахта</string>
     <string name="structure_label_trail_ruins">Руины троп</string>
     <string name="structure_label_trial_chambers">Камеры испытаний</string>
+    <string name="no_structures">Нет структур</string>
 </resources>

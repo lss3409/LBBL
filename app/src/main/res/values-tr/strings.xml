@@ -1502,7 +1502,7 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="btn_data_panel">Veri</string>
 <string name="lb_info">Dünya Bilgisi</string>
 <string name="lb_layers">Katmanlar</string>
-<string name="lb_points">Noktalar</string>
+<string name="lb_points">Noktalar ve Yapılar</string>
 <string name="lb_settings">Ayarlar</string>
 <string name="nether_y_title">Nether işleme katmanları</string>
 <string name="nether_y_all">Tümü</string>
@@ -1522,7 +1522,7 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="layer_structure">Yapılar</string>
 <string name="layer_slime">Slime Yığınları</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">Nokta ara…</string>
+<string name="point_search_hint">Nokta ve yapı ara…</string>
 <string name="no_points">Nokta yok. Eklemek için haritaya uzun bas.</string>
 <string name="point_need_two">Bağlamak/ölçmek için en az 2 nokta gerekli</string>
 <string name="point_color">Renk</string>
@@ -1916,4 +1916,5 @@ Davet kodu: P/%1$s
     <string name="structure_label_mineshaft">Terk Edilmiş Maden</string>
     <string name="structure_label_trail_ruins">Patika Kalıntıları</string>
     <string name="structure_label_trial_chambers">Deneme Odaları</string>
+    <string name="no_structures">Yapı yok</string>
 </resources>

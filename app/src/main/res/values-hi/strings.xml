@@ -1503,7 +1503,7 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="btn_data_panel">डेटा</string>
 <string name="lb_info">दुनिया की जानकारी</string>
 <string name="lb_layers">परतें</string>
-<string name="lb_points">बिंदु</string>
+<string name="lb_points">बिंदु और संरचनाएं</string>
 <string name="lb_settings">सेटिंग्स</string>
 <string name="nether_y_title">नेदर रेंडर परतें</string>
 <string name="nether_y_all">सभी</string>
@@ -1523,7 +1523,7 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="layer_structure">संरचनाएँ</string>
 <string name="layer_slime">स्लाइम चंक</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">बिंदु खोजें…</string>
+<string name="point_search_hint">बिंदु और संरचनाएं खोजें…</string>
 <string name="no_points">कोई बिंदु नहीं। जोड़ने के लिए नक्शे पर देर तक दबाएँ।</string>
 <string name="point_need_two">लिंक/माप के लिए कम से कम 2 बिंदु चाहिए</string>
 <string name="point_color">रंग</string>
@@ -1917,4 +1917,5 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="structure_label_mineshaft">परित्यक्त खदान</string>
     <string name="structure_label_trail_ruins">ट्रेल खंडहर</string>
     <string name="structure_label_trial_chambers">ट्रायल चैंबर</string>
+    <string name="no_structures">कोई संरचना नहीं</string>
 </resources>

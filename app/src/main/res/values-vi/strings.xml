@@ -1505,7 +1505,7 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="btn_data_panel">Dữ liệu</string>
 <string name="lb_info">Thông tin thế giới</string>
 <string name="lb_layers">Các lớp</string>
-<string name="lb_points">Điểm</string>
+<string name="lb_points">Điểm &amp; Công trình</string>
 <string name="lb_settings">Cài đặt</string>
 <string name="nether_y_title">Các lớp hiển thị Nether</string>
 <string name="nether_y_all">Tất cả</string>
@@ -1525,7 +1525,7 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="layer_structure">Công trình</string>
 <string name="layer_slime">Chunk Slime</string>
 <string name="map_hud_placeholder">X: 0  Z: 0</string>
-<string name="point_search_hint">Tìm điểm…</string>
+<string name="point_search_hint">Tìm điểm &amp; công trình…</string>
 <string name="no_points">Không có điểm nào. Nhấn giữ bản đồ để thêm.</string>
 <string name="point_need_two">Cần ít nhất 2 điểm để liên kết/đo</string>
 <string name="point_color">Màu</string>
@@ -1919,4 +1919,5 @@ Mã mời: P/%1$s
     <string name="structure_label_mineshaft">Mỏ bỏ hoang</string>
     <string name="structure_label_trail_ruins">Tàn tích đường mòn</string>
     <string name="structure_label_trial_chambers">Phòng thử thách</string>
+    <string name="no_structures">Không có công trình</string>
 </resources>
