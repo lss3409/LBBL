@@ -255,6 +255,11 @@ public class WorldMapView extends View {
         }
         // v0.4.52：换图后旧全图失效（新图数据不同，调用方会重拼）
         clearFullMapImage();
+        // v0.4.54：换图后旧史莱姆遮罩失效
+        if (slimeMaskBitmap != null && !slimeMaskBitmap.isRecycled()) {
+            slimeMaskBitmap.recycle();
+        }
+        slimeMaskBitmap = null;
         // v0.4.53：map 自带 RLE 全图（秒开缓存）时直接挂载
         if (map != null && map.fullImage != null && !map.fullImage.isRecycled()) {
             fullMapBitmap = map.fullImage;
@@ -315,6 +320,31 @@ public class WorldMapView extends View {
                 offsetX + fullMapWidth * scalePx,
                 offsetY + fullMapHeight * scalePx);
         canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
+    }
+
+    // ---- v0.4.54：史莱姆 chunk 遮罩（每 chunk 1 像素预渲染位图，
+    //      单次 drawBitmap——替代每帧几千次 drawRect 的卡顿） ----
+
+    private android.graphics.Bitmap slimeMaskBitmap;
+    private int slimeMaskCx0;
+    private int slimeMaskCz0;
+    private int slimeMaskW;
+    private int slimeMaskH;
+    private final android.graphics.RectF slimeMaskDst = new android.graphics.RectF();
+    /** 遮罩缩小绘制用（filterBitmap=true，惰性建）。 */
+    private Paint slimeMaskSoftPaint;
+
+    /** 设置史莱姆遮罩（接管 Bitmap 所有权）；null 清除（回退逐块绘制）。 */
+    public void setSlimeMask(android.graphics.Bitmap mask, int cx0, int cz0, int w, int h) {
+        if (slimeMaskBitmap != null && slimeMaskBitmap != mask && !slimeMaskBitmap.isRecycled()) {
+            slimeMaskBitmap.recycle();
+        }
+        slimeMaskBitmap = mask;
+        slimeMaskCx0 = cx0;
+        slimeMaskCz0 = cz0;
+        slimeMaskW = w;
+        slimeMaskH = h;
+        invalidate();
     }
 
     private boolean viewInitialized = false;
@@ -1085,6 +1115,27 @@ public class WorldMapView extends View {
         if (!showSlimeChunks || map == null || !"overworld".equals(dimension)) {
             return;
         }
+        // v0.4.54：遮罩位图路径——单次 drawBitmap（每 chunk 1 像素预渲染，
+        // 只含有数据的史莱姆 chunk；缩放任意比例零额外开销）。
+        // 放大（chunkPx>=1）最近邻保持锐利色块；缩小线性滤波避免
+        // 亚像素绿点被最近邻采样丢弃（缩小看全图时史莱姆不可见）
+        if (slimeMaskBitmap != null && !slimeMaskBitmap.isRecycled()) {
+            float chunkPx = 16f * pixelsPerBlock;
+            float leftX = offsetX + (slimeMaskCx0 * 16L - map.minBlockX) * pixelsPerBlock;
+            float topY = offsetY + (slimeMaskCz0 * 16L - map.minBlockZ) * pixelsPerBlock;
+            slimeMaskDst.set(leftX, topY,
+                    leftX + slimeMaskW * chunkPx, topY + slimeMaskH * chunkPx);
+            if (chunkPx >= 1f) {
+                canvas.drawBitmap(slimeMaskBitmap, null, slimeMaskDst, fullMapPaint);
+            } else {
+                if (slimeMaskSoftPaint == null) {
+                    slimeMaskSoftPaint = new Paint();
+                    slimeMaskSoftPaint.setFilterBitmap(true);
+                }
+                canvas.drawBitmap(slimeMaskBitmap, null, slimeMaskDst, slimeMaskSoftPaint);
+            }
+            return;
+        }
         float chunkPx = 16f * pixelsPerBlock;
         if (chunkPx < 14f) {
             return; // 缩小到看不清区块时不画
@@ -1159,7 +1210,41 @@ public class WorldMapView extends View {
             }
             return has;
         }
-        return true;
+        if (map.colors != null) {
+            // v0.4.54：小世界查全图数组真实 alpha（此前恒 true——
+            // bounds 包络内未生成区域 COLOR_BACKGROUND 透明也画框）
+            long ck = packChunk(cx, cz);
+            Boolean cached = chunkDataCache.get(ck);
+            if (cached != null) {
+                return cached;
+            }
+            int bx = cx * 16 - map.minBlockX;
+            int bz = cz * 16 - map.minBlockZ;
+            boolean has = false;
+            if (bx < map.width && bz < map.height && bx + 16 > 0 && bz + 16 > 0) {
+                int lx0 = Math.max(0, bx);
+                int lx1 = Math.min(map.width, bx + 16);
+                int lz0 = Math.max(0, bz);
+                int lz1 = Math.min(map.height, bz + 16);
+                for (int lz = lz0; lz < lz1 && !has; lz++) {
+                    int row = lz * map.width;
+                    for (int lx = lx0; lx < lx1; lx++) {
+                        if ((map.colors[row + lx] & 0xFF000000) != 0) {
+                            has = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (chunkDataCache.size() > 200000) {
+                chunkDataCache.clear();
+            }
+            chunkDataCache.put(ck, has);
+            return has;
+        }
+        // v0.4.54：无像素数据（骨架/RLE 快图期）不画史莱姆——此前
+        // 恒 true，进图瞬间全 bounds 画框
+        return false;
     }
 
     /** 颜色混合：overlay 按 alpha 叠在 base 上（base 不透明时结果不透明）。 */
@@ -2101,7 +2186,8 @@ public class WorldMapView extends View {
                 }
             }
             // v413/v417：单击实体 → 附近实体列表回调（密堆弹列表）
-            if (entityClickListener != null) {
+            // v0.4.54：实体显示关闭时点击也不命中（此前只关绘制没关点击）
+            if (showEntities && entityClickListener != null) {
                 java.util.List<WorldMapRenderer.EntityPos> near =
                         collectEntitiesNear(e.getX(), e.getY());
                 if (near != null) {

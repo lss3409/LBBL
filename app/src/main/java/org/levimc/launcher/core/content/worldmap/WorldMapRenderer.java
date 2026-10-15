@@ -2966,6 +2966,90 @@ public class WorldMapRenderer {
         }
     }
 
+    /** v0.4.54：史莱姆 chunk 遮罩位图（HTML 同款思路——每 chunk 1 像素，
+     *  预渲染一次，绘制时单次 drawBitmap GPU 变换，替代每帧几千次
+     *  drawRect）。只画有地图数据的史莱姆 chunk（未渲染区域透明）。
+     *  返回 {bitmap, cx0, cz0, w, h}；bounds 过大返回 null（回退逐块绘制）。 */
+    public static Object[] buildSlimeChunkMask(WorldMap map) {
+        if (map == null || (map.chunkColors == null && map.colors == null)
+                || (map.chunkColors != null && map.chunkColors.isEmpty())) {
+            return null;
+        }
+        int cx0 = Math.floorDiv(map.minBlockX, 16);
+        int cz0 = Math.floorDiv(map.minBlockZ, 16);
+        int cw = Math.max(1, Math.floorDiv(map.minBlockX + map.width - 1, 16) - cx0 + 1);
+        int ch = Math.max(1, Math.floorDiv(map.minBlockZ + map.height - 1, 16) - cz0 + 1);
+        if ((long) cw * ch > 4_000_000L) {
+            return null;
+        }
+        android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                cw, ch, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas c = new android.graphics.Canvas(bmp);
+        android.graphics.Paint green = new android.graphics.Paint();
+        green.setColor(0x2E00C853);
+        if (map.chunkColors != null) {
+            for (java.util.Map.Entry<Long, int[]> e : map.chunkColors.entrySet()) {
+                int[] cc = e.getValue();
+                if (cc == null || cc.length < 256) {
+                    continue;
+                }
+                boolean has = false;
+                for (int v : cc) {
+                    if ((v & 0xFF000000) != 0) {
+                        has = true;
+                        break;
+                    }
+                }
+                if (!has) {
+                    continue; // 未渲染/占位 chunk 不画
+                }
+                int cx = (int) (e.getKey() >> 32);
+                int cz = (int) (long) e.getKey();
+                if (!isSlimeChunk(cx, cz)) {
+                    continue;
+                }
+                c.drawPoint(cx - cx0, cz - cz0, green);
+            }
+        } else {
+            // v0.4.54：小世界（colors 数组）路径——bounds 包络内未生成
+            // 区域是 COLOR_BACKGROUND 透明，必须查真实 alpha（此前
+            // 逐块路径恒 true，"未加载区块显示史莱姆框"的根因之一）
+            for (int lcz = 0; lcz < ch; lcz++) {
+                int bz = (cz0 + lcz) * 16 - map.minBlockZ;
+                if (bz >= map.height || bz + 16 <= 0) {
+                    continue;
+                }
+                int lz0 = Math.max(0, bz);
+                int lz1 = Math.min(map.height, bz + 16);
+                for (int lcx = 0; lcx < cw; lcx++) {
+                    if (!isSlimeChunk(cx0 + lcx, cz0 + lcz)) {
+                        continue;
+                    }
+                    int bx = (cx0 + lcx) * 16 - map.minBlockX;
+                    if (bx >= map.width || bx + 16 <= 0) {
+                        continue;
+                    }
+                    int lx0 = Math.max(0, bx);
+                    int lx1 = Math.min(map.width, bx + 16);
+                    boolean has = false;
+                    for (int lz = lz0; lz < lz1 && !has; lz++) {
+                        int row = lz * map.width;
+                        for (int lx = lx0; lx < lx1; lx++) {
+                            if ((map.colors[row + lx] & 0xFF000000) != 0) {
+                                has = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (has) {
+                        c.drawPoint(lcx, lcz, green);
+                    }
+                }
+            }
+        }
+        return new Object[]{bmp, cx0, cz0, cw, ch};
+    }
+
     private static final int FULL_RLE_MAGIC = 0x4C464D50; // 'LFMP'
     private static final int FULL_RLE_VERSION = 1;
 

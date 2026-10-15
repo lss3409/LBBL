@@ -1891,13 +1891,25 @@ public class NbtViewerActivity extends BaseActivity {
             final int composedH = full[1];
             final int blockScale = org.levimc.launcher.core.content.worldmap
                     .MapImageComposer.blockScale(targetMap, composedW);
+            // v0.4.54：同线程预渲染史莱姆遮罩位图（每 chunk 1 像素，
+            // 只含有数据的史莱姆 chunk——缩放任意比例零额外开销）
+            final Object[] mask = WorldMapRenderer.buildSlimeChunkMask(targetMap);
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed() || genSnapshot != renderGen.get()
                         || currentMap != targetMap) {
                     bmp.recycle();
+                    if (mask != null && !((android.graphics.Bitmap) mask[0]).isRecycled()) {
+                        ((android.graphics.Bitmap) mask[0]).recycle();
+                    }
                     return;
                 }
                 binding.worldMapImage.setFullMapImage(bmp, composedW, composedH, blockScale);
+                if (mask != null) {
+                    binding.worldMapImage.setSlimeMask(
+                            (android.graphics.Bitmap) mask[0],
+                            (Integer) mask[1], (Integer) mask[2],
+                            (Integer) mask[3], (Integer) mask[4]);
+                }
                 Log.i(TAG, "全图纹理就绪: " + composedW + "x" + composedH
                         + " (blockScale=" + blockScale + ")");
             });
