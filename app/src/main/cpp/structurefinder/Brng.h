@@ -1,0 +1,184 @@
+#ifndef CHUNKBIOMES_BRNG_H_
+#define CHUNKBIOMES_BRNG_H_
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include "cubiomes/rng.h"
+
+#ifndef MIN
+    #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#endif
+
+// Only define optimization macros if not already defined
+#if !defined(LIKELY) && (defined(__GNUC__) || defined(__clang__))
+    #define LIKELY(x) __builtin_expect(!!(x), 1)
+    #define UNLIKELY(x) __builtin_expect(!!(x), 0)
+    #define FORCE_INLINE __attribute__((always_inline)) static inline
+    #define ALIGN_CACHE __attribute__((aligned(64)))
+    #define HOT_FUNC __attribute__((hot))
+    #define PURE_FUNC __attribute__((pure))
+#else
+    #define LIKELY(x) (x)
+    #define UNLIKELY(x) (x)
+    #define FORCE_INLINE static inline
+    #define ALIGN_CACHE
+    #define HOT_FUNC
+    #define PURE_FUNC
+#endif
+
+#define MT_SIZE 624
+#define MT_M 397
+#define MT_MATRIX_A 0x9908b0dfU
+#define MT_UPPER_MASK 0x80000000U
+#define MT_LOWER_MASK 0x7fffffffU
+
+typedef struct ALIGN_CACHE {
+    uint32_t array[MT_SIZE];
+    uint_fast16_t index;    // next word to output
+    uint_fast16_t twisted;  // words 0..twisted-1 hold twisted values; MT_SIZE = full state
+    uint_fast16_t limit;    // lazy mode: max outputs before a full rebuild; MT_SIZE = full mode
+} MersenneTwister;
+
+// Optimized twist operation (full 624-word twist; full mode only)
+FORCE_INLINE HOT_FUNC void _mTwist(MersenneTwister* const mt) {
+    static const uint32_t mag01[2] = {0, MT_MATRIX_A};
+    uint_fast16_t i;
+
+    for (i = 0; i < MT_SIZE - MT_M; i++) {
+        uint32_t y = (mt->array[i] & MT_UPPER_MASK) | (mt->array[i + 1] & MT_LOWER_MASK);
+        mt->array[i] = mt->array[i + MT_M] ^ (y >> 1) ^ mag01[y & 1];
+    }
+    for (; i < MT_SIZE - 1; i++) {
+        uint32_t y = (mt->array[i] & MT_UPPER_MASK) | (mt->array[i + 1] & MT_LOWER_MASK);
+        mt->array[i] = mt->array[i - (MT_SIZE - MT_M)] ^ (y >> 1) ^ mag01[y & 1];
+    }
+    uint32_t y = (mt->array[MT_SIZE - 1] & MT_UPPER_MASK) | (mt->array[0] & MT_LOWER_MASK);
+    mt->array[MT_SIZE - 1] = mt->array[MT_M - 1] ^ (y >> 1) ^ mag01[y & 1];
+
+    mt->index = 0;
+}
+
+// Lazily twist a single word (lazy mode). Word i only depends on the raw
+// (untwisted) array[i], array[i+1] and array[i+397] — identical to what
+// _mTwist computes for i <= 226, so outputs are bit-exact with a full twist.
+FORCE_INLINE HOT_FUNC void _mTwistOne(MersenneTwister* const mt, const int i) {
+    uint32_t y = (mt->array[i] & MT_UPPER_MASK) | (mt->array[i + 1] & MT_LOWER_MASK);
+    mt->array[i] = mt->array[i + MT_M] ^ (y >> 1) ^ (MT_MATRIX_A & (0U - (y & 1U)));
+}
+
+// Tempering (extracted from _mNext)
+FORCE_INLINE HOT_FUNC PURE_FUNC uint32_t _mTemper(uint32_t y) {
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680U;
+    y ^= (y << 15) & 0xefc60000U;
+    return y ^ (y >> 18);
+}
+
+// Finish the init recurrence for a lazily-seeded state. Only reached when a
+// caller consumes more outputs than the n passed to mSetSeed — the old code
+// read uninitialized words there; this rebuilds a defined full state instead.
+FORCE_INLINE HOT_FUNC void _mComplete(MersenneTwister* const mt) {
+    if (mt->limit < MT_SIZE) {
+        for (size_t i = (size_t)mt->limit + 397; i < MT_SIZE; i++) {
+            uint32_t prev = mt->array[i - 1];
+            mt->array[i] = (1812433253U * (prev ^ (prev >> 30)) + i) & 0xFFFFFFFF;
+        }
+    }
+}
+
+// Initialize with a seed.
+// Lazy mode (n < 227): only words 0..n+396 are initialized and the first n
+// outputs are twisted on demand — the draw counts used by
+// getBedrockFeaturePos (2 draws) / getBedrockLargeStructurePos (4 draws)
+// never pay for the full 624-word twist anymore. Bit-exact with the old
+// full-twist behavior for the first n outputs.
+FORCE_INLINE HOT_FUNC void mSetSeed(MersenneTwister* const mt, const uint64_t seed, const int n) {
+    if (LIKELY(n > 0)) {
+        const size_t end = MIN(MT_SIZE - 1, (size_t)(n + 396));
+        mt->array[0] = seed & 0xFFFFFFFF;
+
+        for (size_t i = 1; i <= end; i++) {
+            uint32_t prev = mt->array[i - 1];
+            mt->array[i] = (1812433253U * (prev ^ (prev >> 30)) + i) & 0xFFFFFFFF;
+        }
+        mt->limit = (end + 1 < MT_SIZE) ? (uint_fast16_t)n : MT_SIZE;
+    } else {
+        mt->limit = MT_SIZE;
+    }
+    mt->index = MT_SIZE;
+    mt->twisted = 0;
+}
+
+// NOTE: no PURE_FUNC on these — they mutate *mt, so the "pure" attribute is a
+// lie; clang CSEs repeated same-pointer calls under -O1 and the RNG repeats
+// values (wasm divergence, draws=(2,2,2,2)). _mTemper keeps it (value-only).
+FORCE_INLINE HOT_FUNC uint32_t _mNext(MersenneTwister* const mt) {
+    if (UNLIKELY(mt->index >= mt->twisted)) {
+        if (mt->twisted < mt->limit && mt->limit < MT_SIZE) {
+            // lazy: twist only the next word
+            _mTwistOne(mt, (int)mt->twisted);
+            mt->index = mt->twisted;
+            mt->twisted++;
+        } else {
+            // full mode (or lazy overrun): rebuild a full state and twist it all
+            _mComplete(mt);
+            _mTwist(mt);
+            mt->index = 0;
+            mt->twisted = MT_SIZE;
+            mt->limit = MT_SIZE;
+        }
+    }
+
+    uint32_t y = mt->array[mt->index++];
+    return _mTemper(y);
+}
+
+// Generate a random integer in [0, n)
+FORCE_INLINE HOT_FUNC int mNextInt(MersenneTwister* const mt, const int n) {
+    if (LIKELY((n & (n - 1)) == 0)) {
+        // Fast path for power-of-2 n
+        return _mNext(mt) & (n - 1);
+    }
+    return _mNext(mt) % n;
+}
+
+// Generate an unbounded random integer
+FORCE_INLINE HOT_FUNC int mNextIntUnbound(MersenneTwister* const mt) {
+    return _mNext(mt) >> 1;
+}
+
+// Generate a random double in [0.0, 1.0)
+FORCE_INLINE HOT_FUNC double mNextDouble(MersenneTwister* const mt) {
+    return _mNext(mt) * (1.0 / 4294967296.0);
+}
+
+// Generate a random float in [0.0f, 1.0f)
+FORCE_INLINE HOT_FUNC float mNextFloat(MersenneTwister* const mt) {
+    return _mNext(mt) * (1.0f / 4294967296.0f);
+}
+
+// Generate a random boolean value
+FORCE_INLINE HOT_FUNC bool mNextBool(MersenneTwister* const mt) {
+    return _mNext(mt) & 1;
+}
+
+// Skip N values in the sequence.
+// NOTE: forces full mode (rebuilds the complete state first). Not used by any
+// SeedFinder hot path.
+FORCE_INLINE HOT_FUNC void mSkipN(MersenneTwister* const mt, uint64_t n) {
+    if (mt->limit < MT_SIZE) {
+        _mComplete(mt);
+        _mTwist(mt);
+        mt->index = 0;
+        mt->twisted = MT_SIZE;
+        mt->limit = MT_SIZE;
+    }
+    const uint64_t twists = (mt->index + n) / MT_SIZE;
+    for (uint64_t i = 0; i < twists; i++) {
+        _mTwist(mt);
+    }
+    mt->index = (mt->index + n) % MT_SIZE;
+}
+
+#endif // CHUNKBIOMES_BRNG_H_

@@ -1688,8 +1688,9 @@ public class WorldMapView extends View {
         Paint iconPaint = new Paint();
         iconPaint.setFilterBitmap(true);
         for (WorldMapRenderer.StructureMarker m : structures) {
-            // 未渲染 chunk 上的结构不显示（视口按需渲染出来后才出现）
-            if (!chunkRendered(Math.floorDiv(m.x, 16), Math.floorDiv(m.z, 16))) {
+            // 未渲染 chunk 上的结构不显示（视口按需渲染出来后才出现）；
+            // v0.4.57：SeedFinder 预测位置不受此限（未探索区域也显示）
+            if (!m.predicted && !chunkRendered(Math.floorDiv(m.x, 16), Math.floorDiv(m.z, 16))) {
                 continue;
             }
             float sx = worldToScreenX(m.x + 0.5f);
@@ -1755,6 +1756,20 @@ public class WorldMapView extends View {
             case "outpost": return "掠夺者前哨站";
             case "desert_temple": return "沙漠神殿";
             case "end_city": return "末地城";
+            // v0.4.57：SeedFinder 离线查找的类型名（cubiomes struct2str）
+            case "desert_pyramid": return "沙漠神殿";
+            case "jungle_temple": return "丛林神庙";
+            case "igloo": return "雪屋";
+            case "ocean_ruin": return "海底遗迹";
+            case "shipwreck": return "沉船";
+            case "woodland_mansion": return "林地府邸";
+            case "pillager_outpost": return "掠夺者前哨站";
+            case "ruined_portal": return "废弃传送门";
+            case "ancient_city": return "远古城市";
+            case "buried_treasure": return "埋藏宝藏";
+            case "mineshaft": return "废弃矿井";
+            case "trail_ruins": return "Trail Ruins";
+            case "trial_chambers": return "试炼密室";
             default: return type;
         }
     }

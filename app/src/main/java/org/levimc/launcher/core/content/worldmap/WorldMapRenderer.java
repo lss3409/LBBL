@@ -4956,16 +4956,24 @@ public class WorldMapRenderer {
         public final String type; // village / spawner / end_portal / desert_temple / outpost
         /** 结构 NBT 数据（村庄/方块实体等有 key 数据的结构；palette 特征检测的为 null）。 */
         public final String nbtDetail;
+        /** v0.4.57：SeedFinder 按种子预测的位置——未渲染 chunk 上也显示
+         *  （存档里的结构只有已生成 chunk 才有，预测值不受此限）。 */
+        public final boolean predicted;
 
         public StructureMarker(int x, int z, String type) {
             this(x, z, type, null);
         }
 
         public StructureMarker(int x, int z, String type, String nbtDetail) {
+            this(x, z, type, nbtDetail, false);
+        }
+
+        public StructureMarker(int x, int z, String type, String nbtDetail, boolean predicted) {
             this.x = x;
             this.z = z;
             this.type = type;
             this.nbtDetail = nbtDetail;
+            this.predicted = predicted;
         }
     }
 

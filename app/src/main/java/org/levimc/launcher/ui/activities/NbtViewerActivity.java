@@ -36,6 +36,7 @@ import org.levimc.launcher.core.content.nbt.BedrockNbtWriter;
 import org.levimc.launcher.core.content.nbt.NbtTag;
 import org.levimc.launcher.core.content.worldmap.WorldMapRenderer;
 import org.levimc.launcher.core.content.worldmap.BiomeNames;
+import org.levimc.launcher.core.content.worldmap.SeedStructureFinder;
 import org.levimc.launcher.databinding.ActivityNbtViewerBinding;
 import org.levimc.launcher.databinding.ItemNbtDbEntryBinding;
 import org.levimc.launcher.ui.animation.DynamicAnim;
@@ -1735,6 +1736,13 @@ public class NbtViewerActivity extends BaseActivity {
                     synchronized (currentStructures) {
                         currentStructures.clear();
                         currentStructures.addAll(fStructures);
+                        // v0.4.57：主世界合并 SeedFinder 离线查找结果
+                        // （切维度回来不丢）
+                        if ("overworld".equals(mapDimension)) {
+                            synchronized (seedStructures) {
+                                currentStructures.addAll(seedStructures);
+                            }
+                        }
                         if (!WorldMapRenderer.enableStructureDetection) {
                             allStructuresBackup.clear();
                             allStructuresBackup.addAll(currentStructures);
@@ -1921,6 +1929,78 @@ public class NbtViewerActivity extends BaseActivity {
                         + " (blockScale=" + blockScale + ")");
             });
         });
+    }
+
+    /** v0.4.57：SeedFinder 结构查找（NDK 内嵌，完全离线）。
+     *  按世界种子计算 Bedrock 结构生成位置（17 种），结果并入
+     *  结构标记图层。主世界结构位置固定，首开扫一次即可。 */
+    private final java.util.List<WorldMapRenderer.StructureMarker> seedStructures =
+            new java.util.ArrayList<>();
+
+    private void startSeedStructureScan(WorldMapRenderer.WorldMap map) {
+        if (map == null || loadedWorldItem == null) {
+            return;
+        }
+        final long fSeed = loadedWorldItem.getSeed();
+        final int radius = Math.max(64,
+                (int) (Math.max(map.width, map.height) / 16.0) + 32);
+        final double px = map.playerBlockX >= 0 ? map.playerBlockX : 0;
+        final double pz = map.playerBlockZ >= 0 ? map.playerBlockZ : 0;
+        executor.execute(() -> {
+            String json = SeedStructureFinder.scan(fSeed, px, pz,
+                    radius, 300, SeedStructureFinder.ALL_OVERWORLD);
+            if (json == null) {
+                Log.i(TAG, "SeedFinder 不可用（native 库加载失败）");
+                return;
+            }
+            try {
+                com.google.gson.JsonObject obj =
+                        com.google.gson.JsonParser.parseString(json).getAsJsonObject();
+                java.util.List<WorldMapRenderer.StructureMarker> found =
+                        new java.util.ArrayList<>();
+                for (com.google.gson.JsonElement el : obj.getAsJsonArray("results")) {
+                    com.google.gson.JsonObject r = el.getAsJsonObject();
+                    found.add(new WorldMapRenderer.StructureMarker(
+                            r.get("x").getAsInt(), r.get("z").getAsInt(),
+                            r.get("name").getAsString(), null, true));
+                }
+                Log.i(TAG, "SeedFinder 结构查找: " + found.size() + " 个");
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+                    synchronized (seedStructures) {
+                        seedStructures.clear();
+                        seedStructures.addAll(found);
+                    }
+                    // 当前视图在主世界才并入显示（种子结果与 map 对象
+                    // 无关，不校验 currentMap——切维度回来由回调重合并）
+                    if ("overworld".equals(mapDimension)) {
+                        synchronized (currentStructures) {
+                            currentStructures.removeIf(m -> seedFromSet(m));
+                            currentStructures.addAll(found);
+                        }
+                        binding.worldMapImage.setStructureMarkers(
+                                new java.util.ArrayList<>(currentStructures));
+                    }
+                });
+            } catch (Exception e) {
+                Log.w(TAG, "SeedFinder 结果解析失败", e);
+            }
+        });
+    }
+
+    /** SeedFinder 来源的结构类型名集合（重扫时先移除旧结果防重复）。 */
+    private static final java.util.Set<String> SEED_STRUCTURE_TYPES =
+            new java.util.HashSet<>(java.util.Arrays.asList(
+                    "desert_pyramid", "jungle_temple", "swamp_hut", "igloo",
+                    "village", "ocean_ruin", "shipwreck", "ocean_monument",
+                    "woodland_mansion", "pillager_outpost", "ruined_portal",
+                    "ancient_city", "buried_treasure", "mineshaft",
+                    "trail_ruins", "trial_chambers"));
+
+    private static boolean seedFromSet(WorldMapRenderer.StructureMarker m) {
+        return SEED_STRUCTURE_TYPES.contains(m.type);
     }
 
     /** 从数据库读取标点/连线并同步到地图视图。 */
@@ -2434,6 +2514,8 @@ public class NbtViewerActivity extends BaseActivity {
             // v0.4.55：主世界首开/缓存加载完成后拼全图+史莱姆遮罩
             // （此前漏接——遮罩永远不生成，开史莱姆回退逐块绘制卡死）
             composeFullMapAsync(worldMap);
+            // v0.4.57：SeedFinder 离线结构查找（按种子算 17 种结构位置）
+            startSeedStructureScan(worldMap);
             binding.worldMapPlaceholder.setVisibility(View.GONE);
             // 主世界打开不自动预渲染：流式渲染 18 万条目（subchunk value
             // ~300MB）叠加视口按需渲染+实体解析，536MB heap 直接 OOM
