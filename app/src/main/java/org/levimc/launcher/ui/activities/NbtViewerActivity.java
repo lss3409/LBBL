@@ -1029,21 +1029,12 @@ public class NbtViewerActivity extends BaseActivity {
         }
         binding.pointListContainer.addView(chipRow);
 
-        // ---- 双列：左标点 / 右结构，ScrollView 限高防溢出屏幕 ----
+        // ---- v0.4.66：条目双列网格（每行 2 条）+ 结构条目带原版贴图 ----
         boolean showPoints = pointListFilter != 2;
         boolean showStructs = pointListFilter != 1;
-        LinearLayout cols = new LinearLayout(this);
-        cols.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout leftCol = new LinearLayout(this);
-        leftCol.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout rightCol = new LinearLayout(this);
-        rightCol.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams colLp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        cols.addView(leftCol, colLp);
-        cols.addView(rightCol, colLp);
 
-        int pointCount = 0;
+        // 收集条目 View（标点 + 结构），每 2 个一行
+        java.util.List<View> items = new ArrayList<>();
         if (showPoints) {
             for (BlueprintDb.Point p : mapPoints) {
                 if (!p.dimension.equals(mapDimension)) {
@@ -1054,7 +1045,6 @@ public class NbtViewerActivity extends BaseActivity {
                         && !(p.x + "," + p.z).contains(q)) {
                     continue;
                 }
-                pointCount++;
                 TextView item = new TextView(this);
                 // v481：标点总览的圆点按标点自定义颜色显示（此前文本
                 // "●" 永远是默认黑色——用户反馈）
@@ -1072,8 +1062,10 @@ public class NbtViewerActivity extends BaseActivity {
                         0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 item.setText(ss);
                 item.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
-                item.setTextSize(12);
-                item.setPadding(0, (int) (7 * d), (int) (6 * d), (int) (7 * d));
+                item.setTextSize(11);
+                item.setPadding((int) (8 * d), (int) (7 * d), (int) (8 * d), (int) (7 * d));
+                item.setMaxLines(1);
+                item.setEllipsize(android.text.TextUtils.TruncateAt.END);
                 item.setClickable(true);
                 item.setFocusable(true);
                 item.setOnClickListener(v -> {
@@ -1083,10 +1075,9 @@ public class NbtViewerActivity extends BaseActivity {
                     }
                     binding.worldMapImage.animateTo(p.x, p.z);
                 });
-                leftCol.addView(item);
+                items.add(item);
             }
         }
-        int structCount = 0;
         if (showStructs) {
             List<WorldMapRenderer.StructureMarker> structs;
             synchronized (currentStructures) {
@@ -1099,45 +1090,84 @@ public class NbtViewerActivity extends BaseActivity {
                         && !(m.x + "," + m.z).contains(q)) {
                     continue;
                 }
-                structCount++;
-                TextView item = new TextView(this);
-                android.text.SpannableString ss = new android.text.SpannableString(
-                        "▣ " + label + "  (" + m.x + "," + m.z + ")");
-                ss.setSpan(new android.text.style.ForegroundColorSpan(0xFF7E57C2),
-                        0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                item.setText(ss);
-                item.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
-                item.setTextSize(12);
-                item.setPadding(0, (int) (7 * d), (int) (6 * d), (int) (7 * d));
-                item.setClickable(true);
-                item.setFocusable(true);
-                item.setOnClickListener(v -> binding.worldMapImage.animateTo(m.x, m.z));
-                rightCol.addView(item);
+                // 条目 = 贴图 + 文字（原版方块贴图，像素风）
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                row.setPadding((int) (8 * d), (int) (6 * d), (int) (8 * d), (int) (6 * d));
+                String iconName = WorldMapView.structureIconName(m.type);
+                android.graphics.Bitmap icon = iconName != null
+                        ? structureIcon(iconName) : null;
+                if (icon != null) {
+                    android.widget.ImageView iv = new android.widget.ImageView(this);
+                    iv.setImageBitmap(icon);
+                    LinearLayout.LayoutParams ivLp = new LinearLayout.LayoutParams(
+                            (int) (18 * d), (int) (18 * d));
+                    ivLp.rightMargin = (int) (5 * d);
+                    row.addView(iv, ivLp);
+                }
+                TextView tv = new TextView(this);
+                tv.setText(label + " (" + m.x + "," + m.z + ")");
+                tv.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
+                tv.setTextSize(11);
+                tv.setMaxLines(1);
+                tv.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                row.addView(tv, new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                row.setClickable(true);
+                row.setFocusable(true);
+                row.setOnClickListener(v -> binding.worldMapImage.animateTo(m.x, m.z));
+                items.add(row);
             }
         }
-        if (pointCount == 0 && showPoints) {
+        if (items.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText(R.string.no_points);
+            empty.setText(showStructs && !showPoints ? R.string.no_structures : R.string.no_points);
             empty.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
             empty.setTextSize(12);
-            leftCol.addView(empty);
-        }
-        if (structCount == 0 && showStructs) {
-            TextView empty = new TextView(this);
-            empty.setText(R.string.no_structures);
-            empty.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-            empty.setTextSize(12);
-            rightCol.addView(empty);
+            items.add(empty);
         }
 
-        // 双列包 ScrollView：内容多时面板内滚动，不超出屏幕底部
+        // 每 2 个条目一行（网格），包 ScrollView 限高防溢出屏幕
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < items.size(); i += 2) {
+            LinearLayout rowL = new LinearLayout(this);
+            rowL.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams cellLp = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            rowL.addView(items.get(i), cellLp);
+            if (i + 1 < items.size()) {
+                rowL.addView(items.get(i + 1), cellLp);
+            } else {
+                rowL.addView(new android.view.View(this), cellLp);
+            }
+            grid.addView(rowL);
+        }
         android.widget.ScrollView sc = new android.widget.ScrollView(this);
         sc.setVerticalScrollBarEnabled(false);
         sc.setFillViewport(false);
         LinearLayout.LayoutParams scLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, (int) (300 * d));
-        sc.addView(cols);
+        sc.addView(grid);
         binding.pointListContainer.addView(sc, scLp);
+    }
+
+    /** v0.4.66：结构贴图缓存（列表条目用；assets 16×16 原版方块贴图）。 */
+    private final java.util.Map<String, android.graphics.Bitmap> structureIconCache =
+            new java.util.HashMap<>();
+
+    private android.graphics.Bitmap structureIcon(String iconName) {
+        android.graphics.Bitmap b = structureIconCache.get(iconName);
+        if (b == null && !structureIconCache.containsKey(iconName)) {
+            try (java.io.InputStream is = getAssets()
+                    .open("structure_icons/" + iconName + ".png")) {
+                b = android.graphics.BitmapFactory.decodeStream(is);
+            } catch (Exception ignored) {
+            }
+            structureIconCache.put(iconName, b);
+        }
+        return b;
     }
 
     // ---------------------------------------------------------------- 标点 / 连线 / 蓝图码

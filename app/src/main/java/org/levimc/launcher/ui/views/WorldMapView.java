@@ -1598,8 +1598,9 @@ public class WorldMapView extends View {
 
     /** 结构类型 → 贴图资源名（无贴图的返回 null 走自绘）。
      *  v0.4.60：改用游戏原版方块贴图（assets/structure_icons/，
-     *  从 1.26 vanilla 资源包 blocks.brarchive 提取）。 */
-    private static String structureIconName(String type) {
+     *  从 1.26 vanilla 资源包 blocks.brarchive 提取）。
+     *  v0.4.66：改 public——标点栏列表条目也要用贴图。 */
+    public static String structureIconName(String type) {
         switch (type) {
             case "village": return "bell_side";
             case "spawner": return "mob_spawner";
