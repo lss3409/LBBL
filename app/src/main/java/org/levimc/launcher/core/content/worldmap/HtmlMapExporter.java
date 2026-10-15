@@ -25,7 +25,7 @@ public final class HtmlMapExporter {
         if (map == null || map.width <= 0 || map.height <= 0) {
             throw new Exception("no map data");
         }
-        int[] full = composePixels(map);
+        int[] full = MapImageComposer.compose(map);
         if (full == null) {
             throw new Exception("no rendered chunks");
         }
@@ -41,78 +41,6 @@ public final class HtmlMapExporter {
         java.io.File out = new java.io.File(outDir, fileName);
         try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
             fos.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        }
-        return out;
-    }
-
-    /** 拼整图像素：小世界直接取整图数组；大世界按 16×16 chunk 填充。
-     *  返回 {width, height, pixels...}（降采样后）。 */
-    private static int[] composePixels(WorldMapRenderer.WorldMap map) {
-        int scale = 1;
-        while (map.width / scale > MAX_DIM || map.height / scale > MAX_DIM) {
-            scale <<= 1;
-        }
-        int w = Math.max(1, map.width / scale);
-        int h = Math.max(1, map.height / scale);
-        int[] out = new int[w * h + 2];
-        out[0] = w;
-        out[1] = h;
-
-        if (map.colors != null) {
-            // 小世界：整图数组逐像素降采样（取左上）
-            int[] src = map.colors;
-            int sw = map.width;
-            for (int z = 0; z < h; z++) {
-                int srcZ = z * scale * sw;
-                int dst = z * w + 2;
-                for (int x = 0; x < w; x++) {
-                    int i = srcZ + x * scale;
-                    out[dst + x] = i < src.length ? src[i] : 0;
-                }
-            }
-            return out;
-        }
-
-        if (map.chunkColors == null || map.chunkColors.isEmpty()) {
-            return null;
-        }
-        // 大世界：遍历 chunk 填充（像素色缓存在 16×16 int[] 中）
-        for (java.util.Map.Entry<Long, int[]> e : map.chunkColors.entrySet()) {
-            int cx = (int) (e.getKey() >> 32);
-            int cz = (int) (long) e.getKey();
-            int[] chunk = e.getValue();
-            if (chunk == null || chunk.length < 256) {
-                continue;
-            }
-            int baseBx = cx * 16;
-            int baseBz = cz * 16;
-            int sx = Math.max(0, map.minBlockX - baseBx);
-            int sz = Math.max(0, map.minBlockZ - baseBz);
-            int ex = Math.min(16, map.minBlockX + map.width - baseBx);
-            int ez = Math.min(16, map.minBlockZ + map.height - baseBz);
-            if (sx >= ex || sz >= ez) {
-                continue;
-            }
-            for (int lz = sz; lz < ez; lz++) {
-                int bz = baseBz + lz;
-                int oz = (bz - map.minBlockZ) / scale;
-                if (oz < 0 || oz >= h) {
-                    continue;
-                }
-                int chunkRow = lz * 16;
-                int dstRow = oz * w + 2;
-                for (int lx = sx; lx < ex; lx++) {
-                    if (lx % scale != 0) {
-                        continue;
-                    }
-                    int bx = baseBx + lx;
-                    int ox = (bx - map.minBlockX) / scale;
-                    if (ox < 0 || ox >= w) {
-                        continue;
-                    }
-                    out[dstRow + ox] = chunk[chunkRow + lx];
-                }
-            }
         }
         return out;
     }

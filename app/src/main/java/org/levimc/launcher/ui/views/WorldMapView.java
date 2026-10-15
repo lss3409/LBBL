@@ -253,12 +253,61 @@ public class WorldMapView extends View {
             lodMini.recycle();
             lodMini = null;
         }
+        // v0.4.52：换图后旧全图失效（新图数据不同，调用方会重拼）
+        clearFullMapImage();
         if (!keepView || !viewInitialized) {
             initialView();
             viewInitialized = true;
         }
         invalidateFullRender();
         notifyViewChanged();
+    }
+
+    // ---- v0.4.52：全图纹理模式（HTML 同款渲染——一张降采样全图 +
+    //      drawBitmap 变换，平移缩放纯 GPU；未就绪时回退 chunk tile） ----
+
+    /** 全图 Bitmap（拼好后设置；null = 未就绪，走原 chunk 渲染）。 */
+    private android.graphics.Bitmap fullMapBitmap;
+    private int fullMapWidth;
+    private int fullMapHeight;
+    /** 全图 1 像素对应的方块数（map.width / 全图宽）。 */
+    private int fullMapBlockScale;
+    private final android.graphics.Paint fullMapPaint = new android.graphics.Paint(
+            android.graphics.Paint.FILTER_BITMAP_FLAG);
+    private final android.graphics.RectF fullMapDst = new android.graphics.RectF();
+    /** 全图模式的缩放上限（px/方块；HTML 等效 2048x）。 */
+    private static final float FULL_MAX_PIXELS_PER_BLOCK = 512f;
+
+    /** 设置全图纹理（接管 Bitmap 所有权，WorldMapView 负责回收）。 */
+    public void setFullMapImage(android.graphics.Bitmap bmp, int composedW, int composedH,
+                                int blockScale) {
+        if (fullMapBitmap != null && fullMapBitmap != bmp) {
+            fullMapBitmap.recycle();
+        }
+        fullMapBitmap = bmp;
+        fullMapWidth = composedW;
+        fullMapHeight = composedH;
+        fullMapBlockScale = Math.max(1, blockScale);
+        invalidateFullRender();
+    }
+
+    private void clearFullMapImage() {
+        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()) {
+            fullMapBitmap.recycle();
+        }
+        fullMapBitmap = null;
+    }
+
+    /** 全图模式绘制：单次 drawBitmap + 最近邻变换（GPU，零 CPU 重采样）。 */
+    private void drawFullMapLayer(android.graphics.Canvas canvas) {
+        if (map == null || fullMapBitmap == null || fullMapBitmap.isRecycled()) {
+            return;
+        }
+        float scalePx = fullMapBlockScale * pixelsPerBlock;
+        fullMapDst.set(offsetX, offsetY,
+                offsetX + fullMapWidth * scalePx,
+                offsetY + fullMapHeight * scalePx);
+        canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
     }
 
     private boolean viewInitialized = false;
@@ -518,7 +567,10 @@ public class WorldMapView extends View {
         // v412：最小缩放 = 整图适配（fit 全图）——"缩放到刚好看到
         // 全部地图就行"，不能再缩出地图外（fitScale 未就绪时用常量）
         float min = Math.max(MIN_PIXELS_PER_BLOCK, fitScale());
-        return Math.max(min, Math.min(MAX_PIXELS_PER_BLOCK, v));
+        // v0.4.52：全图模式上限 512 px/块（HTML 同款无级缩放；
+        // chunk tile 路径保持 24——放大过高时 chunk 重渲染跟不上）
+        float max = fullMapBitmap != null ? FULL_MAX_PIXELS_PER_BLOCK : MAX_PIXELS_PER_BLOCK;
+        return Math.max(min, Math.min(max, v));
     }
 
     /** 修正平移边界：v412 拖拽范围放宽——地图可拖出视口 40%
@@ -600,7 +652,11 @@ public class WorldMapView extends View {
         if (map != null) {
             canvas.drawColor(launcherBackgroundColor());
         }
-        if (map.chunkColors != null) {
+        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()) {
+            // v0.4.52：全图纹理模式（HTML 同款——单次 drawBitmap 变换，
+            // 平移缩放零重采样；矢量图层仍画在本层之上）
+            drawFullMapLayer(canvas);
+        } else if (map.chunkColors != null) {
             // 大世界：chunk tile 平铺（BTR 同款）——零重采样、零 39MB 大位图，
             // 每帧只 drawBitmap 视口内 chunk 的小 tile（GPU 加速）
             drawChunkLayer(canvas);

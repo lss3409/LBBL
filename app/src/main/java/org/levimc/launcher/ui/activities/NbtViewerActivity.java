@@ -873,6 +873,8 @@ public class NbtViewerActivity extends BaseActivity {
                             binding.worldMapImage.onChunksRendered(
                                     java.util.Collections.emptySet());
                         }
+                        // v0.4.52：增量更新后重拼全图（chunkColors 已更新）
+                        composeFullMapAsync(map);
                     });
                 }
                 Log.i(TAG, "增量更新完成: " + done + " chunk (dim=" + dim + ")");
@@ -1696,6 +1698,9 @@ public class NbtViewerActivity extends BaseActivity {
                     binding.worldMapImage.initialFitAll =
                             "overworld".equals(mapDimension);
                     binding.worldMapImage.setWorldMap(fMap, fKeepView);
+                    // v0.4.52：后台拼全图纹理（HTML 同款渲染——拼完自动
+                    // 切全图模式，拖动/缩放 GPU 化；未拼完前走原 chunk 路径）
+                    composeFullMapAsync(fMap);
                     // 不 fitToView：fit 后下界 ×0.44 缩放太小（视口 chunk
                     // >4096 进 LOD、网格不画），进图一片黑像没渲染（v380
                     // fit 改动被用户要求回退——与主世界一致走 initialView
@@ -1795,6 +1800,10 @@ public class NbtViewerActivity extends BaseActivity {
                                                     binding.worldMapImage.onChunksRendered(
                                                             java.util.Collections.emptySet());
                                                 }
+                                                // v0.4.52：烘焙完成后重拼全图
+                                                //（chunkColors 已全，切换全图模式）
+                                                composeFullMapAsync(
+                                                        switched[0] ? fBakeMap : fMap);
                                             }));
                                 }
                             } else {
@@ -1809,6 +1818,8 @@ public class NbtViewerActivity extends BaseActivity {
                                                 binding.worldMapImage.onChunksRendered(
                                                         java.util.Collections.emptySet());
                                             }
+                                            // v0.4.52：烘焙完成后重拼全图
+                                            composeFullMapAsync(fBake);
                                         }));
                             }
                         } else if (fMap.chunkColors != null && !fMap.chunkColors.isEmpty()
@@ -1825,6 +1836,47 @@ public class NbtViewerActivity extends BaseActivity {
                     binding.worldMapPlaceholder.setText(R.string.world_map_unavailable);
                     binding.worldMapPlaceholder.setVisibility(View.VISIBLE);
                 }
+            });
+        });
+    }
+
+    /** v0.4.52：后台拼全图纹理，完成后切 WorldMapView 全图模式
+     *  （HTML 同款渲染——拖动/缩放纯 GPU；拼图期走原 chunk 路径）。 */
+    private void composeFullMapAsync(WorldMapRenderer.WorldMap targetMap) {
+        if (targetMap == null || renderPool == null) {
+            return;
+        }
+        final int genSnapshot = renderGen.get();
+        renderPool.execute(() -> {
+            int[] full = null;
+            try {
+                // 烘焙线程并发写 chunkColors 时 compose 遍历可能抛
+                // ConcurrentModification——静默放弃，烘焙完成回调会重拼
+                full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(targetMap);
+            } catch (java.util.ConcurrentModificationException ignored) {
+                return;
+            }
+            if (full == null) {
+                return;
+            }
+            final android.graphics.Bitmap bmp =
+                    org.levimc.launcher.core.content.worldmap.MapImageComposer.toBitmap(full);
+            if (bmp == null) {
+                return;
+            }
+            final int composedW = full[0];
+            final int composedH = full[1];
+            final int blockScale = org.levimc.launcher.core.content.worldmap
+                    .MapImageComposer.blockScale(targetMap, composedW);
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || genSnapshot != renderGen.get()
+                        || currentMap != targetMap) {
+                    bmp.recycle();
+                    return;
+                }
+                binding.worldMapImage.setFullMapImage(bmp, composedW, composedH, blockScale);
+                Log.i(TAG, "全图纹理就绪: " + composedW + "x" + composedH
+                        + " (blockScale=" + blockScale + ")");
             });
         });
     }
