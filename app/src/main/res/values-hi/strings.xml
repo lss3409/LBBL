@@ -1515,9 +1515,8 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="nether_exclude_default">डिफ़ॉल्ट: बेडरॉक + नेदररैक + सोल सैंड</string>
 <string name="layer_grid">चंक ग्रिड</string>
 <string name="layer_biome">बायोम</string>
-<string name="layer_ore">अयस्क चिह्न (अयस्क खोजें)</string>
+<string name="layer_ore">अयस्क चिह्न</string>
 <string name="layer_shading">ढलान छायांकन (3D अनुभव)</string>
-<string name="layer_struct_detect">संरचना पहचान (गलत पहचान संभव)</string>
 <string name="btn_clear_cache">दुनिया कैश साफ़ करें (फिर से बेक करें)</string>
 <string name="layer_entity">एंटिटीज़</string>
 <string name="layer_structure">संरचनाएँ</string>
@@ -1919,4 +1918,16 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="structure_label_trial_chambers">ट्रायल चैंबर</string>
     <string name="no_structures">कोई संरचना नहीं</string>
     <string name="filter_points">बिंदु</string>
+    <string name="settings_placeholder">और उपकरण जल्द आ रहे हैं…</string>
+    <string name="ore_label_diamond">हीरा अयस्क</string>
+    <string name="ore_label_emerald">पन्ना अयस्क</string>
+    <string name="ore_label_gold">सोना अयस्क</string>
+    <string name="ore_label_nether_gold">नेदर सोना अयस्क</string>
+    <string name="ore_label_iron">लोहा अयस्क</string>
+    <string name="ore_label_coal">कोयला अयस्क</string>
+    <string name="ore_label_copper">तांबा अयस्क</string>
+    <string name="ore_label_lapis">लापीस अयस्क</string>
+    <string name="ore_label_redstone">रेडस्टोन अयस्क</string>
+    <string name="ore_label_quartz">नेदर क्वार्ट्ज़ अयस्क</string>
+    <string name="ore_label_ancient_debris">प्राचीन मलबा</string>
 </resources>

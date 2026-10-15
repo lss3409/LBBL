@@ -1517,9 +1517,8 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="nether_exclude_default">Mặc định: bedrock + netherrack + cát linh hồn</string>
 <string name="layer_grid">Lưới chunk</string>
 <string name="layer_biome">Quần xã</string>
-<string name="layer_ore">Đánh dấu quặng (tìm quặng)</string>
+<string name="layer_ore">Đánh dấu quặng</string>
 <string name="layer_shading">Đổ bóng độ dốc (cảm giác 3D)</string>
-<string name="layer_struct_detect">Phát hiện công trình (có thể nhận diện sai)</string>
 <string name="btn_clear_cache">Xóa bộ nhớ đệm thế giới (tái tạo)</string>
 <string name="layer_entity">Thực thể</string>
 <string name="layer_structure">Công trình</string>
@@ -1921,4 +1920,16 @@ Mã mời: P/%1$s
     <string name="structure_label_trial_chambers">Phòng thử thách</string>
     <string name="no_structures">Không có công trình</string>
     <string name="filter_points">Điểm</string>
+    <string name="settings_placeholder">Sắp có thêm công cụ…</string>
+    <string name="ore_label_diamond">Quặng kim cương</string>
+    <string name="ore_label_emerald">Quặng ngọc lục bảo</string>
+    <string name="ore_label_gold">Quặng vàng</string>
+    <string name="ore_label_nether_gold">Quặng vàng Nether</string>
+    <string name="ore_label_iron">Quặng sắt</string>
+    <string name="ore_label_coal">Quặng than</string>
+    <string name="ore_label_copper">Quặng đồng</string>
+    <string name="ore_label_lapis">Quặng lapis</string>
+    <string name="ore_label_redstone">Quặng redstone</string>
+    <string name="ore_label_quartz">Quặng thạch anh Nether</string>
+    <string name="ore_label_ancient_debris">Mảnh vỡ cổ đại</string>
 </resources>

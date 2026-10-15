@@ -1546,9 +1546,8 @@
 <string name="nether_exclude_default">默认：基岩 + 下界岩 + 灵魂沙</string>
 <string name="layer_grid">区块网格</string>
 <string name="layer_biome">生物群系</string>
-<string name="layer_ore">矿石标点（找矿）</string>
+<string name="layer_ore">矿石标点</string>
 <string name="layer_shading">坡度阴影（立体感）</string>
-<string name="layer_struct_detect">结构特征检测（可能误报）</string>
 <string name="btn_clear_cache">清空世界缓存（重新烘焙）</string>
 <string name="layer_entity">实体</string>
 <string name="layer_structure">结构</string>
@@ -1833,4 +1832,16 @@
     <string name="structure_label_trial_chambers">试炼密室</string>
     <string name="no_structures">无结构</string>
     <string name="filter_points">标点</string>
+    <string name="settings_placeholder">更多功能即将到来…</string>
+    <string name="ore_label_diamond">钻石矿石</string>
+    <string name="ore_label_emerald">绿宝石矿石</string>
+    <string name="ore_label_gold">金矿石</string>
+    <string name="ore_label_nether_gold">下界金矿石</string>
+    <string name="ore_label_iron">铁矿石</string>
+    <string name="ore_label_coal">煤矿石</string>
+    <string name="ore_label_copper">铜矿石</string>
+    <string name="ore_label_lapis">青金石矿石</string>
+    <string name="ore_label_redstone">红石矿石</string>
+    <string name="ore_label_quartz">下界石英矿石</string>
+    <string name="ore_label_ancient_debris">远古残骸</string>
 </resources>

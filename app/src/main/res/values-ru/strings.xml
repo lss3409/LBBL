@@ -1518,9 +1518,8 @@
 <string name="nether_exclude_default">По умолчанию: бедрок + незерак + песок душ</string>
 <string name="layer_grid">Сетка чанков</string>
 <string name="layer_biome">Биомы</string>
-<string name="layer_ore">Метки руды (поиск руды)</string>
+<string name="layer_ore">Метки руды</string>
 <string name="layer_shading">Отмывка склонов (эффект 3D)</string>
-<string name="layer_struct_detect">Определение структур (возможны ложные срабатывания)</string>
 <string name="btn_clear_cache">Очистить кэш мира (пересборка)</string>
 <string name="layer_entity">Сущности</string>
 <string name="layer_structure">Структуры</string>
@@ -1922,4 +1921,16 @@
     <string name="structure_label_trial_chambers">Камеры испытаний</string>
     <string name="no_structures">Нет структур</string>
     <string name="filter_points">Точки</string>
+    <string name="settings_placeholder">Скоро появятся новые инструменты…</string>
+    <string name="ore_label_diamond">Алмазная руда</string>
+    <string name="ore_label_emerald">Изумрудная руда</string>
+    <string name="ore_label_gold">Золотая руда</string>
+    <string name="ore_label_nether_gold">Золотая руда Нижнего мира</string>
+    <string name="ore_label_iron">Железная руда</string>
+    <string name="ore_label_coal">Угольная руда</string>
+    <string name="ore_label_copper">Медная руда</string>
+    <string name="ore_label_lapis">Лазуритовая руда</string>
+    <string name="ore_label_redstone">Редстоуновая руда</string>
+    <string name="ore_label_quartz">Кварцевая руда Нижнего мира</string>
+    <string name="ore_label_ancient_debris">Древние обломки</string>
 </resources>

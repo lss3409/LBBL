@@ -73,7 +73,6 @@ public class WorldMapRenderer {
     public static volatile boolean enableShading = true;
     /** 结构特征检测开关（v397 设置区）：palette 特征猜结构
      * （沙漠神殿/前哨站等无 key 结构）可能误报，可关闭。 */
-    public static volatile boolean enableStructureDetection = true;
 
     /** 下界窗口裁剪：sub 与 [yMin,yMax] 无交集则剔除。
      *  未设 y 范围（全量档）时也跳过基岩天花板层。推演：下界顶基岩在
@@ -1995,7 +1994,9 @@ public class WorldMapRenderer {
         // palette 结构特征（1.26 无 HSA 记录）——chunk 级一次判定：
         // 海底神殿 sea_lantern+prismarine / 末地城 purpur+end_stone_bricks /
         // 沙漠神殿 chiseled_sandstone / 掠夺者前哨站 dark_oak+stone
-        if (monumentChunks != null && enableStructureDetection) {
+        // v0.4.70：开关已删（SeedFinder 取代按需渲染检测），存档解析
+        // 恒启用
+        if (monumentChunks != null) {
             boolean lantern = false;
             boolean prismarine = false;
             boolean purpur = false;
@@ -4477,9 +4478,6 @@ public class WorldMapRenderer {
                 }
                 hmap = synthesizeHeightMap(subs, dimension);
             }
-            // 结构特征检测（视口按需渲染路径同样要做——主世界大世界
-            // 不走流式渲染，沙漠神殿/前哨站没有专门 key 只能靠 palette）
-            detectOnDemandStructure(cx, cz, subs, dimension);
             // v435：矿石收集必须在窗口裁剪之前——此前 collectChunkOres
             // 在 removeIf 之后执行，地下矿石层（sub≤4）已被裁掉（山地
             // chunk nMin=surfaceSub-4>4），烘焙收集的矿石标记全丢——
@@ -5331,95 +5329,6 @@ public class WorldMapRenderer {
             p = pe;
         }
         return names.toArray(new String[0]);
-    }
-
-    /** 视口按需渲染路径检测到的结构标记（供图层合并；相邻 chunk 聚合成一个）。 */
-    private static final java.util.List<StructureMarker> onDemandStructures =
-            new java.util.concurrent.CopyOnWriteArrayList<>();
-    private static final java.util.Set<Long> onDemandStructureChunks =
-            java.util.concurrent.ConcurrentHashMap.newKeySet();
-
-    /** 按需渲染 chunk 的结构特征检测：沙漠神殿 chiseled_sandstone /
-     *  前哨站 dark_oak+cobblestone；相邻特征 chunk 合并为一个标记。 */
-    private static void detectOnDemandStructure(int cx, int cz,
-                                                Map<Integer, SubChunk> subs, int dimension) {
-        if (!enableStructureDetection) {
-            return; // v397 设置区开关：关闭 palette 特征结构检测
-        }
-        if (dimension != DIM_OVERWORLD || subs.isEmpty()) {
-            return;
-        }
-        long key = pack(cx, cz);
-        if (!onDemandStructureChunks.add(key)) {
-            return; // 已判定过
-        }
-        boolean chiseledSandstone = false;
-        boolean cutSandstone = false;
-        boolean blueTerracotta = false;
-        boolean tnt = false;
-        boolean orangeTerracotta = false;
-        boolean darkOak = false;
-        boolean darkOakLog = false;
-        boolean stone = false;
-        boolean mossy = false;
-        for (SubChunk sc : subs.values()) {
-            for (String pn : sc.palette) {
-                if (pn == null) {
-                    continue;
-                }
-                if (pn.contains("chiseled_sandstone")) {
-                    chiseledSandstone = true;
-                } else if (pn.contains("cut_sandstone")) {
-                    cutSandstone = true;
-                } else if (pn.contains("orange_terracotta")) {
-                    orangeTerracotta = true;
-                } else if (pn.contains("blue_terracotta")) {
-                    blueTerracotta = true;
-                } else if (pn.contains("tnt")) {
-                    tnt = true;
-                } else if (pn.contains("dark_oak_planks")) {
-                    darkOak = true;
-                } else if (pn.contains("dark_oak_log")) {
-                    darkOakLog = true;
-                } else if (pn.contains("mossy_cobblestone")) {
-                    mossy = true; // 必须在 cobblestone 之前：子串会吞掉
-                } else if (pn.contains("cobblestone")) {
-                    stone = true;
-                }
-            }
-        }
-        // 结构特征收紧（1.26 无结构 key，只能视觉方案）：
-        // 沙漠神殿 = 錾制砂岩 或 陶瓦环+TNT 陷阱三者同时（单 TNT/陶瓦对
-        // 误判玩家建筑——出生点附近 TNT 误判的根因）
-        // 前哨站 = 深橡木板+原木+圆石+苔石（玩家生电房常见前三者组合）
-        String type = (chiseledSandstone || (orangeTerracotta && blueTerracotta && tnt))
-                ? "desert_temple"
-                : darkOak && darkOakLog && stone && mossy ? "outpost" : null;
-        if (type == null) {
-            return;
-        }
-        synchronized (onDemandStructures) {
-            // 与相邻已有标记合并（同类型、chunk 距离 ≤2）
-            for (StructureMarker m : onDemandStructures) {
-                if (m.type.equals(type)
-                        && Math.abs(Math.floorDiv(m.x, 16) - cx) <= 2
-                        && Math.abs(Math.floorDiv(m.z, 16) - cz) <= 2) {
-                    return; // 已在附近标记过
-                }
-            }
-            onDemandStructures.add(new StructureMarker(cx * 16 + 8, cz * 16 + 8, type));
-            Log.i(TAG, "按需结构检测: " + type + " @ chunk(" + cx + "," + cz + ")");
-        }
-    }
-
-    /** 取按需渲染检测到的结构标记（调用方合并进结构图层）。 */
-    public static List<StructureMarker> takeOnDemandStructures() {
-        synchronized (onDemandStructures) {
-            java.util.List<StructureMarker> out = new ArrayList<>(onDemandStructures);
-            // v0.4.64：取出即清空——防多次 take 重复合并
-            onDemandStructures.clear();
-            return out;
-        }
     }
 
     /** 相邻 chunk 聚块：每个连通分量输出一个结构标记（块中心）。 */

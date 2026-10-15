@@ -1511,9 +1511,8 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="nether_exclude_default">Bawaan: bedrock + netherrack + pasir jiwa</string>
 <string name="layer_grid">Kisi chunk</string>
 <string name="layer_biome">Bioma</string>
-<string name="layer_ore">Penanda bijih (cari bijih)</string>
+<string name="layer_ore">Penanda bijih</string>
 <string name="layer_shading">Bayangan lereng (kesan 3D)</string>
-<string name="layer_struct_detect">Deteksi struktur (mungkin positif palsu)</string>
 <string name="btn_clear_cache">Bersihkan cache dunia (render ulang)</string>
 <string name="layer_entity">Entitas</string>
 <string name="layer_structure">Struktur</string>
@@ -1915,4 +1914,16 @@ Kode undangan: P/%1$s
     <string name="structure_label_trial_chambers">Ruang Percobaan</string>
     <string name="no_structures">Tidak ada struktur</string>
     <string name="filter_points">Titik</string>
+    <string name="settings_placeholder">Alat lainnya segera hadir…</string>
+    <string name="ore_label_diamond">Bijih berlian</string>
+    <string name="ore_label_emerald">Bijih zamrud</string>
+    <string name="ore_label_gold">Bijih emas</string>
+    <string name="ore_label_nether_gold">Bijih emas Nether</string>
+    <string name="ore_label_iron">Bijih besi</string>
+    <string name="ore_label_coal">Bijih batu bara</string>
+    <string name="ore_label_copper">Bijih tembaga</string>
+    <string name="ore_label_lapis">Bijih lapis</string>
+    <string name="ore_label_redstone">Bijih redstone</string>
+    <string name="ore_label_quartz">Bijih kuarsa Nether</string>
+    <string name="ore_label_ancient_debris">Puing kuno</string>
 </resources>

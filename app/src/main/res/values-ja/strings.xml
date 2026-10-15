@@ -1485,9 +1485,8 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="nether_exclude_default">デフォルト：岩盤 + ネザーラック + ソウルサンド</string>
 <string name="layer_grid">チャンクグリッド</string>
 <string name="layer_biome">バイオーム</string>
-<string name="layer_ore">鉱石マーカー（鉱石を探す）</string>
+<string name="layer_ore">鉱石マーカー</string>
 <string name="layer_shading">斜面シェーディング（立体感）</string>
-<string name="layer_struct_detect">建造物検出（誤検出の可能性あり）</string>
 <string name="btn_clear_cache">ワールドキャッシュをクリア（再生成）</string>
 <string name="layer_entity">エンティティ</string>
 <string name="layer_structure">建造物</string>
@@ -1889,4 +1888,16 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="structure_label_trial_chambers">試練の間</string>
     <string name="no_structures">構造物なし</string>
     <string name="filter_points">ポイント</string>
+    <string name="settings_placeholder">その他のツールは近日公開…</string>
+    <string name="ore_label_diamond">ダイヤモンド鉱石</string>
+    <string name="ore_label_emerald">エメラルド鉱石</string>
+    <string name="ore_label_gold">金鉱石</string>
+    <string name="ore_label_nether_gold">ネザー金鉱石</string>
+    <string name="ore_label_iron">鉄鉱石</string>
+    <string name="ore_label_coal">石炭鉱石</string>
+    <string name="ore_label_copper">銅鉱石</string>
+    <string name="ore_label_lapis">ラピスラズリ鉱石</string>
+    <string name="ore_label_redstone">レッドストーン鉱石</string>
+    <string name="ore_label_quartz">ネザークォーツ鉱石</string>
+    <string name="ore_label_ancient_debris">古代の残骸</string>
 </resources>

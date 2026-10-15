@@ -1514,9 +1514,8 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="nether_exclude_default">Varsayılan: ana kaya + netherrack + ruh kumu</string>
 <string name="layer_grid">Yığın ızgarası</string>
 <string name="layer_biome">Biyomlar</string>
-<string name="layer_ore">Cevher işaretleri (cevherleri bul)</string>
+<string name="layer_ore">Cevher işaretleri</string>
 <string name="layer_shading">Eğim gölgelendirme (3D hissi)</string>
-<string name="layer_struct_detect">Yapı algılama (yanlış pozitif olabilir)</string>
 <string name="btn_clear_cache">Dünya önbelleğini temizle (yeniden işle)</string>
 <string name="layer_entity">Varlıklar</string>
 <string name="layer_structure">Yapılar</string>
@@ -1918,4 +1917,16 @@ Davet kodu: P/%1$s
     <string name="structure_label_trial_chambers">Deneme Odaları</string>
     <string name="no_structures">Yapı yok</string>
     <string name="filter_points">Noktalar</string>
+    <string name="settings_placeholder">Daha fazla araç yakında…</string>
+    <string name="ore_label_diamond">Elmas cevheri</string>
+    <string name="ore_label_emerald">Zümrüt cevheri</string>
+    <string name="ore_label_gold">Altın cevheri</string>
+    <string name="ore_label_nether_gold">Nether altın cevheri</string>
+    <string name="ore_label_iron">Demir cevheri</string>
+    <string name="ore_label_coal">Kömür cevheri</string>
+    <string name="ore_label_copper">Bakır cevheri</string>
+    <string name="ore_label_lapis">Lapis cevheri</string>
+    <string name="ore_label_redstone">Redstone cevheri</string>
+    <string name="ore_label_quartz">Nether kuvars cevheri</string>
+    <string name="ore_label_ancient_debris">Antik kalıntı</string>
 </resources>

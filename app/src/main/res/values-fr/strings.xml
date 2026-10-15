@@ -1488,9 +1488,8 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="nether_exclude_default">Par défaut : bedrock + netherrack + sable des âmes</string>
 <string name="layer_grid">Grille de chunks</string>
 <string name="layer_biome">Biomes</string>
-<string name="layer_ore">Marqueurs de minerais (trouver des minerais)</string>
+<string name="layer_ore">Marqueurs de minerais</string>
 <string name="layer_shading">Ombrage des pentes (effet 3D)</string>
-<string name="layer_struct_detect">Détection de structures (faux positifs possibles)</string>
 <string name="btn_clear_cache">Vider le cache du monde (recalculer)</string>
 <string name="layer_entity">Entités</string>
 <string name="layer_structure">Structures</string>
@@ -1892,4 +1891,16 @@ Code d\'invitation : P/%1$s
     <string name="structure_label_trial_chambers">Chambres d\'épreuves</string>
     <string name="no_structures">Aucune structure</string>
     <string name="filter_points">Points</string>
+    <string name="settings_placeholder">Plus d’outils à venir…</string>
+    <string name="ore_label_diamond">Minerai de diamant</string>
+    <string name="ore_label_emerald">Minerai d’émeraude</string>
+    <string name="ore_label_gold">Minerai d’or</string>
+    <string name="ore_label_nether_gold">Minerai d’or du Nether</string>
+    <string name="ore_label_iron">Minerai de fer</string>
+    <string name="ore_label_coal">Minerai de charbon</string>
+    <string name="ore_label_copper">Minerai de cuivre</string>
+    <string name="ore_label_lapis">Minerai de lapis-lazuli</string>
+    <string name="ore_label_redstone">Minerai de redstone</string>
+    <string name="ore_label_quartz">Minerai de quartz du Nether</string>
+    <string name="ore_label_ancient_debris">Débris antiques</string>
 </resources>

@@ -1590,9 +1590,8 @@ Invite code: P/%1$s
 <string name="nether_exclude_default">Default: bedrock + netherrack + soul sand</string>
 <string name="layer_grid">Chunk grid</string>
 <string name="layer_biome">Biomes</string>
-<string name="layer_ore">Ore markers (find ores)</string>
+<string name="layer_ore">Ore markers</string>
 <string name="layer_shading">Slope shading (3D feel)</string>
-<string name="layer_struct_detect">Structure detection (may false-positive)</string>
 <string name="btn_clear_cache">Clear world cache (re-bake)</string>
 <string name="layer_entity">Entities</string>
 <string name="layer_structure">Structures</string>
@@ -1996,4 +1995,16 @@ Invite code: P/%1$s
     <string name="structure_label_trial_chambers">Trial Chambers</string>
     <string name="no_structures">No structures</string>
     <string name="filter_points">Points</string>
+    <string name="settings_placeholder">More tools coming soon…</string>
+    <string name="ore_label_diamond">Diamond Ore</string>
+    <string name="ore_label_emerald">Emerald Ore</string>
+    <string name="ore_label_gold">Gold Ore</string>
+    <string name="ore_label_nether_gold">Nether Gold Ore</string>
+    <string name="ore_label_iron">Iron Ore</string>
+    <string name="ore_label_coal">Coal Ore</string>
+    <string name="ore_label_copper">Copper Ore</string>
+    <string name="ore_label_lapis">Lapis Lazuli Ore</string>
+    <string name="ore_label_redstone">Redstone Ore</string>
+    <string name="ore_label_quartz">Nether Quartz Ore</string>
+    <string name="ore_label_ancient_debris">Ancient Debris</string>
 </resources>

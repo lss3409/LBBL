@@ -129,30 +129,32 @@ public class NbtViewerActivity extends BaseActivity {
                 .show();
     }
 
-    /** v413：矿石中文名（标点详情弹窗标题）。 */
+    /** 矿石名 → 本地化标签（v0.4.71：11 语言资源化；
+     *  quartz_ore 短名补齐——此前只有 minecraft:nether_quartz_ore 命中）。 */
     private String oreLabelZh(String name) {
         String base = name != null && name.startsWith("minecraft:")
                 ? name.substring(10) : name != null ? name : "";
         switch (base) {
             case "diamond_ore":
-            case "deepslate_diamond_ore": return "钻石矿石";
+            case "deepslate_diamond_ore": return getString(R.string.ore_label_diamond);
             case "emerald_ore":
-            case "deepslate_emerald_ore": return "绿宝石矿石";
+            case "deepslate_emerald_ore": return getString(R.string.ore_label_emerald);
             case "gold_ore":
-            case "deepslate_gold_ore": return "金矿石";
-            case "nether_gold_ore": return "下界金矿石";
+            case "deepslate_gold_ore": return getString(R.string.ore_label_gold);
+            case "nether_gold_ore": return getString(R.string.ore_label_nether_gold);
             case "iron_ore":
-            case "deepslate_iron_ore": return "铁矿石";
+            case "deepslate_iron_ore": return getString(R.string.ore_label_iron);
             case "coal_ore":
-            case "deepslate_coal_ore": return "煤矿石";
+            case "deepslate_coal_ore": return getString(R.string.ore_label_coal);
             case "copper_ore":
-            case "deepslate_copper_ore": return "铜矿石";
+            case "deepslate_copper_ore": return getString(R.string.ore_label_copper);
             case "lapis_ore":
-            case "deepslate_lapis_ore": return "青金石矿石";
+            case "deepslate_lapis_ore": return getString(R.string.ore_label_lapis);
             case "redstone_ore":
-            case "deepslate_redstone_ore": return "红石矿石";
-            case "nether_quartz_ore": return "下界石英矿石";
-            case "ancient_debris": return "远古残骸";
+            case "deepslate_redstone_ore": return getString(R.string.ore_label_redstone);
+            case "nether_quartz_ore":
+            case "quartz_ore": return getString(R.string.ore_label_quartz);
+            case "ancient_debris": return getString(R.string.ore_label_ancient_debris);
             default: return base;
         }
     }
@@ -173,37 +175,10 @@ public class NbtViewerActivity extends BaseActivity {
         }
     }
 
-    /** 合并视口按需渲染检测到的结构标记（去重后追加进结构图层）。 */
-    private void mergeOnDemandStructures() {
-        // v0.4.64：palette 特征检测只产主世界结构（detectOnDemandStructure
-        // 里非主世界直接 return）——下界/末地合并会把主世界队列取出来
-        // （"切到下界还显示主世界结构"的根因）
-        if (!"overworld".equals(mapDimension)) {
-            return;
-        }
-        java.util.List<WorldMapRenderer.StructureMarker> ods =
-                WorldMapRenderer.takeOnDemandStructures();
-        for (WorldMapRenderer.StructureMarker m : ods) {
-            boolean dup = false;
-            for (WorldMapRenderer.StructureMarker cur : currentStructures) {
-                if (cur.type.equals(m.type)
-                        && Math.abs(cur.x - m.x) < 48 && Math.abs(cur.z - m.z) < 48) {
-                    dup = true;
-                    break;
-                }
-            }
-            if (!dup) {
-                currentStructures.add(m);
-            }
-        }
-    }
-
-    /** 当前结构标记列表（按需渲染检测到的结构标记动态合并进来）。
-     * 需在 flushRenderedChunks 字段之前声明（初始化块前向引用限制）。 */
+    /** 当前结构标记列表。
+     *  v0.4.70：结构特征检测（palette 检测）已删除——SeedFinder
+     *  离线查找全面取代，检测队列与合并逻辑一并移除。 */
     private final List<WorldMapRenderer.StructureMarker> currentStructures = new ArrayList<>();
-    /** v427：结构特征检测关闭时的完整列表备份（打开时恢复）。 */
-    private final List<WorldMapRenderer.StructureMarker> allStructuresBackup =
-            new ArrayList<>();
     /** v441：切维度实体/结构解析结果内存缓存（dimId → 列表）——
      *  此前每次切维度都全量重解析各 4-5 秒，切回来又重解析一遍。 */
     private final java.util.Map<Integer, List<WorldMapRenderer.EntityPos>>
@@ -311,7 +286,6 @@ public class NbtViewerActivity extends BaseActivity {
             binding.layerEntity.setButtonTintList(accentCsl);
             binding.layerStructure.setButtonTintList(accentCsl);
             binding.layerSlime.setButtonTintList(accentCsl);
-            binding.layerStructDetect.setButtonTintList(accentCsl);
             // v571：矿石勾选漏了（v481 清单没含 layerOre，深绿不兼容个性化）
             binding.layerOre.setButtonTintList(accentCsl);
         }
@@ -495,36 +469,8 @@ public class NbtViewerActivity extends BaseActivity {
         // v480：坡度阴影开关已删除（用户要求）——阴影常开
         WorldMapRenderer.enableShading = true;
 
-        // v397：结构特征检测开关（palette 猜结构可能误报）
-        // v427 修复：此前关闭时 removeIf 永久删除结构、再打开不恢复
-        // （"关掉再打开就不显示了"的根因）；setStructureMarkers 传
-        // 活动列表引用（无拷贝），删除直接作用到视图数据
-        // v427：先同步 UI 到静态状态（v420 阴影开关同款——XML 默认值
-        // 与上个存档切过的静态变量不一致会跨存档串扰）
-        binding.layerStructDetect.setChecked(WorldMapRenderer.enableStructureDetection);
-        binding.layerStructDetect.setOnCheckedChangeListener((b, checked) -> {
-            WorldMapRenderer.enableStructureDetection = checked;
-            synchronized (currentStructures) {
-                if (!checked) {
-                    // 备份完整列表 + 过滤 palette 特征检测类结构
-                    // （沙漠神殿/前哨站）
-                    allStructuresBackup.clear();
-                    allStructuresBackup.addAll(currentStructures);
-                    currentStructures.removeIf(m -> "desert_temple".equals(m.type)
-                            || "outpost".equals(m.type));
-                } else if (!allStructuresBackup.isEmpty()) {
-                    // 恢复备份中有、当前缺失的结构（增量检测的
-                    // 新结构保留不覆盖）
-                    for (WorldMapRenderer.StructureMarker m : allStructuresBackup) {
-                        if (!currentStructures.contains(m)) {
-                            currentStructures.add(m);
-                        }
-                    }
-                }
-            }
-            binding.worldMapImage.setStructureMarkers(
-                    new java.util.ArrayList<>(currentStructures));
-        });
+        // v0.4.70：结构特征检测（palette 检测）已删除——SeedFinder
+        // 离线查找全面取代，检测开关/备份逻辑一并移除
 
         // v397：清空世界缓存（确认弹窗 → 删缓存 → 重烘焙）
         binding.btnClearCache.setOnClickListener(v -> {
@@ -1522,7 +1468,7 @@ public class NbtViewerActivity extends BaseActivity {
         currentMap = null;
         binding.worldMapImage.setWorldMap(null);
         binding.worldMapImage.setEntityData(new ArrayList<>());
-        binding.worldMapImage.setStructureMarkers(new ArrayList<>());
+        dedupeStructures(); binding.worldMapImage.setStructureMarkers(new ArrayList<>());
         binding.worldMapPlaceholder.setVisibility(View.VISIBLE);
         // v403：旧维度烘焙进度 HUD 重置
         hideBakeProgress();
@@ -1637,7 +1583,6 @@ public class NbtViewerActivity extends BaseActivity {
                             synchronized (currentStructures) {
                                 currentStructures.clear();
                                 currentStructures.addAll(fStrs);
-                                mergeOnDemandStructures();
                                 // v0.4.58：主世界合并 SeedFinder 离线
                                 // 查找结果（本回调晚于 scan 完成，此前
                                 // clear 会把标记清掉——"一闪而过"根因）
@@ -1647,7 +1592,7 @@ public class NbtViewerActivity extends BaseActivity {
                                     }
                                 }
                             }
-                            binding.worldMapImage.setStructureMarkers(currentStructures);
+                            dedupeStructures(); binding.worldMapImage.setStructureMarkers(currentStructures);
                             renderLeftPointList(null);
                             refreshDataPanelExtras(fStrs, null);
                         });
@@ -1791,9 +1736,8 @@ public class NbtViewerActivity extends BaseActivity {
                                 synchronized (currentStructures) {
                                     currentStructures.clear();
                                     currentStructures.addAll(fS);
-                                    mergeOnDemandStructures();
                                 }
-                                binding.worldMapImage.setStructureMarkers(currentStructures);
+                                dedupeStructures(); binding.worldMapImage.setStructureMarkers(currentStructures);
                                 renderLeftPointList(null);
                                 refreshDataPanelExtras(fS, null);
                             });
@@ -1825,9 +1769,8 @@ public class NbtViewerActivity extends BaseActivity {
                                             currentStructures.clear();
                                             currentStructures.addAll(strs != null ? strs
                                                     : new java.util.ArrayList<>());
-                                            mergeOnDemandStructures();
                                         }
-                                        binding.worldMapImage.setStructureMarkers(currentStructures);
+                                        dedupeStructures(); binding.worldMapImage.setStructureMarkers(currentStructures);
                                         renderLeftPointList(null);
                                         refreshDataPanelExtras(
                                                 strs != null ? strs : new java.util.ArrayList<>(),
@@ -1938,14 +1881,8 @@ public class NbtViewerActivity extends BaseActivity {
                                 currentStructures.addAll(seedStructures);
                             }
                         }
-                        if (!WorldMapRenderer.enableStructureDetection) {
-                            allStructuresBackup.clear();
-                            allStructuresBackup.addAll(currentStructures);
-                            currentStructures.removeIf(m -> "desert_temple".equals(m.type)
-                                    || "outpost".equals(m.type));
-                        }
                     }
-                    binding.worldMapImage.setStructureMarkers(
+                    dedupeStructures(); binding.worldMapImage.setStructureMarkers(
                             new java.util.ArrayList<>(currentStructures));
                     binding.worldMapPlaceholder.setVisibility(View.GONE);
                     refreshMapBlueprintData();
@@ -2058,7 +1995,7 @@ public class NbtViewerActivity extends BaseActivity {
                     // 该维度无数据：清空旧地图（避免上一维度地图残留误导）
                     binding.worldMapImage.setWorldMap(null);
                     binding.worldMapImage.setEntityData(null);
-                    binding.worldMapImage.setStructureMarkers(null);
+                    dedupeStructures(); binding.worldMapImage.setStructureMarkers(null);
                     binding.worldMapPlaceholder.setText(R.string.world_map_unavailable);
                     binding.worldMapPlaceholder.setVisibility(View.VISIBLE);
                 }
@@ -2181,7 +2118,7 @@ public class NbtViewerActivity extends BaseActivity {
                             currentStructures.removeIf(m -> seedFromSet(m));
                             currentStructures.addAll(found);
                         }
-                        binding.worldMapImage.setStructureMarkers(
+                        dedupeStructures(); binding.worldMapImage.setStructureMarkers(
                                 new java.util.ArrayList<>(currentStructures));
                         renderLeftPointList(null);
                     }
@@ -2198,6 +2135,34 @@ public class NbtViewerActivity extends BaseActivity {
      *  （"人为产生的村庄没有显示"根因）。 */
     private static boolean seedFromSet(WorldMapRenderer.StructureMarker m) {
         return m.predicted;
+    }
+
+    /** v0.4.71：同类型近距离结构去重——SeedFinder 预测位置与存档
+     *  实际位置可能差几十方块，同一村庄会出现双标点（"自然村庄
+     *  两个标点、人为村庄正常"的根因）；存档解析的（非 predicted）
+     *  是真实坐标，优先保留并替换预测值。 */
+    private void dedupeStructures() {
+        synchronized (currentStructures) {
+            java.util.List<WorldMapRenderer.StructureMarker> list =
+                    new ArrayList<>(currentStructures);
+            currentStructures.clear();
+            outer:
+            for (WorldMapRenderer.StructureMarker a : list) {
+                for (int i = 0; i < currentStructures.size(); i++) {
+                    WorldMapRenderer.StructureMarker kept = currentStructures.get(i);
+                    if (a.type.equals(kept.type)
+                            && Math.abs(a.x - kept.x) < 96
+                            && Math.abs(a.z - kept.z) < 96) {
+                        if (!a.predicted && kept.predicted) {
+                            currentStructures.remove(i);
+                            break; // 用 a 替换预测点
+                        }
+                        continue outer; // 丢弃 a
+                    }
+                }
+                currentStructures.add(a);
+            }
+        }
     }
 
     /** 从数据库读取标点/连线并同步到地图视图。 */
@@ -2406,7 +2371,6 @@ public class NbtViewerActivity extends BaseActivity {
                                 currentStructures.addAll(fStrs);
                                 // 合并视口按需渲染检测到的结构标记（沙漠神殿/前哨站
                                 // 等无 key 结构靠 palette 特征检测）
-                                mergeOnDemandStructures();
                                 // v0.4.58：主世界合并 SeedFinder 离线
                                 // 查找结果（本回调晚于 scan 完成，此前
                                 // clear 会把标记清掉——"一闪而过"根因）
@@ -2416,7 +2380,7 @@ public class NbtViewerActivity extends BaseActivity {
                                     }
                                 }
                             }
-                            binding.worldMapImage.setStructureMarkers(currentStructures);
+                            dedupeStructures(); binding.worldMapImage.setStructureMarkers(currentStructures);
                             renderLeftPointList(null);
                             refreshDataPanelExtras(fStrs, null);
                         });
@@ -2690,14 +2654,8 @@ public class NbtViewerActivity extends BaseActivity {
                     if (fStructures != null) {
                         currentStructures.addAll(fStructures);
                     }
-                    if (!WorldMapRenderer.enableStructureDetection) {
-                        allStructuresBackup.clear();
-                        allStructuresBackup.addAll(currentStructures);
-                        currentStructures.removeIf(m -> "desert_temple".equals(m.type)
-                                || "outpost".equals(m.type));
-                    }
                 }
-                binding.worldMapImage.setStructureMarkers(
+                dedupeStructures(); binding.worldMapImage.setStructureMarkers(
                         new java.util.ArrayList<>(currentStructures));
                 refreshDataPanelExtras(fStructures, fEntries);
             });
