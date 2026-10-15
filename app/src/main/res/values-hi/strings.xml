@@ -1918,4 +1918,5 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="structure_label_trail_ruins">ट्रेल खंडहर</string>
     <string name="structure_label_trial_chambers">ट्रायल चैंबर</string>
     <string name="no_structures">कोई संरचना नहीं</string>
+    <string name="filter_points">बिंदु</string>
 </resources>

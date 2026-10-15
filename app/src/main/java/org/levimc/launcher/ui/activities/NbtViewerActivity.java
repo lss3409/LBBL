@@ -1003,7 +1003,7 @@ public class NbtViewerActivity extends BaseActivity {
         chipRow.setOrientation(LinearLayout.HORIZONTAL);
         chipRow.setPadding(0, (int) (4 * d), 0, (int) (2 * d));
         String[] chips = {
-                getString(R.string.filter_all), getString(R.string.lb_points),
+                getString(R.string.filter_all), getString(R.string.filter_points),
                 getString(R.string.layer_structure)
         };
         for (int i = 0; i < chips.length; i++) {

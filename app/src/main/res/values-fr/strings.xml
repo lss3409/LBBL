@@ -1891,4 +1891,5 @@ Code d\'invitation : P/%1$s
     <string name="structure_label_trail_ruins">Ruines de sentiers</string>
     <string name="structure_label_trial_chambers">Chambres d\'épreuves</string>
     <string name="no_structures">Aucune structure</string>
+    <string name="filter_points">Points</string>
 </resources>

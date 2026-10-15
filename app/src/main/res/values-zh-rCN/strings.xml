@@ -1832,4 +1832,5 @@
     <string name="structure_label_trail_ruins">遗迹废墟</string>
     <string name="structure_label_trial_chambers">试炼密室</string>
     <string name="no_structures">无结构</string>
+    <string name="filter_points">标点</string>
 </resources>

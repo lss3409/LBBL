@@ -1917,4 +1917,5 @@ Davet kodu: P/%1$s
     <string name="structure_label_trail_ruins">Patika Kalıntıları</string>
     <string name="structure_label_trial_chambers">Deneme Odaları</string>
     <string name="no_structures">Yapı yok</string>
+    <string name="filter_points">Noktalar</string>
 </resources>

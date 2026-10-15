@@ -1995,4 +1995,5 @@ Invite code: P/%1$s
     <string name="structure_label_trail_ruins">Trail Ruins</string>
     <string name="structure_label_trial_chambers">Trial Chambers</string>
     <string name="no_structures">No structures</string>
+    <string name="filter_points">Points</string>
 </resources>

@@ -1920,4 +1920,5 @@ Mã mời: P/%1$s
     <string name="structure_label_trail_ruins">Tàn tích đường mòn</string>
     <string name="structure_label_trial_chambers">Phòng thử thách</string>
     <string name="no_structures">Không có công trình</string>
+    <string name="filter_points">Điểm</string>
 </resources>

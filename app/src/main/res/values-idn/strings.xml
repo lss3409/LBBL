@@ -1914,4 +1914,5 @@ Kode undangan: P/%1$s
     <string name="structure_label_trail_ruins">Reruntuhan Jejak</string>
     <string name="structure_label_trial_chambers">Ruang Percobaan</string>
     <string name="no_structures">Tidak ada struktur</string>
+    <string name="filter_points">Titik</string>
 </resources>

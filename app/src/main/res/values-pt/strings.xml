@@ -1891,4 +1891,5 @@ Código de convite: P/%1$s
     <string name="structure_label_trail_ruins">Ruínas de trilha</string>
     <string name="structure_label_trial_chambers">Câmaras de desafio</string>
     <string name="no_structures">Sem estruturas</string>
+    <string name="filter_points">Pontos</string>
 </resources>

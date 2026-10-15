@@ -1921,4 +1921,5 @@
     <string name="structure_label_trail_ruins">Руины троп</string>
     <string name="structure_label_trial_chambers">Камеры испытаний</string>
     <string name="no_structures">Нет структур</string>
+    <string name="filter_points">Точки</string>
 </resources>

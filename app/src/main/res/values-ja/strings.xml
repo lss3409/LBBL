@@ -1888,4 +1888,5 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="structure_label_trail_ruins">道の遺跡</string>
     <string name="structure_label_trial_chambers">試練の間</string>
     <string name="no_structures">構造物なし</string>
+    <string name="filter_points">ポイント</string>
 </resources>
