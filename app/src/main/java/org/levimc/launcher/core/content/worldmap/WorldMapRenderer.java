@@ -2979,7 +2979,10 @@ public class WorldMapRenderer {
         int cz0 = Math.floorDiv(map.minBlockZ, 16);
         int cw = Math.max(1, Math.floorDiv(map.minBlockX + map.width - 1, 16) - cx0 + 1);
         int ch = Math.max(1, Math.floorDiv(map.minBlockZ + map.height - 1, 16) - cz0 + 1);
-        if ((long) cw * ch > 4_000_000L) {
+        if ((long) cw * ch > 1_000_000L) {
+            // v0.4.55：稀疏大 bounds 世界（下界 chunk 散布 3 万方块）的
+            // 包围盒可达 350 万像素=14MB 位图，生成+drawBitmap 太重——
+            // 超限返回 null 回退逐块绘制（视口只有几百 chunk，流畅）
             return null;
         }
         android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
@@ -2988,7 +2991,11 @@ public class WorldMapRenderer {
         android.graphics.Paint green = new android.graphics.Paint();
         green.setColor(0x2E00C853);
         if (map.chunkColors != null) {
-            for (java.util.Map.Entry<Long, int[]> e : map.chunkColors.entrySet()) {
+            // v0.4.55：快照遍历——烘焙线程并发 put 时直接遍历
+            // HashMap 会抛 ConcurrentModificationException（v0.4.54
+            // 遮罩生成死在后台线程、开史莱姆回退逐块绘制卡顿的根因）
+            for (java.util.Map.Entry<Long, int[]> e :
+                    new java.util.ArrayList<>(map.chunkColors.entrySet())) {
                 int[] cc = e.getValue();
                 if (cc == null || cc.length < 256) {
                     continue;

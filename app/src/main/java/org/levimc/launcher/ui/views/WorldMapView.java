@@ -604,9 +604,13 @@ public class WorldMapView extends View {
         // v412：最小缩放 = 整图适配（fit 全图）——"缩放到刚好看到
         // 全部地图就行"，不能再缩出地图外（fitScale 未就绪时用常量）
         float min = Math.max(MIN_PIXELS_PER_BLOCK, fitScale());
-        // v0.4.52：全图模式上限 512 px/块（HTML 同款无级缩放；
-        // chunk tile 路径保持 24——放大过高时 chunk 重渲染跟不上）
-        float max = fullMapBitmap != null ? FULL_MAX_PIXELS_PER_BLOCK : MAX_PIXELS_PER_BLOCK;
+        // v0.4.52：全图模式上限 512 px/块（HTML 同款无级缩放）。
+        // v0.4.55：大世界（chunk tile）放大超阈值回退 tile 路径——
+        // tile 是 1px/块原分辨率最近邻拉伸，放大同样锐利，上限提到
+        // 512。仅小世界无全图时保持 24（cachedBmp 全量重采样跟不上）。
+        // map 可能为 null（初始化 setPpb 早于 setWorldMap）
+        float max = (map != null && (map.chunkColors != null || fullMapBitmap != null))
+                ? FULL_MAX_PIXELS_PER_BLOCK : MAX_PIXELS_PER_BLOCK;
         return Math.max(min, Math.min(max, v));
     }
 
@@ -689,9 +693,15 @@ public class WorldMapView extends View {
         if (map != null) {
             canvas.drawColor(launcherBackgroundColor());
         }
-        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()) {
+        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
+                && (map.chunkColors == null || map.chunkColors.isEmpty()
+                        || pixelsPerBlock <= Math.max(1f, fullMapBlockScale))) {
             // v0.4.52：全图纹理模式（HTML 同款——单次 drawBitmap 变换，
             // 平移缩放零重采样；矢量图层仍画在本层之上）
+            // v0.4.55：大世界全图是降采样拼图（每像素=blockScale 方块），
+            // 放大到超过 blockScale 倍（全图被拉伸）就回退 chunk tile
+            // （1px/块原分辨率锐利）——"下界放大糊"的根因；骨架期
+            // （chunkColors 空）无 tile 可退，保持全图
             drawFullMapLayer(canvas);
         } else if (map.chunkColors != null) {
             // 大世界：chunk tile 平铺（BTR 同款）——零重采样、零 39MB 大位图，
@@ -1150,6 +1160,13 @@ public class WorldMapView extends View {
         int firstCz = Math.floorDiv((int) Math.floor(topWorld), 16);
         int lastCx = Math.floorDiv((int) Math.ceil(rightWorld), 16);
         int lastCz = Math.floorDiv((int) Math.ceil(bottomWorld), 16);
+        // v0.4.55：遮罩未就绪时的保底——视口 chunk 过多（缩小看全图）
+        // 逐块遍历每帧几千次 isSlimeChunk+drawRect 会卡死。超限直接
+        // 不画，等遮罩位图就位（compose 完成后）再显示
+        long viewChunks = (long) (lastCx - firstCx + 1) * (lastCz - firstCz + 1);
+        if (viewChunks > 2500) {
+            return;
+        }
         Paint slimePaint = new Paint();
         slimePaint.setColor(0x2E00C853);
         Paint borderPaint = new Paint();

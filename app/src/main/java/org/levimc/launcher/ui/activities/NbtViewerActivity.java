@@ -1864,13 +1864,32 @@ public class NbtViewerActivity extends BaseActivity {
     }
 
     /** v0.4.52：后台拼全图纹理，完成后切 WorldMapView 全图模式
-     *  （HTML 同款渲染——拖动/缩放纯 GPU；拼图期走原 chunk 路径）。 */
+     *  （HTML 同款渲染——拖动/缩放纯 GPU；拼图期走原 chunk 路径）。
+     *  v0.4.55：遮罩先行——史莱姆遮罩遍历轻量先出（compose 拼大图
+     *  要几秒），遮罩先就位，开史莱姆图层立即走单次 drawBitmap 路径。 */
     private void composeFullMapAsync(WorldMapRenderer.WorldMap targetMap) {
         if (targetMap == null || renderPool == null) {
             return;
         }
         final int genSnapshot = renderGen.get();
         renderPool.execute(() -> {
+            // 遮罩先行（轻量：遍历 chunkColors 判 alpha + isSlimeChunk）
+            final Object[] mask = WorldMapRenderer.buildSlimeChunkMask(targetMap);
+            if (mask != null) {
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed() || genSnapshot != renderGen.get()
+                            || currentMap != targetMap) {
+                        if (!((android.graphics.Bitmap) mask[0]).isRecycled()) {
+                            ((android.graphics.Bitmap) mask[0]).recycle();
+                        }
+                        return;
+                    }
+                    binding.worldMapImage.setSlimeMask(
+                            (android.graphics.Bitmap) mask[0],
+                            (Integer) mask[1], (Integer) mask[2],
+                            (Integer) mask[3], (Integer) mask[4]);
+                });
+            }
             int[] full = null;
             try {
                 // 烘焙线程并发写 chunkColors 时 compose 遍历可能抛
@@ -1891,25 +1910,13 @@ public class NbtViewerActivity extends BaseActivity {
             final int composedH = full[1];
             final int blockScale = org.levimc.launcher.core.content.worldmap
                     .MapImageComposer.blockScale(targetMap, composedW);
-            // v0.4.54：同线程预渲染史莱姆遮罩位图（每 chunk 1 像素，
-            // 只含有数据的史莱姆 chunk——缩放任意比例零额外开销）
-            final Object[] mask = WorldMapRenderer.buildSlimeChunkMask(targetMap);
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed() || genSnapshot != renderGen.get()
                         || currentMap != targetMap) {
                     bmp.recycle();
-                    if (mask != null && !((android.graphics.Bitmap) mask[0]).isRecycled()) {
-                        ((android.graphics.Bitmap) mask[0]).recycle();
-                    }
                     return;
                 }
                 binding.worldMapImage.setFullMapImage(bmp, composedW, composedH, blockScale);
-                if (mask != null) {
-                    binding.worldMapImage.setSlimeMask(
-                            (android.graphics.Bitmap) mask[0],
-                            (Integer) mask[1], (Integer) mask[2],
-                            (Integer) mask[3], (Integer) mask[4]);
-                }
                 Log.i(TAG, "全图纹理就绪: " + composedW + "x" + composedH
                         + " (blockScale=" + blockScale + ")");
             });
@@ -2424,6 +2431,9 @@ public class NbtViewerActivity extends BaseActivity {
             // v418：骨架已显示则保留视图（不跳不闪）
             binding.worldMapImage.initialFitAll = false;
             binding.worldMapImage.setWorldMap(worldMap, skeletonShown);
+            // v0.4.55：主世界首开/缓存加载完成后拼全图+史莱姆遮罩
+            // （此前漏接——遮罩永远不生成，开史莱姆回退逐块绘制卡死）
+            composeFullMapAsync(worldMap);
             binding.worldMapPlaceholder.setVisibility(View.GONE);
             // 主世界打开不自动预渲染：流式渲染 18 万条目（subchunk value
             // ~300MB）叠加视口按需渲染+实体解析，536MB heap 直接 OOM
@@ -2451,6 +2461,9 @@ public class NbtViewerActivity extends BaseActivity {
                             if (!isFinishing() && !isDestroyed() && currentMap == fBake) {
                                 binding.worldMapImage.onChunksRendered(
                                         java.util.Collections.emptySet());
+                                // v0.4.55：主世界烘焙完成后重拼全图+
+                                // 遮罩（与切维度分支一致；此前漏接）
+                                composeFullMapAsync(fBake);
                             }
                         }));
             }
