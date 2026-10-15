@@ -1411,6 +1411,24 @@ public class WorldMapView extends View {
                 }
             }
         }
+        if (b == null) {
+            // v0.4.60：结构贴图走 assets/structure_icons/（游戏原版
+            // 16×16 方块贴图，最近邻放大到 32——双线性会把像素风
+            // 糊掉）
+            try (java.io.InputStream is = getContext().getAssets()
+                    .open("structure_icons/" + name + ".png")) {
+                Bitmap src = BitmapFactory.decodeStream(is);
+                if (src != null) {
+                    b = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888);
+                    Canvas c = new Canvas(b);
+                    Paint np = new Paint();
+                    np.setFilterBitmap(false);
+                    c.drawBitmap(src, null, new android.graphics.RectF(0, 0, 32, 32), np);
+                    src.recycle();
+                }
+            } catch (Exception ignored) {
+            }
+        }
         iconBitmapCache.put(name, b);
         return b;
     }
@@ -1569,13 +1587,34 @@ public class WorldMapView extends View {
         }
     }
 
-    /** 结构类型 → 贴图资源名（无贴图的返回 null 走自绘）。 */
+    /** 结构类型 → 贴图资源名（无贴图的返回 null 走自绘）。
+     *  v0.4.60：改用游戏原版方块贴图（assets/structure_icons/，
+     *  从 1.26 vanilla 资源包 blocks.brarchive 提取）。 */
     private static String structureIconName(String type) {
         switch (type) {
-            case "village": return "bell";
-            case "spawner": return "mobspawner";
-            case "trial_spawner": return "trialspawner";
-            case "end_portal": return "endgateway";
+            case "village": return "bell_side";
+            case "spawner": return "mob_spawner";
+            case "trial_spawner": return "mob_spawner";
+            case "end_portal": return "end_portal";
+            case "fortress": return "nether_brick";
+            case "end_city": return "purpur_block";
+            case "desert_pyramid": return "sandstone_normal";
+            case "desert_temple": return "sandstone_normal";
+            case "outpost": return "stripped_dark_oak_log";
+            case "jungle_temple": return "cobblestone_mossy";
+            case "swamp_hut": return "planks_spruce";
+            case "igloo": return "snow";
+            case "ocean_ruin": return "stonebrick_mossy";
+            case "shipwreck": return "barrel_side";
+            case "ocean_monument": return "prismarine_rough";
+            case "woodland_mansion": return "planks_big_oak";
+            case "pillager_outpost": return "stripped_dark_oak_log";
+            case "ruined_portal": return "obsidian";
+            case "ancient_city": return "stonebrick";
+            case "buried_treasure": return "chest_front";
+            case "mineshaft": return "rail_normal";
+            case "trail_ruins": return "gravel";
+            case "trial_chambers": return "mob_spawner";
             default: return null;
         }
     }
