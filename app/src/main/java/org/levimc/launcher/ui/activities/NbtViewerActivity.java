@@ -1498,6 +1498,14 @@ public class NbtViewerActivity extends BaseActivity {
                                 currentStructures.clear();
                                 currentStructures.addAll(fStrs);
                                 mergeOnDemandStructures();
+                                // v0.4.58：主世界合并 SeedFinder 离线
+                                // 查找结果（本回调晚于 scan 完成，此前
+                                // clear 会把标记清掉——"一闪而过"根因）
+                                if ("overworld".equals(mapDimension)) {
+                                    synchronized (seedStructures) {
+                                        currentStructures.addAll(seedStructures);
+                                    }
+                                }
                             }
                             binding.worldMapImage.setStructureMarkers(currentStructures);
                             refreshDataPanelExtras(fStrs, null);
@@ -1958,13 +1966,19 @@ public class NbtViewerActivity extends BaseActivity {
                         com.google.gson.JsonParser.parseString(json).getAsJsonObject();
                 java.util.List<WorldMapRenderer.StructureMarker> found =
                         new java.util.ArrayList<>();
+                // v0.4.58：按类型分组计数日志（排查"其他结构不显示"——
+                // 各类结构候选数，全 0 说明 biome gate/算法问题）
+                java.util.Map<String, Integer> byType = new java.util.HashMap<>();
                 for (com.google.gson.JsonElement el : obj.getAsJsonArray("results")) {
                     com.google.gson.JsonObject r = el.getAsJsonObject();
+                    String name = r.get("name").getAsString();
                     found.add(new WorldMapRenderer.StructureMarker(
                             r.get("x").getAsInt(), r.get("z").getAsInt(),
-                            r.get("name").getAsString(), null, true));
+                            name, null, true));
+                    byType.merge(name, 1, Integer::sum);
                 }
-                Log.i(TAG, "SeedFinder 结构查找: " + found.size() + " 个");
+                Log.i(TAG, "SeedFinder 结构查找: " + found.size() + " 个 "
+                        + byType);
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) {
                         return;
@@ -2210,6 +2224,14 @@ public class NbtViewerActivity extends BaseActivity {
                                 // 合并视口按需渲染检测到的结构标记（沙漠神殿/前哨站
                                 // 等无 key 结构靠 palette 特征检测）
                                 mergeOnDemandStructures();
+                                // v0.4.58：主世界合并 SeedFinder 离线
+                                // 查找结果（本回调晚于 scan 完成，此前
+                                // clear 会把标记清掉——"一闪而过"根因）
+                                if ("overworld".equals(mapDimension)) {
+                                    synchronized (seedStructures) {
+                                        currentStructures.addAll(seedStructures);
+                                    }
+                                }
                             }
                             binding.worldMapImage.setStructureMarkers(currentStructures);
                             refreshDataPanelExtras(fStrs, null);

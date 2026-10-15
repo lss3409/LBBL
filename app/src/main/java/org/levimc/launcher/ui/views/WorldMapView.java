@@ -695,13 +695,17 @@ public class WorldMapView extends View {
         }
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
                 && (map.chunkColors == null || map.chunkColors.isEmpty()
-                        || pixelsPerBlock <= Math.max(1f, fullMapBlockScale))) {
+                        || pixelsPerBlock <= Math.max(4f, fullMapBlockScale))) {
             // v0.4.52：全图纹理模式（HTML 同款——单次 drawBitmap 变换，
             // 平移缩放零重采样；矢量图层仍画在本层之上）
             // v0.4.55：大世界全图是降采样拼图（每像素=blockScale 方块），
             // 放大到超过 blockScale 倍（全图被拉伸）就回退 chunk tile
             // （1px/块原分辨率锐利）——"下界放大糊"的根因；骨架期
             // （chunkColors 空）无 tile 可退，保持全图
+            // v0.4.58：阈值下限 4px/块——blockScale=1 的主世界若在
+            // 1px/块就切 tile，中等缩放视口 chunk>4096 会进 LOD 缩略
+            // 图（每 chunk 1 像素众数色）反而糊（"主世界也糊了"的
+            // 根因）。4px/块时视口 ≤2400 chunk 不进 LOD，tile 清晰
             drawFullMapLayer(canvas);
         } else if (map.chunkColors != null) {
             // 大世界：chunk tile 平铺（BTR 同款）——零重采样、零 39MB 大位图，
