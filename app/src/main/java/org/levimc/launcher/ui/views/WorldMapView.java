@@ -597,13 +597,10 @@ public class WorldMapView extends View {
         // v412：最小缩放 = 整图适配（fit 全图）——"缩放到刚好看到
         // 全部地图就行"，不能再缩出地图外（fitScale 未就绪时用常量）
         float min = Math.max(MIN_PIXELS_PER_BLOCK, fitScale());
-        // v0.4.52：全图模式上限 512 px/块（HTML 同款无级缩放）。
-        // v0.4.55：大世界（chunk tile）放大超阈值回退 tile 路径——
-        // tile 是 1px/块原分辨率最近邻拉伸，放大同样锐利，上限提到
-        // 512。仅小世界无全图时保持 24（cachedBmp 全量重采样跟不上）。
-        // map 可能为 null（初始化 setPpb 早于 setWorldMap）
-        float max = (map != null && (map.chunkColors != null || fullMapBitmap != null))
-                ? FULL_MAX_PIXELS_PER_BLOCK : MAX_PIXELS_PER_BLOCK;
+        // v0.4.63：缩放上限统一恢复 24 px/块（用户线索「不糊的时候
+        // 就是 24 的倍率」——512 无限拉大即全图模式糊状态的标志）。
+        // 放大路径走 tile/cachedBmp 1px/块原分辨率，24 上限内锐利
+        float max = MAX_PIXELS_PER_BLOCK;
         return Math.max(min, Math.min(max, v));
     }
 
@@ -686,13 +683,15 @@ public class WorldMapView extends View {
         if (map != null) {
             canvas.drawColor(launcherBackgroundColor());
         }
-        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()) {
-            // v0.4.52：全图纹理模式（HTML 同款——单次 drawBitmap 变换，
-            // 平移缩放零重采样；矢量图层仍画在本层之上）
-            // v0.4.61：回滚 v0.4.55-v0.4.59 的 tile 回退/LOD 修补——
-            // 用户拍板「回滚到新加 HTML 逻辑的时候」：全图始终优先，
-            // 任何缩放档位都走这一层（配最近邻采样，锐利不糊）。
-            // chunk tile 只在全图未就绪（拼图中）时兜底
+        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
+                && (pixelsPerBlock <= Math.max(1f, fullMapBlockScale)
+                        || (map.chunkColors == null && map.colors == null))) {
+            // 全图纹理模式（HTML 同款——单次 drawBitmap 变换）只在两种
+            // 情况使用：① 全图处于原分辨率以内（缩小/原尺寸——fit 全景
+            // 双线性防混叠）；② 骨架期（chunkColors/colors 全空，无底层
+            // 可退）。v0.4.63：放大超过原分辨率走 tile/cachedBmp
+            // （1px/块 24 上限锐利）——"糊时无限拉大、不糊时 24 倍率"
+            // 的最终定版（用户线索实锤）
             drawFullMapLayer(canvas);
         } else if (map.chunkColors != null) {
             // 大世界：chunk tile 平铺（BTR 同款）——零重采样、零 39MB 大位图，
