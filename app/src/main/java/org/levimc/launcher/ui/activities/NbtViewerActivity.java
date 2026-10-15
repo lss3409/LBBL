@@ -2118,10 +2118,11 @@ public class NbtViewerActivity extends BaseActivity {
         return m.predicted;
     }
 
-    /** v0.4.71：同类型近距离结构去重——SeedFinder 预测位置与存档
-     *  实际位置可能差几十方块，同一村庄会出现双标点（"自然村庄
-     *  两个标点、人为村庄正常"的根因）；存档解析的（非 predicted）
-     *  是真实坐标，优先保留并替换预测值。 */
+    /** v0.4.71：结构去重——仅对「SeedFinder 预测 vs 存档解析」的
+     *  同类型近距离配对去重（同一村庄双标点根因；存档解析的是真实
+     *  坐标，优先保留并替换预测值）。v0.4.72：同来源结构不去重——
+     *  刷怪笼/试炼刷怪笼/废弃矿井密集分布，96 方块内同类型全删会
+     *  把几百个结构删到只剩几个（"村庄以外全不显示"的根因）。 */
     private void dedupeStructures() {
         synchronized (currentStructures) {
             java.util.List<WorldMapRenderer.StructureMarker> list =
@@ -2131,14 +2132,16 @@ public class NbtViewerActivity extends BaseActivity {
             for (WorldMapRenderer.StructureMarker a : list) {
                 for (int i = 0; i < currentStructures.size(); i++) {
                     WorldMapRenderer.StructureMarker kept = currentStructures.get(i);
-                    if (a.type.equals(kept.type)
+                    if (a.predicted != kept.predicted
+                            && a.type.equals(kept.type)
                             && Math.abs(a.x - kept.x) < 96
                             && Math.abs(a.z - kept.z) < 96) {
-                        if (!a.predicted && kept.predicted) {
+                        if (!a.predicted) {
+                            // a 是存档真实坐标：替换 kept（预测）
                             currentStructures.remove(i);
-                            break; // 用 a 替换预测点
+                            break;
                         }
-                        continue outer; // 丢弃 a
+                        continue outer; // a 是预测且已有存档点：丢弃 a
                     }
                 }
                 currentStructures.add(a);
