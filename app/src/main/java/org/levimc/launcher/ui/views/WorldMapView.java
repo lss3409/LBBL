@@ -1603,7 +1603,7 @@ public class WorldMapView extends View {
         switch (type) {
             case "village": return "bell_side";
             case "spawner": return "mob_spawner";
-            case "trial_spawner": return "mob_spawner";
+            case "trial_spawner": return "trial_spawner_side_active";
             case "end_portal": return "end_portal";
             case "fortress": return "nether_brick";
             case "end_city": return "purpur_block";
@@ -1619,11 +1619,11 @@ public class WorldMapView extends View {
             case "woodland_mansion": return "planks_big_oak";
             case "pillager_outpost": return "stripped_dark_oak_log";
             case "ruined_portal": return "obsidian";
-            case "ancient_city": return "stonebrick";
+            case "ancient_city": return "deepslate_bricks";
             case "buried_treasure": return "chest_front";
             case "mineshaft": return "rail_normal";
-            case "trail_ruins": return "gravel";
-            case "trial_chambers": return "mob_spawner";
+            case "trail_ruins": return "suspicious_gravel_0";
+            case "trial_chambers": return "copper_grate";
             default: return null;
         }
     }
