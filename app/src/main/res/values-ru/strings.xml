@@ -1895,4 +1895,29 @@
     <string name="fm_ui_open_internal">Открыть в лаунчере</string>
     <string name="fm_ui_open_system">Открыть с помощью...</string>
     <string name="splash_preparing_to_launch">Подготовка к запуску</string>
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">Деревня</string>
+    <string name="structure_label_spawner">Спаунер монстров</string>
+    <string name="structure_label_trial_spawner">Спаунер испытаний</string>
+    <string name="structure_label_end_portal">Портал в Энд</string>
+    <string name="structure_label_fortress">Крепость Нижнего мира</string>
+    <string name="structure_label_swamp_hut">Хижина ведьмы</string>
+    <string name="structure_label_ocean_monument">Океанский монумент</string>
+    <string name="structure_label_outpost">Аванпост разбойников</string>
+    <string name="structure_label_desert_temple">Храм пустыни</string>
+    <string name="structure_label_end_city">Город Энда</string>
+    <string name="structure_label_desert_pyramid">Пирамида пустыни</string>
+    <string name="structure_label_jungle_temple">Храм джунглей</string>
+    <string name="structure_label_igloo">Иглу</string>
+    <string name="structure_label_ocean_ruin">Океанские руины</string>
+    <string name="structure_label_shipwreck">Затонувший корабль</string>
+    <string name="structure_label_woodland_mansion">Лесной особняк</string>
+    <string name="structure_label_pillager_outpost">Аванпост разбойников</string>
+    <string name="structure_label_ruined_portal">Разрушенный портал</string>
+    <string name="structure_label_ancient_city">Древний город</string>
+    <string name="structure_label_buried_treasure">Закопанный клад</string>
+    <string name="structure_label_mineshaft">Заброшенная шахта</string>
+    <string name="structure_label_trail_ruins">Руины троп</string>
+    <string name="structure_label_trial_chambers">Камеры испытаний</string>
 </resources>

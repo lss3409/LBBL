@@ -1862,4 +1862,29 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="fm_ui_open_internal">ランチャーで開く</string>
     <string name="fm_ui_open_system">他のアプリで開く</string>
     <string name="splash_preparing_to_launch">起動を準備中</string>
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">村</string>
+    <string name="structure_label_spawner">モンスタースポナー</string>
+    <string name="structure_label_trial_spawner">試練のスポナー</string>
+    <string name="structure_label_end_portal">エンドポータル</string>
+    <string name="structure_label_fortress">ネザー要塞</string>
+    <string name="structure_label_swamp_hut">魔女の小屋</string>
+    <string name="structure_label_ocean_monument">海底神殿</string>
+    <string name="structure_label_outpost">ピリジャーの前哨基地</string>
+    <string name="structure_label_desert_temple">砂漠の寺院</string>
+    <string name="structure_label_end_city">エンドシティ</string>
+    <string name="structure_label_desert_pyramid">砂漠のピラミッド</string>
+    <string name="structure_label_jungle_temple">ジャングルの寺院</string>
+    <string name="structure_label_igloo">イグルー</string>
+    <string name="structure_label_ocean_ruin">海底遺跡</string>
+    <string name="structure_label_shipwreck">難破船</string>
+    <string name="structure_label_woodland_mansion">森の洋館</string>
+    <string name="structure_label_pillager_outpost">ピリジャーの前哨基地</string>
+    <string name="structure_label_ruined_portal">荒廃したポータル</string>
+    <string name="structure_label_ancient_city">古代都市</string>
+    <string name="structure_label_buried_treasure">埋もれた宝</string>
+    <string name="structure_label_mineshaft">廃坑</string>
+    <string name="structure_label_trail_ruins">道の遺跡</string>
+    <string name="structure_label_trial_chambers">試練の間</string>
 </resources>

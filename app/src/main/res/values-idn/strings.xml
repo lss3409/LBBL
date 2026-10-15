@@ -1888,4 +1888,29 @@ Kode undangan: P/%1$s
     <string name="fm_ui_open_internal">Buka di launcher</string>
     <string name="fm_ui_open_system">Buka dengan...</string>
     <string name="splash_preparing_to_launch">Mempersiapkan peluncuran</string>
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">Desa</string>
+    <string name="structure_label_spawner">Monster Spawner</string>
+    <string name="structure_label_trial_spawner">Trial Spawner</string>
+    <string name="structure_label_end_portal">Portal End</string>
+    <string name="structure_label_fortress">Benteng Nether</string>
+    <string name="structure_label_swamp_hut">Gubuk Penyihir</string>
+    <string name="structure_label_ocean_monument">Monumen Laut</string>
+    <string name="structure_label_outpost">Pos Penjarah</string>
+    <string name="structure_label_desert_temple">Kuil Gurun</string>
+    <string name="structure_label_end_city">Kota End</string>
+    <string name="structure_label_desert_pyramid">Piramida Gurun</string>
+    <string name="structure_label_jungle_temple">Kuil Hutan</string>
+    <string name="structure_label_igloo">Igloo</string>
+    <string name="structure_label_ocean_ruin">Reruntuhan Laut</string>
+    <string name="structure_label_shipwreck">Kapal Karam</string>
+    <string name="structure_label_woodland_mansion">Rumah Hutan</string>
+    <string name="structure_label_pillager_outpost">Pos Penjarah</string>
+    <string name="structure_label_ruined_portal">Portal Rusak</string>
+    <string name="structure_label_ancient_city">Kota Kuno</string>
+    <string name="structure_label_buried_treasure">Harta Karun Terkubur</string>
+    <string name="structure_label_mineshaft">Tambang Terbengkalai</string>
+    <string name="structure_label_trail_ruins">Reruntuhan Jejak</string>
+    <string name="structure_label_trial_chambers">Ruang Percobaan</string>
 </resources>

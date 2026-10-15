@@ -1806,4 +1806,29 @@
     <string name="report_logs_empty">没有找到日志文件</string>
     <string name="report_logs_no_app">没有能发送邮件的应用</string>
     <!-- v0.4.24: 愚人节语言 -->
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">村庄</string>
+    <string name="structure_label_spawner">刷怪笼</string>
+    <string name="structure_label_trial_spawner">试炼刷怪笼</string>
+    <string name="structure_label_end_portal">末地传送门</string>
+    <string name="structure_label_fortress">下界要塞</string>
+    <string name="structure_label_swamp_hut">女巫小屋</string>
+    <string name="structure_label_ocean_monument">海底神殿</string>
+    <string name="structure_label_outpost">掠夺者前哨站</string>
+    <string name="structure_label_desert_temple">沙漠神殿</string>
+    <string name="structure_label_end_city">末地城</string>
+    <string name="structure_label_desert_pyramid">沙漠神殿</string>
+    <string name="structure_label_jungle_temple">丛林神庙</string>
+    <string name="structure_label_igloo">雪屋</string>
+    <string name="structure_label_ocean_ruin">海底遗迹</string>
+    <string name="structure_label_shipwreck">沉船</string>
+    <string name="structure_label_woodland_mansion">林地府邸</string>
+    <string name="structure_label_pillager_outpost">掠夺者前哨站</string>
+    <string name="structure_label_ruined_portal">废弃传送门</string>
+    <string name="structure_label_ancient_city">远古城市</string>
+    <string name="structure_label_buried_treasure">埋藏宝藏</string>
+    <string name="structure_label_mineshaft">废弃矿井</string>
+    <string name="structure_label_trail_ruins">遗迹废墟</string>
+    <string name="structure_label_trial_chambers">试炼密室</string>
 </resources>

@@ -1891,4 +1891,29 @@ Davet kodu: P/%1$s
     <string name="fm_ui_open_internal">Başlatıcıda aç</string>
     <string name="fm_ui_open_system">Birlikte aç...</string>
     <string name="splash_preparing_to_launch">Başlatılmaya hazırlanıyor</string>
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">Köy</string>
+    <string name="structure_label_spawner">Canavar Spawner\'ı</string>
+    <string name="structure_label_trial_spawner">Deneme Spawner\'ı</string>
+    <string name="structure_label_end_portal">End Portalı</string>
+    <string name="structure_label_fortress">Nether Kalesi</string>
+    <string name="structure_label_swamp_hut">Cadı Kulübesi</string>
+    <string name="structure_label_ocean_monument">Okyanus Anıtı</string>
+    <string name="structure_label_outpost">Yağmacı Karakolu</string>
+    <string name="structure_label_desert_temple">Çöl Tapınağı</string>
+    <string name="structure_label_end_city">End Şehri</string>
+    <string name="structure_label_desert_pyramid">Çöl Piramidi</string>
+    <string name="structure_label_jungle_temple">Orman Tapınağı</string>
+    <string name="structure_label_igloo">İglo</string>
+    <string name="structure_label_ocean_ruin">Okyanus Kalıntıları</string>
+    <string name="structure_label_shipwreck">Batık Gemi</string>
+    <string name="structure_label_woodland_mansion">Ormanlık Köşk</string>
+    <string name="structure_label_pillager_outpost">Yağmacı Karakolu</string>
+    <string name="structure_label_ruined_portal">Harabe Portal</string>
+    <string name="structure_label_ancient_city">Antik Şehir</string>
+    <string name="structure_label_buried_treasure">Gömülü Hazine</string>
+    <string name="structure_label_mineshaft">Terk Edilmiş Maden</string>
+    <string name="structure_label_trail_ruins">Patika Kalıntıları</string>
+    <string name="structure_label_trial_chambers">Deneme Odaları</string>
 </resources>

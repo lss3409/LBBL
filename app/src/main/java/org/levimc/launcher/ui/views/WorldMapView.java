@@ -19,6 +19,7 @@ import androidx.annotation.Nullable;
 
 import org.levimc.launcher.core.content.BlueprintDb;
 import org.levimc.launcher.core.content.worldmap.WorldMapRenderer;
+import org.levimc.launcher.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -271,8 +272,9 @@ public class WorldMapView extends View {
     private int fullMapHeight;
     /** 全图 1 像素对应的方块数（map.width / 全图宽）。 */
     private int fullMapBlockScale;
-    private final android.graphics.Paint fullMapPaint = new android.graphics.Paint(
-            android.graphics.Paint.FILTER_BITMAP_FLAG);
+    /** v0.4.61：全图绘制最近邻采样（HTML imageSmoothingEnabled=false
+     *  同款）——双线性会把色块地图糊掉（"还是糊"的根因）。 */
+    private final android.graphics.Paint fullMapPaint = new android.graphics.Paint();
     private final android.graphics.RectF fullMapDst = new android.graphics.RectF();
     /** 全图模式的缩放上限（px/方块；HTML 等效 2048x）。 */
     private static final float FULL_MAX_PIXELS_PER_BLOCK = 512f;
@@ -672,19 +674,13 @@ public class WorldMapView extends View {
         if (map != null) {
             canvas.drawColor(launcherBackgroundColor());
         }
-        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
-                && (map.chunkColors == null || map.chunkColors.isEmpty()
-                        || pixelsPerBlock <= Math.max(4f, fullMapBlockScale))) {
+        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()) {
             // v0.4.52：全图纹理模式（HTML 同款——单次 drawBitmap 变换，
             // 平移缩放零重采样；矢量图层仍画在本层之上）
-            // v0.4.55：大世界全图是降采样拼图（每像素=blockScale 方块），
-            // 放大到超过 blockScale 倍（全图被拉伸）就回退 chunk tile
-            // （1px/块原分辨率锐利）——"下界放大糊"的根因；骨架期
-            // （chunkColors 空）无 tile 可退，保持全图
-            // v0.4.58：阈值下限 4px/块——blockScale=1 的主世界若在
-            // 1px/块就切 tile，中等缩放视口 chunk>4096 会进 LOD 缩略
-            // 图（每 chunk 1 像素众数色）反而糊（"主世界也糊了"的
-            // 根因）。4px/块时视口 ≤2400 chunk 不进 LOD，tile 清晰
+            // v0.4.61：回滚 v0.4.55-v0.4.59 的 tile 回退/LOD 修补——
+            // 用户拍板「回滚到新加 HTML 逻辑的时候」：全图始终优先，
+            // 任何缩放档位都走这一层（配最近邻采样，锐利不糊）。
+            // chunk tile 只在全图未就绪（拼图中）时兜底
             drawFullMapLayer(canvas);
         } else if (map.chunkColors != null) {
             // 大世界：chunk tile 平铺（BTR 同款）——零重采样、零 39MB 大位图，
@@ -1543,9 +1539,9 @@ public class WorldMapView extends View {
         Paint iconPaint = new Paint();
         iconPaint.setFilterBitmap(true);
         for (WorldMapRenderer.StructureMarker m : structures) {
-            // 未渲染 chunk 上的结构不显示（视口按需渲染出来后才出现）；
-            // v0.4.57：SeedFinder 预测位置不受此限（未探索区域也显示）
-            if (!m.predicted && !chunkRendered(Math.floorDiv(m.x, 16), Math.floorDiv(m.z, 16))) {
+            // 未渲染 chunk 上的结构不显示（与史莱姆区块同语义——
+            // v0.4.61：预测标记也不再豁免）
+            if (!chunkRendered(Math.floorDiv(m.x, 16), Math.floorDiv(m.z, 16))) {
                 continue;
             }
             float sx = worldToScreenX(m.x + 0.5f);
@@ -1554,29 +1550,31 @@ public class WorldMapView extends View {
                 continue;
             }
             float r = Math.max(7f, pixelsPerBlock * 0.9f);
-            // 白底圆（深色地形上保持醒目，对应地图 App 结构标记样式）
-            Paint bgCircle = new Paint();
-            bgCircle.setAntiAlias(true);
-            bgCircle.setColor(0xD9FFFFFF);
-            canvas.drawCircle(sx, sy, r, bgCircle);
-            stroke.setColor(0x80000000);
-            stroke.setStrokeWidth(1.5f);
-            canvas.drawCircle(sx, sy, r, stroke);
-            stroke.setColor(0xCC000000);
-            // 结构贴图（BedrockMap block_actor 图标），失败回退自绘形状
+            // 结构贴图（游戏原版方块贴图），失败回退白底圆+自绘形状
             String iconName = structureIconName(m.type);
             Bitmap icon = iconName != null ? iconBitmap(iconName) : null;
             if (icon != null) {
+                // v0.4.61：有贴图时不画白底圆——旧标点样式与贴图
+                // 重叠难看（"新贴图叠在旧白色标点上"的根因）
                 float isz = r * 1.7f;
                 canvas.drawBitmap(icon, null,
                         new android.graphics.RectF(sx - isz / 2f, sy - isz / 2f,
                                 sx + isz / 2f, sy + isz / 2f), iconPaint);
                 r = isz / 2f;
             } else {
+                // 白底圆（深色地形上保持醒目，无贴图类型回退样式）
+                Paint bgCircle = new Paint();
+                bgCircle.setAntiAlias(true);
+                bgCircle.setColor(0xD9FFFFFF);
+                canvas.drawCircle(sx, sy, r, bgCircle);
+                stroke.setColor(0x80000000);
+                stroke.setStrokeWidth(1.5f);
+                canvas.drawCircle(sx, sy, r, stroke);
+                stroke.setColor(0xCC000000);
                 drawStructureShape(canvas, m.type, sx, sy, r, p, stroke);
             }
             if (labelPaint != null) {
-                String label = structureLabel(m.type);
+                String label = structureLabel(getContext(), m.type);
                 float tw = labelPaint.measureText(label);
                 Paint bgPaint = new Paint();
                 bgPaint.setColor(0x99000000);
@@ -1619,33 +1617,33 @@ public class WorldMapView extends View {
         }
     }
 
-    /** 结构类型 → 中文名。 */
-    private static String structureLabel(String type) {
+    /** 结构类型 → 本地化名（v0.4.61：11 语言资源词条；static 供标点栏复用）。 */
+    public static String structureLabel(android.content.Context ctx, String type) {
         switch (type) {
-            case "village": return "村庄";
-            case "spawner": return "刷怪笼";
-            case "trial_spawner": return "试炼刷怪笼";
-            case "end_portal": return "末地传送门";
-            case "fortress": return "下界要塞";
-            case "swamp_hut": return "女巫小屋";
-            case "ocean_monument": return "海底神殿";
-            case "outpost": return "掠夺者前哨站";
-            case "desert_temple": return "沙漠神殿";
-            case "end_city": return "末地城";
+            case "village": return ctx.getString(R.string.structure_label_village);
+            case "spawner": return ctx.getString(R.string.structure_label_spawner);
+            case "trial_spawner": return ctx.getString(R.string.structure_label_trial_spawner);
+            case "end_portal": return ctx.getString(R.string.structure_label_end_portal);
+            case "fortress": return ctx.getString(R.string.structure_label_fortress);
+            case "swamp_hut": return ctx.getString(R.string.structure_label_swamp_hut);
+            case "ocean_monument": return ctx.getString(R.string.structure_label_ocean_monument);
+            case "outpost": return ctx.getString(R.string.structure_label_outpost);
+            case "desert_temple": return ctx.getString(R.string.structure_label_desert_temple);
+            case "end_city": return ctx.getString(R.string.structure_label_end_city);
             // v0.4.57：SeedFinder 离线查找的类型名（cubiomes struct2str）
-            case "desert_pyramid": return "沙漠神殿";
-            case "jungle_temple": return "丛林神庙";
-            case "igloo": return "雪屋";
-            case "ocean_ruin": return "海底遗迹";
-            case "shipwreck": return "沉船";
-            case "woodland_mansion": return "林地府邸";
-            case "pillager_outpost": return "掠夺者前哨站";
-            case "ruined_portal": return "废弃传送门";
-            case "ancient_city": return "远古城市";
-            case "buried_treasure": return "埋藏宝藏";
-            case "mineshaft": return "废弃矿井";
-            case "trail_ruins": return "Trail Ruins";
-            case "trial_chambers": return "试炼密室";
+            case "desert_pyramid": return ctx.getString(R.string.structure_label_desert_pyramid);
+            case "jungle_temple": return ctx.getString(R.string.structure_label_jungle_temple);
+            case "igloo": return ctx.getString(R.string.structure_label_igloo);
+            case "ocean_ruin": return ctx.getString(R.string.structure_label_ocean_ruin);
+            case "shipwreck": return ctx.getString(R.string.structure_label_shipwreck);
+            case "woodland_mansion": return ctx.getString(R.string.structure_label_woodland_mansion);
+            case "pillager_outpost": return ctx.getString(R.string.structure_label_pillager_outpost);
+            case "ruined_portal": return ctx.getString(R.string.structure_label_ruined_portal);
+            case "ancient_city": return ctx.getString(R.string.structure_label_ancient_city);
+            case "buried_treasure": return ctx.getString(R.string.structure_label_buried_treasure);
+            case "mineshaft": return ctx.getString(R.string.structure_label_mineshaft);
+            case "trail_ruins": return ctx.getString(R.string.structure_label_trail_ruins);
+            case "trial_chambers": return ctx.getString(R.string.structure_label_trial_chambers);
             default: return type;
         }
     }

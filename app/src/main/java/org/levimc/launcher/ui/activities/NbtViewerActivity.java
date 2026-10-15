@@ -1029,6 +1029,35 @@ public class NbtViewerActivity extends BaseActivity {
             });
             binding.pointListContainer.addView(item);
         }
+        // v0.4.61：结构标记列表（存档结构 + SeedFinder 预测），点击跳转
+        // ——与玩家标点同款交互
+        List<WorldMapRenderer.StructureMarker> structs;
+        synchronized (currentStructures) {
+            structs = new ArrayList<>(currentStructures);
+        }
+        for (WorldMapRenderer.StructureMarker m : structs) {
+            String label = WorldMapView.structureLabel(this, m.type);
+            if (!q.isEmpty()
+                    && !label.toLowerCase().contains(q)
+                    && !(m.x + "," + m.z).contains(q)) {
+                continue;
+            }
+            any = true;
+            TextView item = new TextView(this);
+            android.text.SpannableString ss = new android.text.SpannableString(
+                    "▣ " + label + "  (" + m.x + "," + m.z + ")");
+            ss.setSpan(new android.text.style.ForegroundColorSpan(0xFF7E57C2),
+                    0, 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            item.setText(ss);
+            item.setTextColor(ContextCompat.getColor(this, R.color.on_surface));
+            item.setTextSize(12);
+            item.setPadding(0, (int) (7 * getResources().getDisplayMetrics().density),
+                    0, (int) (7 * getResources().getDisplayMetrics().density));
+            item.setClickable(true);
+            item.setFocusable(true);
+            item.setOnClickListener(v -> binding.worldMapImage.animateTo(m.x, m.z));
+            binding.pointListContainer.addView(item);
+        }
         if (!any) {
             TextView empty = new TextView(this);
             empty.setText(R.string.no_points);
@@ -1508,6 +1537,7 @@ public class NbtViewerActivity extends BaseActivity {
                                 }
                             }
                             binding.worldMapImage.setStructureMarkers(currentStructures);
+                            renderLeftPointList(null);
                             refreshDataPanelExtras(fStrs, null);
                         });
                     };
@@ -1609,6 +1639,7 @@ public class NbtViewerActivity extends BaseActivity {
                                     mergeOnDemandStructures();
                                 }
                                 binding.worldMapImage.setStructureMarkers(currentStructures);
+                                renderLeftPointList(null);
                                 refreshDataPanelExtras(fS, null);
                             });
                         } else {
@@ -1642,6 +1673,7 @@ public class NbtViewerActivity extends BaseActivity {
                                             mergeOnDemandStructures();
                                         }
                                         binding.worldMapImage.setStructureMarkers(currentStructures);
+                                        renderLeftPointList(null);
                                         refreshDataPanelExtras(
                                                 strs != null ? strs : new java.util.ArrayList<>(),
                                                 null);
@@ -1996,6 +2028,7 @@ public class NbtViewerActivity extends BaseActivity {
                         }
                         binding.worldMapImage.setStructureMarkers(
                                 new java.util.ArrayList<>(currentStructures));
+                        renderLeftPointList(null);
                     }
                 });
             } catch (Exception e) {
@@ -2229,6 +2262,7 @@ public class NbtViewerActivity extends BaseActivity {
                                 }
                             }
                             binding.worldMapImage.setStructureMarkers(currentStructures);
+                            renderLeftPointList(null);
                             refreshDataPanelExtras(fStrs, null);
                         });
                     };

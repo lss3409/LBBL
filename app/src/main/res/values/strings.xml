@@ -1969,4 +1969,29 @@ Invite code: P/%1$s
     <string name="report_logs_empty">No log files found</string>
     <string name="report_logs_no_app">No email app available</string>
     <!-- v0.4.24: April Fools language -->
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">Village</string>
+    <string name="structure_label_spawner">Monster Spawner</string>
+    <string name="structure_label_trial_spawner">Trial Spawner</string>
+    <string name="structure_label_end_portal">End Portal</string>
+    <string name="structure_label_fortress">Nether Fortress</string>
+    <string name="structure_label_swamp_hut">Swamp Hut</string>
+    <string name="structure_label_ocean_monument">Ocean Monument</string>
+    <string name="structure_label_outpost">Pillager Outpost</string>
+    <string name="structure_label_desert_temple">Desert Temple</string>
+    <string name="structure_label_end_city">End City</string>
+    <string name="structure_label_desert_pyramid">Desert Pyramid</string>
+    <string name="structure_label_jungle_temple">Jungle Temple</string>
+    <string name="structure_label_igloo">Igloo</string>
+    <string name="structure_label_ocean_ruin">Ocean Ruin</string>
+    <string name="structure_label_shipwreck">Shipwreck</string>
+    <string name="structure_label_woodland_mansion">Woodland Mansion</string>
+    <string name="structure_label_pillager_outpost">Pillager Outpost</string>
+    <string name="structure_label_ruined_portal">Ruined Portal</string>
+    <string name="structure_label_ancient_city">Ancient City</string>
+    <string name="structure_label_buried_treasure">Buried Treasure</string>
+    <string name="structure_label_mineshaft">Mineshaft</string>
+    <string name="structure_label_trail_ruins">Trail Ruins</string>
+    <string name="structure_label_trial_chambers">Trial Chambers</string>
 </resources>

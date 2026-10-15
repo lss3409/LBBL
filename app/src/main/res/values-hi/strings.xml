@@ -1892,4 +1892,29 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="fm_ui_open_internal">लॉन्चर में खोलें</string>
     <string name="fm_ui_open_system">इसके साथ खोलें...</string>
     <string name="splash_preparing_to_launch">लॉन्च की तैयारी हो रही है</string>
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">गांव</string>
+    <string name="structure_label_spawner">मॉन्स्टर स्पॉनर</string>
+    <string name="structure_label_trial_spawner">ट्रायल स्पॉनर</string>
+    <string name="structure_label_end_portal">एंड पोर्टल</string>
+    <string name="structure_label_fortress">नर्क का किला</string>
+    <string name="structure_label_swamp_hut">चुड़ैल की झोपड़ी</string>
+    <string name="structure_label_ocean_monument">महासागर स्मारक</string>
+    <string name="structure_label_outpost">लुटेरों की चौकी</string>
+    <string name="structure_label_desert_temple">रेगिस्तानी मंदिर</string>
+    <string name="structure_label_end_city">एंड सिटी</string>
+    <string name="structure_label_desert_pyramid">रेगिस्तानी पिरामिड</string>
+    <string name="structure_label_jungle_temple">जंगल मंदिर</string>
+    <string name="structure_label_igloo">इग्लू</string>
+    <string name="structure_label_ocean_ruin">महासागर खंडहर</string>
+    <string name="structure_label_shipwreck">जहाज़ का मलबा</string>
+    <string name="structure_label_woodland_mansion">वन हवेली</string>
+    <string name="structure_label_pillager_outpost">लुटेरों की चौकी</string>
+    <string name="structure_label_ruined_portal">खंडहर पोर्टल</string>
+    <string name="structure_label_ancient_city">प्राचीन शहर</string>
+    <string name="structure_label_buried_treasure">दबा हुआ खजाना</string>
+    <string name="structure_label_mineshaft">परित्यक्त खदान</string>
+    <string name="structure_label_trail_ruins">ट्रेल खंडहर</string>
+    <string name="structure_label_trial_chambers">ट्रायल चैंबर</string>
 </resources>

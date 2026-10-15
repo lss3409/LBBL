@@ -1865,4 +1865,29 @@ Code d\'invitation : P/%1$s
     <string name="fm_ui_open_internal">Ouvrir dans le launcher</string>
     <string name="fm_ui_open_system">Ouvrir avec...</string>
     <string name="splash_preparing_to_launch">Préparation du lancement</string>
+
+    <!-- v0.4.61：地图结构标记标签 -->
+    <string name="structure_label_village">Village</string>
+    <string name="structure_label_spawner">Générateur de monstres</string>
+    <string name="structure_label_trial_spawner">Générateur d\'épreuves</string>
+    <string name="structure_label_end_portal">Portail de l\'End</string>
+    <string name="structure_label_fortress">Forteresse du Nether</string>
+    <string name="structure_label_swamp_hut">Hutte de sorcière</string>
+    <string name="structure_label_ocean_monument">Monument sous-marin</string>
+    <string name="structure_label_outpost">Avant-poste de pilleurs</string>
+    <string name="structure_label_desert_temple">Temple du désert</string>
+    <string name="structure_label_end_city">Cité de l\'End</string>
+    <string name="structure_label_desert_pyramid">Pyramide du désert</string>
+    <string name="structure_label_jungle_temple">Temple de la jungle</string>
+    <string name="structure_label_igloo">Iglou</string>
+    <string name="structure_label_ocean_ruin">Ruines sous-marines</string>
+    <string name="structure_label_shipwreck">Épave</string>
+    <string name="structure_label_woodland_mansion">Manoir des bois</string>
+    <string name="structure_label_pillager_outpost">Avant-poste de pilleurs</string>
+    <string name="structure_label_ruined_portal">Portail en ruine</string>
+    <string name="structure_label_ancient_city">Ancienne cité</string>
+    <string name="structure_label_buried_treasure">Trésor enfoui</string>
+    <string name="structure_label_mineshaft">Mine abandonnée</string>
+    <string name="structure_label_trail_ruins">Ruines de sentiers</string>
+    <string name="structure_label_trial_chambers">Chambres d\'épreuves</string>
 </resources>
