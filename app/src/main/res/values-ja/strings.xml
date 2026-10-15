@@ -1487,7 +1487,6 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="layer_biome">バイオーム</string>
 <string name="layer_ore">鉱石マーカー</string>
 <string name="layer_shading">斜面シェーディング（立体感）</string>
-<string name="btn_clear_cache">ワールドキャッシュをクリア（再生成）</string>
 <string name="layer_entity">エンティティ</string>
 <string name="layer_structure">建造物</string>
 <string name="layer_slime">スライムチャンク</string>

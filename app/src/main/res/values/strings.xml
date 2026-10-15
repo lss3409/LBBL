@@ -1592,7 +1592,6 @@ Invite code: P/%1$s
 <string name="layer_biome">Biomes</string>
 <string name="layer_ore">Ore markers</string>
 <string name="layer_shading">Slope shading (3D feel)</string>
-<string name="btn_clear_cache">Clear world cache (re-bake)</string>
 <string name="layer_entity">Entities</string>
 <string name="layer_structure">Structures</string>
 <string name="layer_slime">Slime Chunks</string>

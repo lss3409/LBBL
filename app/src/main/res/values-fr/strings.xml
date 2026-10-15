@@ -1490,7 +1490,6 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="layer_biome">Biomes</string>
 <string name="layer_ore">Marqueurs de minerais</string>
 <string name="layer_shading">Ombrage des pentes (effet 3D)</string>
-<string name="btn_clear_cache">Vider le cache du monde (recalculer)</string>
 <string name="layer_entity">Entités</string>
 <string name="layer_structure">Structures</string>
 <string name="layer_slime">Chunks à slimes</string>

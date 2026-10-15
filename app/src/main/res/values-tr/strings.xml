@@ -1516,7 +1516,6 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="layer_biome">Biyomlar</string>
 <string name="layer_ore">Cevher işaretleri</string>
 <string name="layer_shading">Eğim gölgelendirme (3D hissi)</string>
-<string name="btn_clear_cache">Dünya önbelleğini temizle (yeniden işle)</string>
 <string name="layer_entity">Varlıklar</string>
 <string name="layer_structure">Yapılar</string>
 <string name="layer_slime">Slime Yığınları</string>

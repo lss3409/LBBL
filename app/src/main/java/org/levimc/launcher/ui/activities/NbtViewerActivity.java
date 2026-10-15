@@ -471,27 +471,8 @@ public class NbtViewerActivity extends BaseActivity {
 
         // v0.4.70：结构特征检测（palette 检测）已删除——SeedFinder
         // 离线查找全面取代，检测开关/备份逻辑一并移除
-
-        // v397：清空世界缓存（确认弹窗 → 删缓存 → 重烘焙）
-        binding.btnClearCache.setOnClickListener(v -> {
-            if (currentWorldDir == null) {
-                return;
-            }
-            new CustomAlertDialog(this)
-                    .setTitleText(getString(R.string.btn_clear_cache))
-                    .setMessage("将删除当前世界的全部渲染缓存（三个维度）并重新烘焙。存档数据不受影响。")
-                    .setPositiveButton("清空", v2 -> {
-                        File db = new File(currentWorldDir, "db");
-                        WorldMapRenderer.deleteDimCacheFiles(db, 0);
-                        WorldMapRenderer.deleteDimCacheFiles(db, 1);
-                        WorldMapRenderer.deleteDimCacheFiles(db, 2);
-                        invalidateRenderCacheAndBake();
-                        Toast.makeText(this, "缓存已清空，正在重新烘焙",
-                                Toast.LENGTH_SHORT).show();
-                    })
-                    .setNegativeButton(getString(R.string.nbt_edit_cancel), null)
-                    .show();
-        });
+        // v0.4.71：清空世界缓存按钮已删除（用户指示——缓存管理
+        // 自动失效机制已足够，手动清缓存在新缓存架构下无必要）
 
         // v413：矿石标点图层（烘焙/渲染 chunk 时收集矿石标记，
         // 独立落盘 ore.bin；开启显示色块标点，点击看详情）

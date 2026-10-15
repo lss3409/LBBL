@@ -433,7 +433,15 @@
                         android:textSize="12sp" />
 
                     <!-- v0.4.70：矿石标点从设置栏移到图层栏 -->
-
+                    <CheckBox
+                        android:id="@+id/layer_ore"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="false"
+                        android:fontFamily="@font/misans"
+                        android:text="@string/layer_ore"
+                        android:textColor="@color/on_surface"
+                        android:textSize="12sp" />
 
                 </LinearLayout>
 
@@ -492,28 +500,7 @@
                         android:text="@string/lb_settings"
                         android:textColor="@color/primary"
                         android:textSize="12sp"
-                        android:textStyle="bold" />                    <CheckBox
-                        android:id="@+id/layer_ore"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:checked="false"
-                        android:fontFamily="@font/misans"
-                        android:text="@string/layer_ore"
-                        android:textColor="@color/on_surface"
-                        android:textSize="12sp" />
-                    <TextView
-                        android:id="@+id/btn_clear_cache"
-                        android:layout_width="match_parent"
-                        android:layout_height="36dp"
-                        android:layout_marginTop="6dp"
-                        android:background="@drawable/bg_tab_unselected"
-                        android:fontFamily="@font/misans"
-                        android:gravity="center"
-                        android:text="@string/btn_clear_cache"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp" />
-
+                        android:textStyle="bold" />
 
 
 

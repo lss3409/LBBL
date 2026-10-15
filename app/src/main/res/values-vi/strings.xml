@@ -1519,7 +1519,6 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="layer_biome">Quần xã</string>
 <string name="layer_ore">Đánh dấu quặng</string>
 <string name="layer_shading">Đổ bóng độ dốc (cảm giác 3D)</string>
-<string name="btn_clear_cache">Xóa bộ nhớ đệm thế giới (tái tạo)</string>
 <string name="layer_entity">Thực thể</string>
 <string name="layer_structure">Công trình</string>
 <string name="layer_slime">Chunk Slime</string>

@@ -1517,7 +1517,6 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="layer_biome">बायोम</string>
 <string name="layer_ore">अयस्क चिह्न</string>
 <string name="layer_shading">ढलान छायांकन (3D अनुभव)</string>
-<string name="btn_clear_cache">दुनिया कैश साफ़ करें (फिर से बेक करें)</string>
 <string name="layer_entity">एंटिटीज़</string>
 <string name="layer_structure">संरचनाएँ</string>
 <string name="layer_slime">स्लाइम चंक</string>

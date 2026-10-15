@@ -508,22 +508,31 @@ public class WorldMapView extends View {
             return;
         }
         float targetPpb = clampPixelsPerBlock(Math.max(pixelsPerBlock, 4f));
+        // v0.4.71：电影式跳转——先把缩放比例调小（全景过渡）、定位、
+        // 再放大到目标倍率，平滑稍慢（800ms）
+        final float fitPpb = Math.max(MIN_PIXELS_PER_BLOCK, fitScale());
         final float startPpb = pixelsPerBlock;
         final float startOffsetX = offsetX;
         final float startOffsetY = offsetY;
-        final float dPpb = targetPpb - startPpb;
         final float dOffsetX = getWidth() / 2f - (blockX - map.minBlockX + 0.5f) * targetPpb - startOffsetX;
         final float dOffsetY = getHeight() / 2f - (blockZ - map.minBlockZ + 0.5f) * targetPpb - startOffsetY;
         android.animation.ValueAnimator anim = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        anim.setDuration(450);
-        anim.setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f));
+        anim.setDuration(800);
+        anim.setInterpolator(new android.view.animation.DecelerateInterpolator(1.4f));
         // 动画期间同样用缓存位图预览（以屏幕中心为锚），结束全量重绘
         scaleFocusX = getWidth() / 2f;
         scaleFocusY = getHeight() / 2f;
         scalePreviewActive = true;
         anim.addUpdateListener(a -> {
             float t = (float) a.getAnimatedValue();
-            setPpb(startPpb + dPpb * t);
+            // V 形缩放：前 40% 缩小到全景（fit），后 60% 放大到目标
+            float ppb;
+            if (t < 0.4f) {
+                ppb = startPpb + (fitPpb - startPpb) * (t / 0.4f);
+            } else {
+                ppb = fitPpb + (targetPpb - fitPpb) * ((t - 0.4f) / 0.6f);
+            }
+            setPpb(ppb);
             offsetX = startOffsetX + dOffsetX * t;
             offsetY = startOffsetY + dOffsetY * t;
             clampTranslation();

@@ -1520,7 +1520,6 @@
 <string name="layer_biome">Биомы</string>
 <string name="layer_ore">Метки руды</string>
 <string name="layer_shading">Отмывка склонов (эффект 3D)</string>
-<string name="btn_clear_cache">Очистить кэш мира (пересборка)</string>
 <string name="layer_entity">Сущности</string>
 <string name="layer_structure">Структуры</string>
 <string name="layer_slime">Слаймовые чанки</string>
