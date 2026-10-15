@@ -447,6 +447,12 @@ public class WorldMapView extends View {
         return ((long) cx << 32) | (cz & 0xFFFFFFFFL);
     }
 
+    /** v0.4.67：外部查询区块是否已渲染（标点&结构列表过滤未加载
+     *  区块条目——与地图标记同语义）。 */
+    public boolean isChunkRendered(int blockX, int blockZ) {
+        return chunkRendered(Math.floorDiv(blockX, 16), Math.floorDiv(blockZ, 16));
+    }
+
     /**
      * 世界块坐标 → 屏幕坐标。double 计算：float 在大数抵消时精度只剩
      * ~0.04px（offsetX 可达 -30 万），相邻 tile 的 dst 之间会出现亚像素

@@ -1040,6 +1040,10 @@ public class NbtViewerActivity extends BaseActivity {
                 if (!p.dimension.equals(mapDimension)) {
                     continue;
                 }
+                // v0.4.67：未加载区块不显示（与地图标记同语义）
+                if (!binding.worldMapImage.isChunkRendered(p.x, p.z)) {
+                    continue;
+                }
                 if (!q.isEmpty()
                         && !p.name.toLowerCase().contains(q)
                         && !(p.x + "," + p.z).contains(q)) {
@@ -1084,6 +1088,10 @@ public class NbtViewerActivity extends BaseActivity {
                 structs = new ArrayList<>(currentStructures);
             }
             for (WorldMapRenderer.StructureMarker m : structs) {
+                // v0.4.67：未加载区块不显示（与地图标记同语义）
+                if (!binding.worldMapImage.isChunkRendered(m.x, m.z)) {
+                    continue;
+                }
                 String label = WorldMapView.structureLabel(this, m.type);
                 if (!q.isEmpty()
                         && !label.toLowerCase().contains(q)
