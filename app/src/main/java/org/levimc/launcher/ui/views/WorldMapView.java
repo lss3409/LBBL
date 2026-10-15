@@ -275,6 +275,8 @@ public class WorldMapView extends View {
     /** v0.4.61：全图绘制最近邻采样（HTML imageSmoothingEnabled=false
      *  同款）——双线性会把色块地图糊掉（"还是糊"的根因）。 */
     private final android.graphics.Paint fullMapPaint = new android.graphics.Paint();
+    /** v0.4.62：全图缩小时的双线性画笔（防最近邻混叠噪声，惰性建）。 */
+    private android.graphics.Paint fullMapLinearPaint;
     private final android.graphics.RectF fullMapDst = new android.graphics.RectF();
     /** 全图模式的缩放上限（px/方块；HTML 等效 2048x）。 */
     private static final float FULL_MAX_PIXELS_PER_BLOCK = 512f;
@@ -299,7 +301,10 @@ public class WorldMapView extends View {
         fullMapBitmap = null;
     }
 
-    /** 全图模式绘制：单次 drawBitmap + 最近邻变换（GPU，零 CPU 重采样）。 */
+    /** 全图模式绘制：单次 drawBitmap + GPU 变换（零 CPU 重采样）。
+     *  v0.4.62：放大（scalePx≥1）最近邻保持锐利色块；缩小（scalePx<1）
+     *  双线性防混叠——fit 全图时最近邻缩小的像素混叠噪声看起来就是糊
+     *  （"还是糊"的间歇性根因：放大不糊、缩小糊）。 */
     private void drawFullMapLayer(android.graphics.Canvas canvas) {
         if (map == null || fullMapBitmap == null || fullMapBitmap.isRecycled()) {
             return;
@@ -308,7 +313,14 @@ public class WorldMapView extends View {
         fullMapDst.set(offsetX, offsetY,
                 offsetX + fullMapWidth * scalePx,
                 offsetY + fullMapHeight * scalePx);
-        canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
+        if (scalePx >= 1f) {
+            canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
+        } else {
+            if (fullMapLinearPaint == null) {
+                fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+            }
+            canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
+        }
     }
 
     // ---- v0.4.54：史莱姆 chunk 遮罩（每 chunk 1 像素预渲染位图，
