@@ -255,6 +255,13 @@ public class WorldMapView extends View {
         }
         // v0.4.52：换图后旧全图失效（新图数据不同，调用方会重拼）
         clearFullMapImage();
+        // v0.4.53：map 自带 RLE 全图（秒开缓存）时直接挂载
+        if (map != null && map.fullImage != null && !map.fullImage.isRecycled()) {
+            fullMapBitmap = map.fullImage;
+            fullMapWidth = map.fullImageW;
+            fullMapHeight = map.fullImageH;
+            fullMapBlockScale = Math.max(1, map.fullImageBlockScale);
+        }
         if (!keepView || !viewInitialized) {
             initialView();
             viewInitialized = true;

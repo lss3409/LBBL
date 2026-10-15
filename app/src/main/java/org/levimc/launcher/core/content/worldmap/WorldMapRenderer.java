@@ -1173,6 +1173,12 @@ public class WorldMapRenderer {
          *  ~local_player 的 LastDeathPos（1.19+）或 DeathPositionX/Z（旧格式）。 */
         public int deathBlockX = -1;
         public int deathBlockZ = -1;
+        /** v0.4.53：RLE 全图缓存（秒开用——loadFullRle 解码好的 Bitmap，
+         *  null=无；WorldMapView.setWorldMap 时自动挂载全图模式）。 */
+        public android.graphics.Bitmap fullImage;
+        public int fullImageBlockScale = 1;
+        public int fullImageW;
+        public int fullImageH;
 
         /** v0.4.7：方块坐标处的群系 id（手柄光标悬停显示群系名用）。
          *  小世界走全图 biomeColors；大世界走 chunkBiomeColors。 */
@@ -2777,7 +2783,196 @@ public class WorldMapRenderer {
                 }
             }
         }
+        // v0.4.53：附带保存 RLE 全图缓存（打开秒开用，小文件）
+        try {
+            saveFullRle(map, dbDir, dimension);
+        } catch (Exception e) {
+            Log.w(TAG, "RLE 全图缓存保存失败", e);
+        }
         return true;
+    }
+
+    // ---- v0.4.53：RLE 全图缓存（秒开） ----
+
+    /** RLE 全图缓存文件：与 chunk 缓存同后缀体系（渲染参数隔离）。 */
+    private static File fullRleFile(File dbDir, int dimension) {
+        File chunkFile = chunkCacheFileFor(dbDir, dimension, cacheSuffixFor(dimension));
+        return new File(chunkFile.getParentFile(),
+                chunkFile.getName().replaceFirst("^chunks", "full"));
+    }
+
+    /** 保存 RLE 全图（调色板+游程压缩，与 HTML 导出同格式）——
+     *  头：magic/version/mapW/mapH/minBlockX/minBlockZ/blockScale/
+     *  composedW/composedH/dataLen + RLE 数据。 */
+    public static void saveFullRle(WorldMap map, File dbDir, int dimension) {
+        if (map == null || dbDir == null || map.width <= 0 || map.height <= 0) {
+            return;
+        }
+        int[] full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(map);
+        if (full == null) {
+            return;
+        }
+        int cw = full[0], ch = full[1];
+        int[] px = new int[cw * ch];
+        System.arraycopy(full, 2, px, 0, cw * ch);
+        // RLE 编码（调色板 + 游程，小端）
+        java.util.LinkedHashMap<Integer, Integer> palette = new java.util.LinkedHashMap<>();
+        int[] index = new int[px.length];
+        for (int i = 0; i < px.length; i++) {
+            Integer id = palette.get(px[i]);
+            if (id == null) {
+                id = palette.size();
+                palette.put(px[i], id);
+            }
+            index[i] = id;
+        }
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(px.length);
+        try {
+            java.io.DataOutputStream dos = new java.io.DataOutputStream(bos);
+            // 头
+            dos.writeInt(FULL_RLE_MAGIC);
+            dos.writeInt(FULL_RLE_VERSION);
+            dos.writeInt(map.width);
+            dos.writeInt(map.height);
+            dos.writeInt(map.minBlockX);
+            dos.writeInt(map.minBlockZ);
+            dos.writeInt(Math.max(1, map.width / cw));
+            dos.writeInt(cw);
+            dos.writeInt(ch);
+            // RLE 数据（小端短整型，与 HTML JS 解码一致）
+            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream(px.length);
+            writeShortLE(body, palette.size());
+            for (int c : palette.keySet()) {
+                body.write((c >> 16) & 0xFF);
+                body.write((c >> 8) & 0xFF);
+                body.write(c & 0xFF);
+            }
+            for (int i = 0; i < index.length; ) {
+                int v = index[i];
+                int j = i + 1;
+                while (j < index.length && index[j] == v && j - i < 65535) {
+                    j++;
+                }
+                writeShortLE(body, v);
+                writeShortLE(body, j - i);
+                i = j;
+            }
+            byte[] bodyBytes = body.toByteArray();
+            dos.writeInt(bodyBytes.length);
+            dos.write(bodyBytes);
+            dos.flush();
+        } catch (java.io.IOException e) {
+            Log.w(TAG, "RLE 编码失败", e);
+            return;
+        }
+        // 原子写
+        File out = fullRleFile(dbDir, dimension);
+        File tmp = new File(out.getParentFile(), out.getName() + ".tmp");
+        try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tmp)) {
+            fos.write(bos.toByteArray());
+            fos.getFD().sync();
+        } catch (Exception e) {
+            Log.w(TAG, "RLE 全图缓存写失败", e);
+            tmp.delete();
+            return;
+        }
+        if (tmp.renameTo(out)) {
+            Log.i(TAG, "RLE 全图缓存已保存: " + out.getName()
+                    + " (" + bos.size() + "B)");
+        } else {
+            tmp.delete();
+        }
+    }
+
+    /** 读取 RLE 全图缓存，挂载到目标 map（map 须已带 bounds 元数据）。
+     *  返回 true=成功（map.fullImage 已设置）。 */
+    public static boolean loadFullRle(WorldMap map, File dbDir, int dimension) {
+        if (map == null || dbDir == null) {
+            return false;
+        }
+        File in = fullRleFile(dbDir, dimension);
+        if (!in.isFile()) {
+            return false;
+        }
+        try (java.io.DataInputStream dis = new java.io.DataInputStream(
+                new java.io.BufferedInputStream(new java.io.FileInputStream(in)))) {
+            if (dis.readInt() != FULL_RLE_MAGIC || dis.readInt() != FULL_RLE_VERSION) {
+                return false;
+            }
+            int mapW = dis.readInt();
+            int mapH = dis.readInt();
+            int minX = dis.readInt();
+            int minZ = dis.readInt();
+            int blockScale = dis.readInt();
+            int cw = dis.readInt();
+            int ch = dis.readInt();
+            int dataLen = dis.readInt();
+            if (mapW != map.width || mapH != map.height
+                    || minX != map.minBlockX || minZ != map.minBlockZ
+                    || dataLen <= 0 || dataLen > 256 * 1024 * 1024
+                    || cw <= 0 || ch <= 0 || cw > 8192 || ch > 8192) {
+                Log.i(TAG, "RLE 全图缓存与地图不匹配，忽略");
+                return false;
+            }
+            byte[] data = new byte[dataLen];
+            dis.readFully(data);
+            // 解码
+            int o = 0;
+            int n = (data[o] & 0xFF) | ((data[o + 1] & 0xFF) << 8);
+            o += 2;
+            if (n < 1 || n > 65535) {
+                return false;
+            }
+            int[][] pal = new int[n][];
+            for (int i = 0; i < n; i++) {
+                int r = data[o] & 0xFF;
+                int g = data[o + 1] & 0xFF;
+                int b = data[o + 2] & 0xFF;
+                o += 3;
+                pal[i] = new int[]{r, g, b};
+            }
+            int total = cw * ch;
+            int[] px = new int[total];
+            int p = 0;
+            while (p < total && o + 3 < data.length) {
+                int idx = (data[o] & 0xFF) | ((data[o + 1] & 0xFF) << 8);
+                o += 2;
+                int cnt = (data[o] & 0xFF) | ((data[o + 1] & 0xFF) << 8);
+                o += 2;
+                int[] c = idx < n ? pal[idx] : new int[]{0, 0, 0};
+                int argb = 0xFF000000 | (c[0] << 16) | (c[1] << 8) | c[2];
+                if (c[0] == 0 && c[1] == 0 && c[2] == 0) {
+                    argb = 0; // 未渲染区域透明
+                }
+                int end = Math.min(total, p + cnt);
+                for (int k = p; k < end; k++) {
+                    px[k] = argb;
+                }
+                p = end;
+            }
+            android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                    cw, ch, android.graphics.Bitmap.Config.ARGB_8888);
+            bmp.setPixels(px, 0, cw, 0, 0, cw, ch);
+            map.fullImage = bmp;
+            map.fullImageBlockScale = Math.max(1, blockScale);
+            map.fullImageW = cw;
+            map.fullImageH = ch;
+            Log.i(TAG, "RLE 全图缓存命中: " + cw + "x" + ch + " blockScale="
+                    + blockScale + " (" + dataLen + "B)");
+            return true;
+        } catch (Exception e) {
+            Log.w(TAG, "RLE 全图缓存读失败", e);
+            return false;
+        }
+    }
+
+    private static final int FULL_RLE_MAGIC = 0x4C464D50; // 'LFMP'
+    private static final int FULL_RLE_VERSION = 1;
+
+    private static void writeShortLE(java.io.OutputStream os, int v)
+            throws java.io.IOException {
+        os.write(v & 0xFF);
+        os.write((v >> 8) & 0xFF);
     }
 
     /** v20：biome 独立缓存文件（与 chunks.bin 同目录同后缀）。 */

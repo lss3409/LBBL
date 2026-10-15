@@ -1422,6 +1422,29 @@ public class NbtViewerActivity extends BaseActivity {
                     // 扫描秒进地图，视口按需渲染。此前此处是全量流式渲染
                     // 30-60 秒（"渲染完全部区块才显示"的根因）
                     Log.i(TAG, "大世界按需渲染(切维度) dbSize=" + dbSize);
+                    // v0.4.53：RLE 全图秒开——先读小文件（几十 ms）立即
+                    // 进图（全图模式），chunk 完整缓存继续后台读
+                    WorldMapRenderer.WorldMap rleProbe =
+                            WorldMapRenderer.buildBoundsOnly(dbDir, dimId);
+                    if (rleProbe != null) {
+                        rleProbe.chunkSourceDir = dbDir;
+                        rleProbe.chunkSourceDim = dimId;
+                        if (WorldMapRenderer.loadFullRle(rleProbe, dbDir, dimId)) {
+                            final WorldMapRenderer.WorldMap fQuick = rleProbe;
+                            runOnUiThread(() -> {
+                                if (isFinishing() || isDestroyed()
+                                        || gen != loadGeneration) {
+                                    return;
+                                }
+                                skeletonShown = true;
+                                binding.nbtLoading.setVisibility(View.GONE);
+                                binding.worldMapPlaceholder.setVisibility(View.GONE);
+                                binding.worldMapImage.initialFitAll = false;
+                                currentMap = fQuick;
+                                binding.worldMapImage.setWorldMap(fQuick);
+                            });
+                        }
+                    }
                     worldMap = WorldMapRenderer.loadChunkCache(dbDir, dimId);
                     if (worldMap == null && dimId == 1) {
                         fallbackMap[0] = WorldMapRenderer.loadChunkCacheWithSuffix(
@@ -1697,7 +1720,7 @@ public class NbtViewerActivity extends BaseActivity {
                     // 下界/末地保持放大起步（v380 教训：fit 进 LOD 黑屏）
                     binding.worldMapImage.initialFitAll =
                             "overworld".equals(mapDimension);
-                    binding.worldMapImage.setWorldMap(fMap, fKeepView);
+                    binding.worldMapImage.setWorldMap(fMap, fKeepView || skeletonShown);
                     // v0.4.52：后台拼全图纹理（HTML 同款渲染——拼完自动
                     // 切全图模式，拖动/缩放 GPU 化；未拼完前走原 chunk 路径）
                     composeFullMapAsync(fMap);
@@ -2025,6 +2048,11 @@ public class NbtViewerActivity extends BaseActivity {
                         }
                     }
                     final WorldMapRenderer.WorldMap fSkeleton = skeleton;
+                    // v0.4.53：骨架挂 RLE 全图（秒开缓存命中时骨架
+                    // 直接进全图模式——不再是空 bounds 背景）
+                    if (WorldMapRenderer.loadFullRle(fSkeleton, dbDir, 0)) {
+                        Log.i(TAG, "首开骨架命中 RLE 全图缓存");
+                    }
                     runOnUiThread(() -> {
                         if (isFinishing() || isDestroyed()
                                 || !isCurrentLoad(gen)) {
