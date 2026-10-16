@@ -38,8 +38,11 @@ public class FmDialogs {
 
     /** 内置编辑器支持的文本后缀（Activity 分发共用）。 */
     public static final String[] TEXT_SUFFIX = {
-            ".txt", ".log", ".json", ".xml", ".yml", ".yaml", ".properties", ".mcmeta",
-            ".cfg", ".conf", ".ini", ".md", ".html", ".js", ".css", ".csv", ".lang"
+            ".txt", ".log", ".json", ".jsonc", ".xml", ".yml", ".yaml", ".properties", ".mcmeta",
+            ".cfg", ".conf", ".ini", ".md", ".html", ".js", ".css", ".csv", ".tsv", ".lang",
+            // v0.4.74：常见文本格式补全（脚本/配置/字幕等）
+            ".toml", ".ts", ".kt", ".java", ".py", ".sh", ".bat", ".sql", ".lua",
+            ".mcfunction", ".srt", ".diff", ".patch", ".tex", ".nfo"
     };
 
     private static final SimpleDateFormat FMT = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());

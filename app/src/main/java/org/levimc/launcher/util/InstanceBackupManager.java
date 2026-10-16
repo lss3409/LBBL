@@ -63,7 +63,7 @@ public class InstanceBackupManager {
     private static final String SHARED_PREFIX = "shared/";
     private static final String RUNTIME_LIBS_PREFIX = "runtime_libs/";
     private static final String PACKAGE_PREFIX = "package/";
-    /** v569：烘培地图缓存（Download/LeviLauncher/Cache/map_cache）随备份捎带。 */
+    /** v569：烘培地图缓存（<启动器数据根>/Cache/map_cache）随备份捎带。 */
     private static final String BAKED_CACHE_PREFIX = "baked_cache/";
     /** v570：Xbox 登录数据（files/xal/，含 gamertag）随备份捎带——
      * 导入菜单二级详情可显示玩家登录信息。 */
@@ -348,12 +348,14 @@ public class InstanceBackupManager {
             ContentResolver resolver = context.getContentResolver();
             String relativePath = downloadRoot.toURI().relativize(backupDir.toURI()).getPath();
             // 同名备份已存在：删除旧条目，实现「覆盖更新」而不是再生成一个带时间戳的新文件
-            // （限定本目录，避免误删其他目录同名文件）
+            // （限定本目录，避免误删其他目录同名文件；MediaStore 存储的
+            // RELATIVE_PATH 带尾斜杠，两个候选都删）
             try {
                 resolver.delete(MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        MediaStore.MediaColumns.DISPLAY_NAME + "=? AND "
-                                + MediaStore.MediaColumns.RELATIVE_PATH + "=?",
-                        new String[]{fileName, relativePath});
+                        MediaStore.MediaColumns.DISPLAY_NAME + "=? AND ("
+                                + MediaStore.MediaColumns.RELATIVE_PATH + "=? OR "
+                                + MediaStore.MediaColumns.RELATIVE_PATH + "=?)",
+                        new String[]{fileName, relativePath, relativePath + "/"});
             } catch (Exception ignored) {
             }
             ContentValues values = new ContentValues();

@@ -65,12 +65,18 @@ public class TextEditorActivity extends BaseActivity {
             previewText.setText(getString(R.string.file_not_found));
             return;
         }
-        if (file.length() > 256 * 1024) {
+        // v0.4.74：上限放宽到 1MB（256KB 对 .log 等常见文本太小）
+        if (file.length() > 1024 * 1024) {
             previewText.setText(getString(R.string.file_too_large));
             return;
         }
         executor.execute(() -> {
             String text = readFile();
+            // v0.4.74：显示截断到 300KB 字符（TextView 渲染 1MB 文本会卡）
+            int maxChars = 300 * 1024;
+            if (text.length() > maxChars) {
+                text = text.substring(0, maxChars) + "\n…";
+            }
             if (isJsonFile()) {
                 SpannableString highlighted = highlightJson(text);
                 mainHandler.post(() -> previewText.setText(highlighted));
@@ -80,14 +86,56 @@ public class TextEditorActivity extends BaseActivity {
         });
     }
 
+    /** v0.4.74：循环读满 + 智能编码（UTF-8 严格 → BOM/GBK/Latin-1 兜底）。
+     *  此前固定 UTF-8 解码——GBK/ANSI 中文文件全是替换符，看起来"不显示文本"。 */
     private String readFile() {
         try (FileInputStream fis = new FileInputStream(file)) {
-            byte[] data = new byte[(int) Math.min(file.length(), 5 * 1024 * 1024)];
-            int read = fis.read(data);
-            return new String(data, 0, Math.max(0, read), StandardCharsets.UTF_8);
+            byte[] data = new byte[(int) Math.min(file.length(), 1024 * 1024)];
+            int off = 0;
+            while (off < data.length) {
+                int read = fis.read(data, off, data.length - off);
+                if (read <= 0) {
+                    break;
+                }
+                off += read;
+            }
+            if (off < data.length) {
+                data = java.util.Arrays.copyOf(data, off);
+            }
+            return decodeSmart(data);
         } catch (IOException e) {
             return "";
         }
+    }
+
+    /** BOM → UTF-8 严格 → GBK → Latin-1。 */
+    private static String decodeSmart(byte[] data) {
+        // UTF-8 BOM
+        if (data.length >= 3 && (data[0] & 0xFF) == 0xEF && (data[1] & 0xFF) == 0xBB
+                && (data[2] & 0xFF) == 0xBF) {
+            return new String(data, 3, data.length - 3, StandardCharsets.UTF_8);
+        }
+        // UTF-16 BOM
+        if (data.length >= 2 && (data[0] & 0xFF) == 0xFF && (data[1] & 0xFF) == 0xFE) {
+            return new String(data, 2, data.length - 2, StandardCharsets.UTF_16LE);
+        }
+        if (data.length >= 2 && (data[0] & 0xFF) == 0xFE && (data[1] & 0xFF) == 0xFF) {
+            return new String(data, 2, data.length - 2, StandardCharsets.UTF_16BE);
+        }
+        // UTF-8 严格解码（失败=非 UTF-8）
+        try {
+            java.nio.charset.CharsetDecoder utf8 = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
+            return utf8.decode(java.nio.ByteBuffer.wrap(data)).toString();
+        } catch (Exception ignored) {
+        }
+        // GBK（中文用户最常见的旧编码）
+        try {
+            return new String(data, java.nio.charset.Charset.forName("GBK"));
+        } catch (Exception ignored) {
+        }
+        return new String(data, StandardCharsets.ISO_8859_1);
     }
 
     private boolean isJsonFile() {
