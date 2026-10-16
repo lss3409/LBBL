@@ -297,16 +297,11 @@ public class WorldMapView extends View {
         invalidateFullRender();
     }
 
-    private void recycleMips() {
-        // v0.4.87：mip 链已删除（回滚 v0.4.53 恒全图单 draw）
-    }
-
     private void clearFullMapImage() {
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()) {
             fullMapBitmap.recycle();
         }
         fullMapBitmap = null;
-        recycleMips();
     }
 
     /** 全图模式绘制：单次 drawBitmap + GPU 变换（零 CPU 重采样）。
