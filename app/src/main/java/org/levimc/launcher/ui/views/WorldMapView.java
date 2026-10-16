@@ -307,39 +307,58 @@ public class WorldMapView extends View {
         fullMapHeight = h;
         fullMapBlockScale = Math.max(1, blockScale);
         recycleMips();
-        // 后台生成 mip 链（大图 createScaledBitmap 不能放 UI/烘焙热路径）
-        if (bmp != null && !bmp.isRecycled() && bmp.getWidth() >= 2 && bmp.getHeight() >= 2) {
-            final int gen = ++mipGen;
-            final android.graphics.Bitmap src = bmp;
-            mipExecutor.execute(() -> {
-                android.graphics.Bitmap m2 = null, m4 = null, m8 = null;
-                try {
-                    m2 = android.graphics.Bitmap.createScaledBitmap(
-                            src, Math.max(1, src.getWidth() / 2),
-                            Math.max(1, src.getHeight() / 2), true);
-                    m4 = android.graphics.Bitmap.createScaledBitmap(
-                            src, Math.max(1, src.getWidth() / 4),
-                            Math.max(1, src.getHeight() / 4), true);
-                    m8 = android.graphics.Bitmap.createScaledBitmap(
-                            src, Math.max(1, src.getWidth() / 8),
-                            Math.max(1, src.getHeight() / 8), true);
-                } catch (Throwable ignored) {
-                }
-                if (gen != mipGen || fullMapBitmap != src) {
-                    // 全图已换：丢弃产物
-                    if (m2 != null) m2.recycle();
-                    if (m4 != null) m4.recycle();
-                    if (m8 != null) m8.recycle();
-                    return;
-                }
-                fullMapMip2 = m2;
-                fullMapMip4 = m4;
-                fullMapMip8 = m8;
-                postInvalidate();
-            });
+        // v0.4.84：mip 按需生成（不再挂载时全量提交三级——单线程队列
+        // 堆积导致最新全图的 mip 迟到数十秒="刚打开糊过一会不糊"；
+        // 打开 fit 视图只缺 mip8，按需生成几十 ms 即就绪）
+        if (bmp != null && !bmp.isRecycled()) {
+            mipGen++;
         }
         invalidateFullRender();
     }
+
+    /** 按需生成某级 mip（2/4/8）；生成中或已就绪则跳过。 */
+    private void ensureMip(int level) {
+        android.graphics.Bitmap cur = level == 2 ? fullMapMip2
+                : level == 4 ? fullMapMip4 : fullMapMip8;
+        if (cur != null && !cur.isRecycled()) {
+            return;
+        }
+        synchronized (mipLock) {
+            cur = level == 2 ? fullMapMip2 : level == 4 ? fullMapMip4 : fullMapMip8;
+            if ((cur != null && !cur.isRecycled()) || mipPending.contains(level)) {
+                return;
+            }
+            mipPending.add(level);
+        }
+        final int gen = mipGen;
+        final android.graphics.Bitmap src = fullMapBitmap;
+        if (src == null || src.isRecycled()) {
+            return;
+        }
+        mipExecutor.execute(() -> {
+            android.graphics.Bitmap m = null;
+            try {
+                m = android.graphics.Bitmap.createScaledBitmap(
+                        src, Math.max(1, src.getWidth() / level),
+                        Math.max(1, src.getHeight() / level), true);
+            } catch (Throwable ignored) {
+            }
+            synchronized (mipLock) {
+                mipPending.remove(level);
+                if (gen != mipGen || fullMapBitmap != src) {
+                    if (m != null) m.recycle();
+                    return;
+                }
+                if (level == 2) fullMapMip2 = m;
+                else if (level == 4) fullMapMip4 = m;
+                else fullMapMip8 = m;
+            }
+            postInvalidate();
+        });
+    }
+
+    private final Object mipLock = new Object();
+    private final java.util.Set<Integer> mipPending = new java.util.HashSet<>();
 
     private void recycleMips() {
         if (fullMapMip2 != null && !fullMapMip2.isRecycled()) fullMapMip2.recycle();
@@ -375,10 +394,19 @@ public class WorldMapView extends View {
             android.graphics.Bitmap mip = null;
             if (scalePx >= 0.5f) {
                 mip = fullMapMip2;
+                if (mip == null || mip.isRecycled()) {
+                    ensureMip(2);
+                }
             } else if (scalePx >= 0.25f) {
                 mip = fullMapMip4;
+                if (mip == null || mip.isRecycled()) {
+                    ensureMip(4);
+                }
             } else {
                 mip = fullMapMip8;
+                if (mip == null || mip.isRecycled()) {
+                    ensureMip(8);
+                }
             }
             if (mip != null && !mip.isRecycled()) {
                 canvas.drawBitmap(mip, null, fullMapDst, fullMapPaint);

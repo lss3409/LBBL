@@ -2821,14 +2821,7 @@ public class WorldMapRenderer {
         if (map == null || dbDir == null || map.width <= 0 || map.height <= 0) {
             return;
         }
-        int[] full = null;
-        try {
-            // v0.4.81：缓存也用 8192（与渲染路径一致——4096 级缓存
-            // 打开秒挂后放大就是平均色块糊）；OOM 回退 4096
-            full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(map, 8192);
-        } catch (OutOfMemoryError oom) {
-            full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(map);
-        }
+        int[] full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(map);
         if (full == null) {
             return;
         }

@@ -2077,12 +2077,9 @@ public class NbtViewerActivity extends BaseActivity {
             }
             int[] full = null;
             try {
-                // v0.4.81：拼图上限 8192（HTML 导出同款）——下界稀疏
-                // 大 bounds 此前 4096 降采样 blockScale 偏大，放大全是
-                // 平均色块=下界糊；OOM 回退 4096
-                full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(
-                        targetMap, 8192);
-            } catch (OutOfMemoryError oom) {
+                // v0.4.84：渲染路径恢复 4096（v0.4.81 的 8192 位图 268MB
+                // 内存压力=大地图缩放卡；下界清晰靠 scalePx<=1 全图
+                // 条件+放大走 chunk tile，不依赖更高分辨率）
                 full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(targetMap);
             } catch (java.util.ConcurrentModificationException ignored) {
                 if (attempt < 3) {

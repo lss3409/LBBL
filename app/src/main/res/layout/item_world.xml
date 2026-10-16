@@ -116,6 +116,7 @@
 
         <TextView
             android:id="@+id/world_seed"
+            android:focusable="false"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
@@ -126,6 +127,7 @@
 
     <ImageButton
         android:id="@+id/world_play_button"
+            android:focusable="false"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="center_vertical"
@@ -138,6 +140,7 @@
 
     <ImageButton
         android:id="@+id/world_edit_button"
+            android:focusable="false"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="center_vertical"
@@ -150,6 +153,7 @@
 
     <ImageButton
         android:id="@+id/world_overflow_button"
+            android:focusable="false"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="center_vertical"

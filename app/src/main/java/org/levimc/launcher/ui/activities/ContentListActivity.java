@@ -934,6 +934,22 @@ public class ContentListActivity extends BaseActivity {
                         android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL);
         lp.bottomMargin = (int) (24 * d);
         decor.addView(gamepadActionPanel, lp);
+        // v0.4.84：焦点移出面板自动关闭——摇杆从面板 DOWN 到其它卡片
+        // 时面板收起，再按 A 就展开那个卡片的二级菜单（跨实例操作）
+        decor.getViewTreeObserver().addOnGlobalFocusChangeListener((oldF, newF) -> {
+            if (gamepadActionPanel == null
+                    || gamepadActionPanel.getVisibility() != View.VISIBLE
+                    || newF == null) {
+                return;
+            }
+            View p = newF;
+            while (p != null && p != gamepadActionPanel) {
+                p = (View) p.getParent();
+            }
+            if (p == null) {
+                closeGamepadActionPanel();
+            }
+        });
     }
 
     private void backupWorld(WorldItem world) {

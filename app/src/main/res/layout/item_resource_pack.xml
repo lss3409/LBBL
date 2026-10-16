@@ -84,6 +84,7 @@
 
         <ImageButton
             android:id="@+id/pack_export_button"
+            android:focusable="false"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
@@ -94,6 +95,7 @@
 
         <ImageButton
             android:id="@+id/pack_overflow_button"
+            android:focusable="false"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
