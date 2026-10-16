@@ -318,7 +318,9 @@ public class BaseActivity extends AppCompatActivity {
         return null;
     }
 
-    private boolean clickGamepadFocused() {
+    /** v0.4.78：子类可覆盖——二级菜单语义（A 键在卡片上=展开子项
+     *  面板而非直接点击）。 */
+    protected boolean clickGamepadFocused() {
         View current = getCurrentFocus();
         if (current != null) {
             current.performClick();

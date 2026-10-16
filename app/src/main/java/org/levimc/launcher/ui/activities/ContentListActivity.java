@@ -811,6 +811,120 @@ public class ContentListActivity extends BaseActivity {
         });
     }
 
+    // ---------- v0.4.78：手柄二级操作面板（A 键在世界卡片上=展开子操作） ----------
+
+    /** 手柄首页焦点=搜索框（此前落顶部 tab，DOWN 直接跳过搜索/选择/
+     *  超平坦/极限管理一排工具按钮到世界卡片——"选不到"根因）。 */
+    @Override
+    protected View gamepadFirstFocusView() {
+        return binding.searchEditText;
+    }
+    private android.widget.LinearLayout gamepadActionPanel;
+    private View gamepadPanelCard;
+
+    /** A 键在卡片上=展开二级面板而非直接点击（卡片主体点击本无反应）。 */
+    @Override
+    protected boolean clickGamepadFocused() {
+        View current = getCurrentFocus();
+        if (current != null && current.getId() == R.id.world_card) {
+            openGamepadActionPanel(current);
+            return true;
+        }
+        return super.clickGamepadFocused();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (gamepadActionPanel != null && gamepadActionPanel.getVisibility() == View.VISIBLE) {
+            closeGamepadActionPanel();
+            return;
+        }
+        super.onBackPressed();
+    }
+
+    private void openGamepadActionPanel(View cardView) {
+        gamepadPanelCard = cardView;
+        ensureGamepadActionPanel();
+        gamepadActionPanel.setVisibility(View.VISIBLE);
+        View first = gamepadActionPanel.getChildAt(0);
+        if (first != null) {
+            first.requestFocus();
+        }
+    }
+
+    private void closeGamepadActionPanel() {
+        if (gamepadActionPanel != null) {
+            gamepadActionPanel.setVisibility(View.GONE);
+        }
+        View card = gamepadPanelCard;
+        gamepadPanelCard = null;
+        if (card != null) {
+            card.requestFocus();
+        }
+    }
+
+    /** 面板按钮：执行卡片内对应按钮的 performClick（复用全部现有逻辑）。 */
+    private android.widget.Button panelButton(String text, final int targetId) {
+        android.widget.Button b = new android.widget.Button(this);
+        b.setAllCaps(false);
+        b.setText(text);
+        b.setTextSize(13);
+        b.setMinWidth(0);
+        b.setMinimumWidth(0);
+        float d = getResources().getDisplayMetrics().density;
+        b.setPadding((int) (14 * d), (int) (8 * d), (int) (14 * d), (int) (8 * d));
+        org.levimc.launcher.util.AccentStyler.stylePrimary(this, b);
+        b.setOnClickListener(v -> {
+            View card = gamepadPanelCard; // 先存：close 会清空引用
+            closeGamepadActionPanel();
+            if (card != null) {
+                View target = card.findViewById(targetId);
+                if (target != null) {
+                    target.performClick();
+                }
+            }
+        });
+        return b;
+    }
+
+    private void ensureGamepadActionPanel() {
+        if (gamepadActionPanel != null) {
+            return;
+        }
+        float d = getResources().getDisplayMetrics().density;
+        gamepadActionPanel = new android.widget.LinearLayout(this);
+        gamepadActionPanel.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        gamepadActionPanel.setGravity(android.view.Gravity.CENTER);
+        gamepadActionPanel.setElevation(80 * d);
+        gamepadActionPanel.setPadding((int) (10 * d), (int) (8 * d), (int) (10 * d), (int) (8 * d));
+        android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+        bg.setColor(0xFF1E1E24); // 不透明底（UI 铁律：弹窗背景不透明）
+        bg.setCornerRadius(14 * d);
+        gamepadActionPanel.setBackground(bg);
+        boolean zh = java.util.Locale.getDefault().getLanguage().startsWith("zh");
+        gamepadActionPanel.addView(panelButton(zh ? "复制种子" : "Copy Seed",
+                R.id.world_seed));
+        gamepadActionPanel.addView(panelButton(getString(R.string.world_play),
+                R.id.world_play_button));
+        gamepadActionPanel.addView(panelButton(getString(R.string.world_view_map),
+                R.id.world_edit_button));
+        gamepadActionPanel.addView(panelButton(zh ? "更多" : "More",
+                R.id.world_overflow_button));
+        // 挂 Activity 视图树（DecorView 底部居中）——焦点留在 Activity
+        // 窗口，BaseActivity 的 DPAD 拦截与焦点描边全部正常生效；
+        // 独立窗口（TYPE_APPLICATION_PANEL）会被 Activity 层 DPAD
+        // 拦截导致面板按钮拿不到焦点
+        android.view.ViewGroup decor =
+                (android.view.ViewGroup) getWindow().getDecorView();
+        android.widget.FrameLayout.LayoutParams lp =
+                new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                        android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL);
+        lp.bottomMargin = (int) (24 * d);
+        decor.addView(gamepadActionPanel, lp);
+    }
+
     private void backupWorld(WorldItem world) {
         // 手动备份统一走普通路径（.mcworld 存到 Download/LeviLauncher/Backups/minecraftWorlds backups/）；
         // 极限存档专属 Hardcore backups 文件夹只在定时备份时使用。
