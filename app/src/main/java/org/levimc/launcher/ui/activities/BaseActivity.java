@@ -77,13 +77,11 @@ public class BaseActivity extends AppCompatActivity {
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent event) {
         if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) {
-            // v0.4.10：非 A 键 = 显式切回焦点模式（A 键在光标可见时
-            // 是光标点击语义，不切模式）
-            if (isGamepadCursorVisible()
-                    && event.getKeyCode() != android.view.KeyEvent.KEYCODE_BUTTON_A) {
-                hideGamepadCursor();
-                restoreOutlineAfterCursor();
-            }
+            // v0.4.75：操作键（X/Y/LB/RB/LT/RT 等）不再立即隐藏光标——
+            // 此前"非 A 键 = 切回焦点模式"导致 LT/RT 缩放、X/Y 缩放一按
+            // 光标立刻消失（破坏 5s 超时）、描边被恢复（右摇杆模式
+            // 闪描边）。光标隐藏只归 5s 归中超时与 D-pad/左摇杆焦点
+            // 导航管（moveGamepadFocus 内部处理 hide+恢复描边）。
             switch (event.getKeyCode()) {
                 case android.view.KeyEvent.KEYCODE_DPAD_UP:
                 case android.view.KeyEvent.KEYCODE_DPAD_DOWN:

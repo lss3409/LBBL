@@ -307,6 +307,22 @@ public class FmDialogs {
             opts.inJustDecodeBounds = false;
             opts.inSampleSize = sample;
             android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
+            // v0.4.75：低像素图整数倍最近邻放大（像素图软件同款）——
+            // ImageView 默认双线性放大把像素图糊成单色块
+            if (bitmap != null) {
+                int w = bitmap.getWidth(), h = bitmap.getHeight();
+                int up = Math.min(2048 / Math.max(1, w), 2048 / Math.max(1, h));
+                if (up > 1) {
+                    android.graphics.Bitmap scaled = android.graphics.Bitmap.createBitmap(
+                            w * up, h * up, android.graphics.Bitmap.Config.ARGB_8888);
+                    android.graphics.Canvas c = new android.graphics.Canvas(scaled);
+                    android.graphics.Paint p = new android.graphics.Paint();
+                    p.setFilterBitmap(false); // 最近邻
+                    c.drawBitmap(bitmap, null, new android.graphics.Rect(0, 0, w * up, h * up), p);
+                    bitmap.recycle();
+                    bitmap = scaled;
+                }
+            }
             a.runOnUiThread(() -> {
                 if (bitmap != null) imageView.setImageBitmap(bitmap);
             });
