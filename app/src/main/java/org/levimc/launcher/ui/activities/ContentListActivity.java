@@ -833,15 +833,6 @@ public class ContentListActivity extends BaseActivity {
         return super.clickGamepadFocused();
     }
 
-    @Override
-    public void onBackPressed() {
-        if (gamepadActionPanel != null && gamepadActionPanel.getVisibility() == View.VISIBLE) {
-            closeGamepadActionPanel();
-            return;
-        }
-        super.onBackPressed();
-    }
-
     private void openGamepadActionPanel(View cardView) {
         gamepadPanelCard = cardView;
         ensureGamepadActionPanel();
@@ -1703,6 +1694,11 @@ public class ContentListActivity extends BaseActivity {
 
     @Override
     public void onBackPressed() {
+        // v0.4.79：B 键先关二级面板（面板开着时回卡片，不退出页面）
+        if (gamepadActionPanel != null && gamepadActionPanel.getVisibility() == View.VISIBLE) {
+            closeGamepadActionPanel();
+            return;
+        }
         handleBackNavigation();
     }
 
