@@ -380,10 +380,14 @@ public class WorldMapView extends View {
             if (mip != null && !mip.isRecycled()) {
                 canvas.drawBitmap(mip, null, fullMapDst, fullMapPaint);
             } else {
-                // v0.4.75+：mip 未就绪（后台生成中/失败）时也最近邻缩小
-                // （HTML 同款 imageSmoothingEnabled=false——用户认可 HTML
-                // 的观感；双线性兜底在 mip 生成失败时就是"特定比例糊"）
-                canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
+                // v0.4.81：mip 未就绪（后台生成中）→ 双线性缩小兜底
+                // （v0.4.53 同款观感——均匀软糊；v0.4.76 改成最近邻
+                // 缩小的混叠噪点是"刚打开糊过一会不糊"的根因：打开
+                // 初期 mip 没生成好时 fit 视图全是噪点，mip 就绪才清晰）
+                if (fullMapLinearPaint == null) {
+                    fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+                }
+                canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
             }
         }
     }
@@ -768,7 +772,7 @@ public class WorldMapView extends View {
         }
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
                 && (fullMapBlockScale <= 1
-                        || pixelsPerBlock <= 1f
+                        || pixelsPerBlock <= 1f / Math.max(1f, fullMapBlockScale)
                         || (map.chunkColors == null && map.colors == null))) {
             // 全图纹理模式（HTML 同款——单次 drawBitmap 变换）：
             // ① blockScale==1（全图即原分辨率，含小世界/主世界大图）——
@@ -776,10 +780,11 @@ public class WorldMapView extends View {
             //   卡/稍微缩小就糊"的根因：v0.4.63 tile 回退在 blockScale=1
             //   主世界 ppb=2 时视口 9600 chunk 平铺卡死）；放大 24 上限
             //   内最近邻锐利（HTML 同款）
-            // ② blockScale>1 降采样全图（下界稀疏大 bounds）：仅缩小
-            //   （ppb≤1）使用——v0.4.75 前 ppb≤blockScale 就走全图，
-            //   平均色块放大=下界糊（"等了很久都不清晰"根因）；ppb>1
-            //   回退 chunk tile（1px/方块最近邻锐利）
+            // ② blockScale>1 降采样全图（下界稀疏大 bounds）：仅在全图
+            //   真正缩小（scalePx=blockScale×ppb≤1）时使用——v0.4.77
+            //   误用 ppb≤1（blockScale=8 时 ppb=0.5→scalePx=4=全图放大
+            //   4 倍=平均色块放大=下界"一直糊"根因）；其余回退 chunk
+            //   tile（1px/方块最近邻锐利）
             // ③ 骨架期无底层可退
             drawFullMapLayer(canvas);
         } else if (map.chunkColors != null) {

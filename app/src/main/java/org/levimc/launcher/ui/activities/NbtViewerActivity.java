@@ -2077,9 +2077,12 @@ public class NbtViewerActivity extends BaseActivity {
             }
             int[] full = null;
             try {
-                // 烘焙线程并发写 chunkColors 时 compose 遍历可能抛
-                // ConcurrentModification——延迟重试（视口渲染进行中
-                // 是常态，重试几次总会撞上稳定窗口）
+                // v0.4.81：拼图上限 8192（HTML 导出同款）——下界稀疏
+                // 大 bounds 此前 4096 降采样 blockScale 偏大，放大全是
+                // 平均色块=下界糊；OOM 回退 4096
+                full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(
+                        targetMap, 8192);
+            } catch (OutOfMemoryError oom) {
                 full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(targetMap);
             } catch (java.util.ConcurrentModificationException ignored) {
                 if (attempt < 3) {

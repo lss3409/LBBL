@@ -198,10 +198,10 @@ public class BaseActivity extends AppCompatActivity {
         }
         View current = getCurrentFocus();
         if (current == null) {
-            // v0.4.4：无焦点（刚切 tab/触屏清焦后）→ 落到子类指定首页
-            // 视图（底部 tab 按钮）或第一个可聚焦项，恢复可导航状态
-            // （此前 focusSearch 从 null 出发找不到方向项=切 tab 后
-            // 摇杆失灵根因）
+            // v0.4.81：无焦点（光标松手/触屏清焦/切页后）→ 统一落
+            // 内容区（子类覆盖 gamepadFirstFocusView 或跳过 nav 栏的
+            // 第一个可聚焦项）——此前默认落顶部 tab，"摇杆光标一松手
+            // 就跳回上面四个栏"的根因；切栏位有 LB/RB 键
             View first = gamepadFirstFocusView();
             if (first == null) {
                 first = findFirstFocusable();
@@ -296,20 +296,11 @@ public class BaseActivity extends AppCompatActivity {
         }
     }
 
-    /** 手柄导航的首页焦点视图（当前底部 tab 按钮）；子类可覆盖。
-     *  v0.4.4：切 tab 后焦点落这里+描边，恢复摇杆可导航状态。 */
+    /** 手柄导航的首页焦点视图；子类可覆盖（如 ContentListActivity=
+     *  搜索框）。v0.4.81：默认不再落顶部 tab（切栏位用 LB/RB 键）——
+     *  光标松手/触屏后焦点丢失统一回内容区第一个可聚焦项。 */
     protected View gamepadFirstFocusView() {
-        int id = -1;
-        if (this instanceof MainActivity) {
-            id = R.id.nav_tab_launch;
-        } else if (this instanceof InstancesActivity) {
-            id = R.id.nav_tab_instances;
-        } else if (this instanceof OnlineActivity) {
-            id = R.id.nav_tab_online;
-        } else if (this instanceof SettingsActivity) {
-            id = R.id.nav_tab_settings;
-        }
-        return id > 0 ? findViewById(id) : null;
+        return null;
     }
 
     /** 深度优先找第一个可聚焦且可见的 View（兜底初始焦点）。 */

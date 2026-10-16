@@ -2821,27 +2821,31 @@ public class WorldMapRenderer {
         if (map == null || dbDir == null || map.width <= 0 || map.height <= 0) {
             return;
         }
-        int[] full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(map);
+        int[] full = null;
+        try {
+            // v0.4.81：缓存也用 8192（与渲染路径一致——4096 级缓存
+            // 打开秒挂后放大就是平均色块糊）；OOM 回退 4096
+            full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(map, 8192);
+        } catch (OutOfMemoryError oom) {
+            full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(map);
+        }
         if (full == null) {
             return;
         }
         int cw = full[0], ch = full[1];
         // v0.4.73：省掉 px 拷贝——直接读 full 偏移区（compose 返回
-        // {w,h,像素...}），少一份 14MB 数组降低烘焙线程 OOM 概率
+        // {w,h,像素...}）；v0.4.81：RLE 流式两遍编码，不再建 index
+        // 数组（8192² 时 index int[]=268MB 必 OOM，HtmlMapExporter 同款）
         int n = cw * ch;
         // RLE 编码（调色板 + 游程，小端）
         java.util.LinkedHashMap<Integer, Integer> palette = new java.util.LinkedHashMap<>();
-        int[] index = new int[n];
         for (int i = 0; i < n; i++) {
             int c = full[i + 2];
-            Integer id = palette.get(c);
-            if (id == null) {
-                id = palette.size();
-                palette.put(c, id);
+            if (!palette.containsKey(c)) {
+                palette.put(c, palette.size());
             }
-            index[i] = id;
         }
-        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(n);
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(Math.min(n, 1 << 20));
         try {
             java.io.DataOutputStream dos = new java.io.DataOutputStream(bos);
             // 头
@@ -2855,20 +2859,20 @@ public class WorldMapRenderer {
             dos.writeInt(cw);
             dos.writeInt(ch);
             // RLE 数据（小端短整型，与 HTML JS 解码一致）
-            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream(n);
+            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream(Math.min(n, 1 << 20));
             writeShortLE(body, palette.size());
             for (int c : palette.keySet()) {
                 body.write((c >> 16) & 0xFF);
                 body.write((c >> 8) & 0xFF);
                 body.write(c & 0xFF);
             }
-            for (int i = 0; i < index.length; ) {
-                int v = index[i];
+            for (int i = 0; i < n; ) {
+                int c = full[i + 2];
                 int j = i + 1;
-                while (j < index.length && index[j] == v && j - i < 65535) {
+                while (j < n && full[j + 2] == c && j - i < 65535) {
                     j++;
                 }
-                writeShortLE(body, v);
+                writeShortLE(body, palette.get(c));
                 writeShortLE(body, j - i);
                 i = j;
             }
