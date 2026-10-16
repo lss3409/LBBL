@@ -711,6 +711,10 @@ public class NbtViewerActivity extends BaseActivity {
                         showBakeProgress(total);
                     }
                 });
+                // v0.4.76+：烘焙开始立即拼一次全图（已有数据先上全图
+                // 纹理+mip 缩小，不等烘焙完成才从 chunk tile 切换——
+                // "刚打开糊 30 秒"根因）
+                composeFullMapAsync(target);
             }
 
             @Override
@@ -723,10 +727,19 @@ public class NbtViewerActivity extends BaseActivity {
                     if (notifyRender) {
                         binding.worldMapImage.onChunksRendered(chunkKeys);
                     }
+                    // v0.4.76+：烘焙期间节流重拼全图（3s）——烘焙没跑完
+                    // 地图也持续有全图纹理更新
+                    long now = android.os.SystemClock.uptimeMillis();
+                    if (now - lastBakeCompose >= 3000) {
+                        lastBakeCompose = now;
+                        composeFullMapAsync(target);
+                    }
                 });
             }
         };
     }
+
+    private long lastBakeCompose;
 
     /** v397：渲染参数变化（阴影开关等）——中断烘焙 + 强制重烘焙当前
      *  维度（渲染结果变了缓存作废）。
@@ -2034,6 +2047,12 @@ public class NbtViewerActivity extends BaseActivity {
      *  v0.4.55：遮罩先行——史莱姆遮罩遍历轻量先出（compose 拼大图
      *  要几秒），遮罩先就位，开史莱姆图层立即走单次 drawBitmap 路径。 */
     private void composeFullMapAsync(WorldMapRenderer.WorldMap targetMap) {
+        composeFullMapAsync(targetMap, 0);
+    }
+
+    /** v0.4.76+：CME（视口渲染并发写 chunkColors）失败延迟重试——
+     *  此前静默放弃导致全图永不挂载（一直 chunk tile 缩小糊）。 */
+    private void composeFullMapAsync(WorldMapRenderer.WorldMap targetMap, int attempt) {
         if (targetMap == null || renderPool == null) {
             return;
         }
@@ -2059,9 +2078,22 @@ public class NbtViewerActivity extends BaseActivity {
             int[] full = null;
             try {
                 // 烘焙线程并发写 chunkColors 时 compose 遍历可能抛
-                // ConcurrentModification——静默放弃，烘焙完成回调会重拼
+                // ConcurrentModification——延迟重试（视口渲染进行中
+                // 是常态，重试几次总会撞上稳定窗口）
                 full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(targetMap);
             } catch (java.util.ConcurrentModificationException ignored) {
+                if (attempt < 3) {
+                    final int next = attempt + 1;
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()
+                                || genSnapshot != renderGen.get()
+                                || currentMap != targetMap) {
+                            return;
+                        }
+                        flushHandler.postDelayed(() ->
+                                composeFullMapAsync(targetMap, next), 2000);
+                    });
+                }
                 return;
             }
             if (full == null) {

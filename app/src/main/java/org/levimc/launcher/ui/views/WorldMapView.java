@@ -768,7 +768,7 @@ public class WorldMapView extends View {
         }
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
                 && (fullMapBlockScale <= 1
-                        || pixelsPerBlock <= Math.max(1f, fullMapBlockScale)
+                        || pixelsPerBlock <= 1f
                         || (map.chunkColors == null && map.colors == null))) {
             // 全图纹理模式（HTML 同款——单次 drawBitmap 变换）：
             // ① blockScale==1（全图即原分辨率，含小世界/主世界大图）——
@@ -776,8 +776,10 @@ public class WorldMapView extends View {
             //   卡/稍微缩小就糊"的根因：v0.4.63 tile 回退在 blockScale=1
             //   主世界 ppb=2 时视口 9600 chunk 平铺卡死）；放大 24 上限
             //   内最近邻锐利（HTML 同款）
-            // ② blockScale>1 降采样全图（下界稀疏大 bounds）：仅全图
-            //   原分辨率以内使用，放大回退 tile 保持清晰
+            // ② blockScale>1 降采样全图（下界稀疏大 bounds）：仅缩小
+            //   （ppb≤1）使用——v0.4.75 前 ppb≤blockScale 就走全图，
+            //   平均色块放大=下界糊（"等了很久都不清晰"根因）；ppb>1
+            //   回退 chunk tile（1px/方块最近邻锐利）
             // ③ 骨架期无底层可退
             drawFullMapLayer(canvas);
         } else if (map.chunkColors != null) {
