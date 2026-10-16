@@ -108,6 +108,7 @@ public class BaseActivity extends AppCompatActivity {
                     }
                     return true;
                 case android.view.KeyEvent.KEYCODE_BUTTON_B:
+                    android.util.Log.i("GamepadPanel", "B key, focus=" + getCurrentFocus());
                     getOnBackPressedDispatcher().onBackPressed();
                     return true;
                 case android.view.KeyEvent.KEYCODE_BUTTON_L1:
