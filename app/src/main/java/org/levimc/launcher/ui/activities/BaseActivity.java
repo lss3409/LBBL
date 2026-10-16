@@ -245,6 +245,12 @@ public class BaseActivity extends AppCompatActivity {
             if (!child.isShown()) {
                 continue;
             }
+            // v0.4.77：跳过顶部导航栏（nav_bar_root 包着 tab 行）——
+            // 非四主页面的初始焦点此前总是落到顶部 tab，"摇杆一按就跳
+            // 回上面四个栏"根因
+            if (child.getId() == R.id.nav_bar_root) {
+                continue;
+            }
             if (child.isFocusable()) {
                 return child;
             }
