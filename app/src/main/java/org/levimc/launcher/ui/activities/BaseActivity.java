@@ -198,16 +198,22 @@ public class BaseActivity extends AppCompatActivity {
         }
         View current = getCurrentFocus();
         if (current == null) {
-            // v0.4.81：无焦点（光标松手/触屏清焦/切页后）→ 统一落
-            // 内容区（子类覆盖 gamepadFirstFocusView 或跳过 nav 栏的
-            // 第一个可聚焦项）——此前默认落顶部 tab，"摇杆光标一松手
-            // 就跳回上面四个栏"的根因；切栏位有 LB/RB 键
-            View first = gamepadFirstFocusView();
+            // v0.4.82：无焦点（光标松手/触屏清焦/RecyclerView 回收）→
+            // 优先恢复上次手柄焦点（描边稳定不回跳），否则落内容区
+            // 第一个可聚焦项；切栏位有 LB/RB 键
+            View first = null;
+            if (lastGamepadFocus != null && lastGamepadFocus.isShown()) {
+                first = lastGamepadFocus;
+            }
+            if (first == null) {
+                first = gamepadFirstFocusView();
+            }
             if (first == null) {
                 first = findFirstFocusable();
             }
             if (first != null && first.isShown()) {
                 first.requestFocus();
+                lastGamepadFocus = first;
                 return true;
             }
             return false;
@@ -215,6 +221,7 @@ public class BaseActivity extends AppCompatActivity {
         View next = current.focusSearch(direction);
         if (next != null && next != current && next.isFocusable()) {
             next.requestFocus();
+            lastGamepadFocus = next;
             return true;
         }
         // v0.4.80：焦点环断裂（focusSearch 返回 null/自身/卡在容器）
@@ -223,6 +230,7 @@ public class BaseActivity extends AppCompatActivity {
         View manual = manualFocusSearch(current, direction);
         if (manual != null) {
             manual.requestFocus();
+            lastGamepadFocus = manual;
             return true;
         }
         // v0.4.4：方向到头（列表底部/顶部）→ 滚动内容翻页，
@@ -785,11 +793,19 @@ public class BaseActivity extends AppCompatActivity {
      *  "启动"tab），无条件描边会在点击后闪现（用户实测
      *  "每次点击按钮四个栏位老是出现描边"）。 */
     private boolean gamepadNavActive;
+    /** v0.4.82：上次手柄焦点（焦点丢失/RecyclerView 回收后优先恢复，
+     *  防描边跳回页面顶部乱跳）。 */
+    private View lastGamepadFocus;
 
     /** 焦点变化时给当前焦点视图加强调色描边（手柄导航视觉引导）。 */
     private void setupGamepadFocusOutline() {
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(
                 (oldFocus, newFocus) -> {
+                    // v0.4.82：焦点变化日志（定位"描边乱跳"——低频，
+                    // 只落 logcat；navActive 时描边跟着焦点走）
+                    android.util.Log.i("GamepadFocus", "focus " + nameOf(oldFocus)
+                            + " -> " + nameOf(newFocus)
+                            + " nav=" + gamepadNavActive);
                     clearFocusOutline(oldFocus);
                     // v0.4.4：触屏/光标压制期间不描边（恢复时主动补描）
                     if (gamepadNavActive && !outlineSuppressedByTouch
@@ -797,6 +813,19 @@ public class BaseActivity extends AppCompatActivity {
                         applyFocusOutline(newFocus);
                     }
                 });
+    }
+
+    private static String nameOf(View v) {
+        if (v == null) {
+            return "null";
+        }
+        try {
+            int id = v.getId();
+            String idName = id > 0 ? v.getResources().getResourceEntryName(id) : "?";
+            return v.getClass().getSimpleName() + "(" + idName + ")";
+        } catch (Throwable ignored) {
+            return v.getClass().getSimpleName();
+        }
     }
 
     private void applyFocusOutline(View v) {
