@@ -454,6 +454,14 @@ public class ContentListActivity extends BaseActivity {
         binding.contentRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         binding.contentRecyclerView.setAdapter(worldsAdapter);
         binding.contentRecyclerView.post(() -> DynamicAnim.staggerRecyclerChildren(binding.contentRecyclerView));
+        // v0.4.79：手柄初始焦点落到搜索框（系统自动聚焦顶部 tab 后，
+        // 摇杆 DOWN 会跳过搜索/选择/超平坦/极限管理整行直达卡片——
+        // 触屏无影响：gamepadNavActive 未激活时不描边）
+        binding.contentRecyclerView.post(() -> {
+            if (!isFinishing() && !isDestroyed() && binding.searchEditText != null) {
+                binding.searchEditText.requestFocus();
+            }
+        });
     }
 
     // ---------------------------------------------------------------- v445 置顶/排序持久化
