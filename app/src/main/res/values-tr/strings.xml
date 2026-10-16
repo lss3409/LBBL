@@ -254,7 +254,7 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="instance_delete_confirm_title">Örneği Sil</string>
 <string name="instance_delete_confirm_msg">Bu örneği silmek istediğinizden emin misiniz? Dünyalar dahil tüm veriler kalıcı olarak kaldırılacak.</string>
 <string name="instance_backup_title">Örneği Yedekle</string>
-<string name="instance_backup_desc">Bu örneğin tam yedeklemesini İndirilenler/LeviLauncher/Yedekler konumuna oluştur.</string>
+<string name="instance_backup_desc">Bu örneğin tam yedeklemesini başlatıcı veri klasöründe oluştur.</string>
 <string name="instance_backup_button">Örneği Yedekle</string>
 <string name="instance_backup_confirm_message">Bu örneğin tam yedeği şimdi oluşturulsun mu? Yedekleme sırasında dosyaların değişmemesi için Minecraft çalışıyorsa önce çıkın.</string>
 <string name="instance_backup_in_progress">Örnek yedekleniyor…</string>
@@ -848,7 +848,7 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="delete_account_title">Hesabı Sil</string>
 <string name="delete_account_confirm">Bu hesabı silmek istediğinden emin misin?</string>
 <string name="extended_root_path_title">Başlatıcı veri yolu</string>
-    <string name="extended_root_path_desc">Yedekler, HTML dışa aktarma, yapılar ve önbellek (varsayılan: Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">Yedekler, HTML dışa aktarma, yapılar ve önbellek</string>
     <string name="extended_root_path_current">Geçerli: %s</string>
     <string name="custom_storage_path_title">Özel Depolama Yolu</string>
 <string name="custom_storage_path_desc">Minecraft verileri için özel bir kök dizin belirle. Varsayılan yolu kullanmak için boş bırak.</string>
@@ -1928,4 +1928,26 @@ Davet kodu: P/%1$s
     <string name="ore_label_redstone">Redstone cevheri</string>
     <string name="ore_label_quartz">Nether kuvars cevheri</string>
     <string name="ore_label_ancient_debris">Antik kalıntı</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">Ne olduğunu açıklayın (isteğe bağlı)</string>
+    <string name="report_logs">Günlükleri Bildir</string>
+    <string name="report_logs_desc">Günlükler varsayılan olarak geliştiricinin e-postasına gönderilir (seçilirse logshare.cn sitesine yüklenir).</string>
+    <string name="report_method_mail">E-postayla gönder</string>
+    <string name="report_method_site">Web sitesine yükle</string>
+    <string name="report_send">Gönder</string>
+    <string name="report_desc_sub">Ne olduğunu açıklayın (isteğe bağlı). Açıklamanız günlüklerle birlikte yüklenir.</string>
+    <string name="report_uploading">Günlükler yükleniyor…</string>
+    <string name="report_upload_success">Günlükler yüklendi ✓</string>
+    <string name="report_upload_success_desc">Bu bağlantıyı geliştiriciyle veya toplulukla paylaşın:</string>
+    <string name="report_upload_failed_title">Yükleme Başarısız</string>
+    <string name="report_upload_failed">Yüklenemedi: %1$s</string>
+    <string name="report_copy_link">Bağlantıyı Kopyala</string>
+    <string name="report_share_link">Bağlantıyı Paylaş</string>
+    <string name="report_send_email_fallback">E-posta uygulamasıyla gönder</string>
+    <string name="report_logs_collecting">Günlükler toplanıyor…</string>
+    <string name="report_logs_done">Günlükler paketlendi. Göndermek için bir uygulama seçin.</string>
+    <string name="report_logs_failed">Günlükler toplanamadı: %1$s</string>
+    <string name="report_logs_empty">Günlük dosyası bulunamadı</string>
+    <string name="report_logs_no_app">E-posta uygulaması yok</string>
 </resources>

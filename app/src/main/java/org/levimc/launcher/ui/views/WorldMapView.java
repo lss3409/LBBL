@@ -702,14 +702,18 @@ public class WorldMapView extends View {
             canvas.drawColor(launcherBackgroundColor());
         }
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
-                && (pixelsPerBlock <= Math.max(1f, fullMapBlockScale)
+                && (fullMapBlockScale <= 1
+                        || pixelsPerBlock <= Math.max(1f, fullMapBlockScale)
                         || (map.chunkColors == null && map.colors == null))) {
-            // 全图纹理模式（HTML 同款——单次 drawBitmap 变换）只在两种
-            // 情况使用：① 全图处于原分辨率以内（缩小/原尺寸——fit 全景
-            // 双线性防混叠）；② 骨架期（chunkColors/colors 全空，无底层
-            // 可退）。v0.4.63：放大超过原分辨率走 tile/cachedBmp
-            // （1px/块 24 上限锐利）——"糊时无限拉大、不糊时 24 倍率"
-            // 的最终定版（用户线索实锤）
+            // 全图纹理模式（HTML 同款——单次 drawBitmap 变换）：
+            // ① blockScale==1（全图即原分辨率，含小世界/主世界大图）——
+            //   v0.4.73：恒走全图，任意缩放零 chunk 平铺（"大地图缩放
+            //   卡/稍微缩小就糊"的根因：v0.4.63 tile 回退在 blockScale=1
+            //   主世界 ppb=2 时视口 9600 chunk 平铺卡死）；放大 24 上限
+            //   内最近邻锐利（HTML 同款）
+            // ② blockScale>1 降采样全图（下界稀疏大 bounds）：仅全图
+            //   原分辨率以内使用，放大回退 tile 保持清晰
+            // ③ 骨架期无底层可退
             drawFullMapLayer(canvas);
         } else if (map.chunkColors != null) {
             // 大世界：chunk tile 平铺（BTR 同款）——零重采样、零 39MB 大位图，
@@ -1634,12 +1638,15 @@ public class WorldMapView extends View {
             case "igloo": return "snow";
             case "ocean_ruin": return "stonebrick_mossy";
             case "shipwreck": return "barrel_side";
-            case "ocean_monument": return "prismarine_rough";
-            case "woodland_mansion": return "planks_big_oak";
+            case "ocean_monument":
+            case "monument": return "prismarine_rough";
+            case "woodland_mansion":
+            case "mansion": return "planks_big_oak";
             case "pillager_outpost": return "stripped_dark_oak_log";
             case "ruined_portal": return "obsidian";
             case "ancient_city": return "deepslate_bricks";
-            case "buried_treasure": return "chest_front";
+            case "buried_treasure":
+            case "treasure": return "chest_front";
             case "mineshaft": return "rail_normal";
             case "trail_ruins": return "suspicious_gravel_0";
             case "trial_chambers": return "copper_grate";
@@ -1656,7 +1663,8 @@ public class WorldMapView extends View {
             case "end_portal": return ctx.getString(R.string.structure_label_end_portal);
             case "fortress": return ctx.getString(R.string.structure_label_fortress);
             case "swamp_hut": return ctx.getString(R.string.structure_label_swamp_hut);
-            case "ocean_monument": return ctx.getString(R.string.structure_label_ocean_monument);
+            case "ocean_monument":
+            case "monument": return ctx.getString(R.string.structure_label_ocean_monument);
             case "outpost": return ctx.getString(R.string.structure_label_outpost);
             case "desert_temple": return ctx.getString(R.string.structure_label_desert_temple);
             case "end_city": return ctx.getString(R.string.structure_label_end_city);
@@ -1666,11 +1674,13 @@ public class WorldMapView extends View {
             case "igloo": return ctx.getString(R.string.structure_label_igloo);
             case "ocean_ruin": return ctx.getString(R.string.structure_label_ocean_ruin);
             case "shipwreck": return ctx.getString(R.string.structure_label_shipwreck);
-            case "woodland_mansion": return ctx.getString(R.string.structure_label_woodland_mansion);
+            case "woodland_mansion":
+            case "mansion": return ctx.getString(R.string.structure_label_woodland_mansion);
             case "pillager_outpost": return ctx.getString(R.string.structure_label_pillager_outpost);
             case "ruined_portal": return ctx.getString(R.string.structure_label_ruined_portal);
             case "ancient_city": return ctx.getString(R.string.structure_label_ancient_city);
-            case "buried_treasure": return ctx.getString(R.string.structure_label_buried_treasure);
+            case "buried_treasure":
+            case "treasure": return ctx.getString(R.string.structure_label_buried_treasure);
             case "mineshaft": return ctx.getString(R.string.structure_label_mineshaft);
             case "trail_ruins": return ctx.getString(R.string.structure_label_trail_ruins);
             case "trial_chambers": return ctx.getString(R.string.structure_label_trial_chambers);

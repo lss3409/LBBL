@@ -791,7 +791,7 @@ La migración debe completarse antes de continuar con LeviLauncher.</string>
 <string name="delete_account_title">Eliminar cuenta</string>
 <string name="delete_account_confirm">¿Seguro que quieres eliminar esta cuenta?</string>
 <string name="extended_root_path_title">Ruta de datos del launcher</string>
-    <string name="extended_root_path_desc">Copias, exportaciones HTML, estructuras y caché (por defecto: Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">Copias, exportaciones HTML, estructuras y caché</string>
     <string name="extended_root_path_current">Actual: %s</string>
     <string name="custom_storage_path_title">Ruta de almacenamiento personalizada</string>
 <string name="custom_storage_path_desc">Establece un directorio raíz personalizado para los datos de Minecraft. Déjalo vacío para usar la ruta predeterminada.</string>
@@ -911,7 +911,7 @@ La migración debe completarse antes de continuar con LeviLauncher.</string>
 <string name="jump_to_page">Ir a la página</string>
 <string name="go">Ir</string>
 <string name="instance_backup_title">Copia de seguridad de la instancia</string>
-<string name="instance_backup_desc">Crea una copia de seguridad completa de esta instancia en el elemento Download/LeviLauncher/Backups/minecraft.</string>
+<string name="instance_backup_desc">Crea una copia de seguridad completa de esta instancia en la carpeta de datos del iniciador.</string>
 <string name="instance_backup_button">Hacer copia de seguridad</string>
 <string name="instance_backup_confirm_message">¿Crear ahora una copia de seguridad completa de esta instancia? Sal primero de Minecraft si está en ejecución para evitar que los archivos cambien durante la copia.</string>
 <string name="instance_backup_in_progress">Haciendo copia de seguridad de la instancia…</string>
@@ -1902,4 +1902,26 @@ Código de invitación: P/%1$s
     <string name="ore_label_redstone">Mineral de redstone</string>
     <string name="ore_label_quartz">Mineral de cuarzo del Nether</string>
     <string name="ore_label_ancient_debris">Restos ancestrales</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">Describe qué pasó (opcional)</string>
+    <string name="report_logs">Reportar registros</string>
+    <string name="report_logs_desc">Los registros se envían al correo del desarrollador por defecto (o se suben a logshare.cn si se elige).</string>
+    <string name="report_method_mail">Enviar por correo</string>
+    <string name="report_method_site">Subir a la web</string>
+    <string name="report_send">Enviar</string>
+    <string name="report_desc_sub">Describe qué pasó (opcional). Tu descripción se sube junto con los registros.</string>
+    <string name="report_uploading">Subiendo registros…</string>
+    <string name="report_upload_success">Registros subidos ✓</string>
+    <string name="report_upload_success_desc">Comparte este enlace con el desarrollador o en la comunidad:</string>
+    <string name="report_upload_failed_title">Subida fallida</string>
+    <string name="report_upload_failed">Error al subir: %1$s</string>
+    <string name="report_copy_link">Copiar enlace</string>
+    <string name="report_share_link">Compartir enlace</string>
+    <string name="report_send_email_fallback">Enviar por app de correo</string>
+    <string name="report_logs_collecting">Recopilando registros…</string>
+    <string name="report_logs_done">Registros empaquetados. Elige una app para enviarlos.</string>
+    <string name="report_logs_failed">Error al recopilar registros: %1$s</string>
+    <string name="report_logs_empty">No se encontraron archivos de registro</string>
+    <string name="report_logs_no_app">No hay app de correo disponible</string>
 </resources>

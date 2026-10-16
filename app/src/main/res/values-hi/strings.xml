@@ -818,7 +818,7 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="delete_account_title">खाता हटाएँ</string>
 <string name="delete_account_confirm">क्या आप वाकई यह खाता हटाना चाहते हैं?</string>
 <string name="extended_root_path_title">लॉन्चर डेटा पथ</string>
-    <string name="extended_root_path_desc">बैकअप, HTML निर्यात, संरचना और कैश (डिफ़ॉल्ट: Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">बैकअप, HTML निर्यात, संरचना और कैश</string>
     <string name="extended_root_path_current">वर्तमान: %s</string>
     <string name="custom_storage_path_title">कस्टम स्टोरेज पथ</string>
 <string name="custom_storage_path_desc">Minecraft डेटा के लिए कस्टम रूट निर्देशिका सेट करें। डिफ़ॉल्ट पथ उपयोग करने के लिए खाली छोड़ दें।</string>
@@ -938,7 +938,7 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="jump_to_page">पृष्ठ पर जाएँ</string>
 <string name="go">जाएँ</string>
 <string name="instance_backup_title">इंस्टेंस बैकअप</string>
-<string name="instance_backup_desc">Download/LeviLauncher/Backups/minecraft फ़ोल्डर में इस इंस्टेंस का पूर्ण बैकअप बनाएँ।</string>
+<string name="instance_backup_desc">लॉन्चर डेटा फ़ोल्डर में इस इंस्टेंस का पूर्ण बैकअप बनाएँ।</string>
 <string name="instance_backup_button">इंस्टेंस बैकअप</string>
 <string name="instance_backup_confirm_message">क्या अभी इस इंस्टेंस का पूर्ण बैकअप बनाएँ? बैकअप के दौरान फ़ाइलें बदलने से बचने के लिए, यदि Minecraft चल रहा है तो पहले उसे बंद करें।</string>
 <string name="instance_backup_in_progress">इंस्टेंस का बैकअप हो रहा है…</string>
@@ -1929,4 +1929,26 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="ore_label_redstone">रेडस्टोन अयस्क</string>
     <string name="ore_label_quartz">नेदर क्वार्ट्ज़ अयस्क</string>
     <string name="ore_label_ancient_debris">प्राचीन मलबा</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">क्या हुआ, बताएं (वैकल्पिक)</string>
+    <string name="report_logs">लॉग रिपोर्ट करें</string>
+    <string name="report_logs_desc">लॉग डिफ़ॉल्ट रूप से डेवलपर के ईमेल पर भेजे जाते हैं (या चुने जाने पर logshare.cn पर अपलोड होते हैं)।</string>
+    <string name="report_method_mail">ईमेल से भेजें</string>
+    <string name="report_method_site">वेबसाइट पर अपलोड करें</string>
+    <string name="report_send">भेजें</string>
+    <string name="report_desc_sub">क्या हुआ, बताएं (वैकल्पिक)। आपका विवरण लॉग के साथ अपलोड होता है।</string>
+    <string name="report_uploading">लॉग अपलोड हो रहे हैं…</string>
+    <string name="report_upload_success">लॉग अपलोड ✓</string>
+    <string name="report_upload_success_desc">यह लिंक डेवलपर या समुदाय के साथ साझा करें:</string>
+    <string name="report_upload_failed_title">अपलोड विफल</string>
+    <string name="report_upload_failed">अपलोड विफल: %1$s</string>
+    <string name="report_copy_link">लिंक कॉपी करें</string>
+    <string name="report_share_link">लिंक साझा करें</string>
+    <string name="report_send_email_fallback">ईमेल ऐप से भेजें</string>
+    <string name="report_logs_collecting">लॉग एकत्र हो रहे हैं…</string>
+    <string name="report_logs_done">लॉग पैक हो गए। भेजने के लिए एक ऐप चुनें।</string>
+    <string name="report_logs_failed">लॉग एकत्र करने में विफल: %1$s</string>
+    <string name="report_logs_empty">कोई लॉग फ़ाइल नहीं मिली</string>
+    <string name="report_logs_no_app">कोई ईमेल ऐप उपलब्ध नहीं</string>
 </resources>

@@ -2794,10 +2794,13 @@ public class WorldMapRenderer {
             }
         }
         // v0.4.53：附带保存 RLE 全图缓存（打开秒开用，小文件）
+        // v0.4.73：catch Throwable——烘焙线程堆满时 compose 分配
+        // 14MB 抛 OutOfMemoryError（Error 不是 Exception），此前抓
+        // 不住把烘焙 worker 杀死（"下一存档结构不显示"的根因之一）
         try {
             saveFullRle(map, dbDir, dimension);
-        } catch (Exception e) {
-            Log.w(TAG, "RLE 全图缓存保存失败", e);
+        } catch (Throwable e) {
+            Log.w(TAG, "RLE 全图缓存保存失败（跳过，不影响 chunk 缓存）", e);
         }
         return true;
     }
@@ -2823,20 +2826,22 @@ public class WorldMapRenderer {
             return;
         }
         int cw = full[0], ch = full[1];
-        int[] px = new int[cw * ch];
-        System.arraycopy(full, 2, px, 0, cw * ch);
+        // v0.4.73：省掉 px 拷贝——直接读 full 偏移区（compose 返回
+        // {w,h,像素...}），少一份 14MB 数组降低烘焙线程 OOM 概率
+        int n = cw * ch;
         // RLE 编码（调色板 + 游程，小端）
         java.util.LinkedHashMap<Integer, Integer> palette = new java.util.LinkedHashMap<>();
-        int[] index = new int[px.length];
-        for (int i = 0; i < px.length; i++) {
-            Integer id = palette.get(px[i]);
+        int[] index = new int[n];
+        for (int i = 0; i < n; i++) {
+            int c = full[i + 2];
+            Integer id = palette.get(c);
             if (id == null) {
                 id = palette.size();
-                palette.put(px[i], id);
+                palette.put(c, id);
             }
             index[i] = id;
         }
-        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(px.length);
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(n);
         try {
             java.io.DataOutputStream dos = new java.io.DataOutputStream(bos);
             // 头
@@ -2850,7 +2855,7 @@ public class WorldMapRenderer {
             dos.writeInt(cw);
             dos.writeInt(ch);
             // RLE 数据（小端短整型，与 HTML JS 解码一致）
-            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream(px.length);
+            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream(n);
             writeShortLE(body, palette.size());
             for (int c : palette.keySet()) {
                 body.write((c >> 16) & 0xFF);

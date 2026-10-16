@@ -10,8 +10,10 @@ package org.levimc.launcher.core.content.worldmap;
  */
 public final class HtmlMapExporter {
 
-    /** 拼图边长上限（超限按 2 的倍数降采样）。 */
-    private static final int MAX_DIM = 4096;
+    /** v0.4.73：HTML 导出边长上限放宽到 8192（浏览器可承载，导出清晰度
+     *  不再被 4096 截断；OOM 时回退 4096）。 */
+    private static final int HTML_MAX_DIM = 8192;
+    private static final int HTML_FALLBACK_DIM = MapImageComposer.MAX_DIM;
 
     private HtmlMapExporter() {
     }
@@ -25,15 +27,21 @@ public final class HtmlMapExporter {
         if (map == null || map.width <= 0 || map.height <= 0) {
             throw new Exception("no map data");
         }
-        int[] full = MapImageComposer.compose(map);
+        int[] full = null;
+        try {
+            full = MapImageComposer.compose(map, HTML_MAX_DIM);
+        } catch (OutOfMemoryError oom) {
+            // v0.4.73：低内存设备回退 4096（清晰度让位于可用性）
+            full = MapImageComposer.compose(map, HTML_FALLBACK_DIM);
+        }
         if (full == null) {
             throw new Exception("no rendered chunks");
         }
         int w = full[0], h = full[1];
-        int[] px = new int[w * h];
-        System.arraycopy(full, 2, px, 0, w * h);
 
-        String data = encodeRle(px);
+        // v0.4.73：不再拷贝一份像素数组（8192² 时再拷一份=多占 268MB），
+        // 直接对 full 偏移编码
+        String data = encodeRle(full, 2, w * h);
         String html = buildHtml(title, seed, version, w, h,
                 map.minBlockX, map.minBlockZ, playerX, playerZ, spawnX, spawnZ,
                 deathX, deathZ, points, data);
@@ -46,19 +54,18 @@ public final class HtmlMapExporter {
     }
 
     /** 调色板 + 游程编码：paletteCount(2B) + RGB×n(3B each) +
-     *  runs(index 2B + count 2B)… → base64。 */
-    private static String encodeRle(int[] px) throws java.io.IOException {
+     *  runs(index 2B + count 2B)… → base64。
+     *  v0.4.73：流式两遍编码，不再建 index 数组（省一份像素数组内存）。 */
+    private static String encodeRle(int[] px, int offset, int length) throws java.io.IOException {
         java.util.LinkedHashMap<Integer, Integer> palette = new java.util.LinkedHashMap<>();
-        int[] index = new int[px.length];
-        for (int i = 0; i < px.length; i++) {
-            Integer id = palette.get(px[i]);
-            if (id == null) {
-                id = palette.size();
-                palette.put(px[i], id);
+        int end = offset + length;
+        for (int i = offset; i < end; i++) {
+            int c = px[i];
+            if (!palette.containsKey(c)) {
+                palette.put(c, palette.size());
             }
-            index[i] = id;
         }
-        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(px.length);
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(length / 4 + 256);
         // 小端写（JS 端 DataView.getUint16(..., true) 小端读——大端写会
         // 字节序错位，HTML 黑屏根因）
         writeShortLE(bos, palette.size());
@@ -67,13 +74,13 @@ public final class HtmlMapExporter {
             bos.write((c >> 8) & 0xFF);
             bos.write(c & 0xFF);
         }
-        for (int i = 0; i < index.length; ) {
-            int v = index[i];
+        for (int i = offset; i < end; ) {
+            int c = px[i];
             int j = i + 1;
-            while (j < index.length && index[j] == v && j - i < 65535) {
+            while (j < end && px[j] == c && j - i < 65535) {
                 j++;
             }
-            writeShortLE(bos, v);
+            writeShortLE(bos, palette.get(c));
             writeShortLE(bos, j - i);
             i = j;
         }

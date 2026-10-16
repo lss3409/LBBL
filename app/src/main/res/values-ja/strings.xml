@@ -788,7 +788,7 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="delete_account_title">アカウントの削除</string>
 <string name="delete_account_confirm">このアカウントを本当に削除しますか？</string>
 <string name="extended_root_path_title">ランチャーデータパス</string>
-    <string name="extended_root_path_desc">バックアップ、HTMLエクスポート、構造、キャッシュ（既定：Download/LeviLauncher）</string>
+    <string name="extended_root_path_desc">バックアップ、HTMLエクスポート、構造、キャッシュ</string>
     <string name="extended_root_path_current">現在：%s</string>
     <string name="custom_storage_path_title">カスタム保存先パス</string>
 <string name="custom_storage_path_desc">Minecraft データのカスタムルートディレクトリを設定します。空にするとデフォルトのパスを使用します。</string>
@@ -908,7 +908,7 @@ LeviLauncher を続行するには移行を完了する必要があります。<
 <string name="jump_to_page">ページへ移動</string>
 <string name="go">移動</string>
 <string name="instance_backup_title">インスタンスのバックアップ</string>
-<string name="instance_backup_desc">Download/LeviLauncher/Backups/minecraft にこのインスタンスの完全バックアップを作成します。</string>
+<string name="instance_backup_desc">このインスタンスの完全バックアップをランチャーのデータフォルダーに作成します。</string>
 <string name="instance_backup_button">インスタンスをバックアップ</string>
 <string name="instance_backup_confirm_message">今すぐこのインスタンスの完全バックアップを作成しますか？バックアップ中のファイル変更を防ぐため、起動中の Minecraft は先に終了してください。</string>
 <string name="instance_backup_in_progress">インスタンスをバックアップ中…</string>
@@ -1899,4 +1899,26 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="ore_label_redstone">レッドストーン鉱石</string>
     <string name="ore_label_quartz">ネザークォーツ鉱石</string>
     <string name="ore_label_ancient_debris">古代の残骸</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">何が起きたか記述（任意）</string>
+    <string name="report_logs">ログを報告</string>
+    <string name="report_logs_desc">ログは既定で開発者のメールへ送信されます（選択時は logshare.cn にアップロード）。</string>
+    <string name="report_method_mail">メールで送信</string>
+    <string name="report_method_site">ウェブサイトにアップロード</string>
+    <string name="report_send">送信</string>
+    <string name="report_desc_sub">何が起きたか記述（任意）。説明はログと一緒にアップロードされます。</string>
+    <string name="report_uploading">ログをアップロード中…</string>
+    <string name="report_upload_success">ログをアップロードしました ✓</string>
+    <string name="report_upload_success_desc">このリンクを開発者やコミュニティと共有してください：</string>
+    <string name="report_upload_failed_title">アップロード失敗</string>
+    <string name="report_upload_failed">アップロードに失敗しました：%1$s</string>
+    <string name="report_copy_link">リンクをコピー</string>
+    <string name="report_share_link">リンクを共有</string>
+    <string name="report_send_email_fallback">メールアプリで送信</string>
+    <string name="report_logs_collecting">ログを収集中…</string>
+    <string name="report_logs_done">ログをパッケージしました。送信するアプリを選んでください。</string>
+    <string name="report_logs_failed">ログの収集に失敗しました：%1$s</string>
+    <string name="report_logs_empty">ログファイルが見つかりません</string>
+    <string name="report_logs_no_app">メールアプリがありません</string>
 </resources>

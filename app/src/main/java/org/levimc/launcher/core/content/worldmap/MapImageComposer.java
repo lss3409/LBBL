@@ -17,11 +17,17 @@ public final class MapImageComposer {
 
     /** 拼整图像素：返回 {width, height, pixels...}（降采样后）。无数据返回 null。 */
     public static int[] compose(WorldMapRenderer.WorldMap map) {
+        return compose(map, MAX_DIM);
+    }
+
+    /** v0.4.73：可指定边长上限（HTML 导出放宽到 8192 保清晰度）。 */
+    public static int[] compose(WorldMapRenderer.WorldMap map, int maxDim) {
         if (map == null || map.width <= 0 || map.height <= 0) {
             return null;
         }
+        int cap = Math.max(1, maxDim);
         int scale = 1;
-        while (map.width / scale > MAX_DIM || map.height / scale > MAX_DIM) {
+        while (map.width / scale > cap || map.height / scale > cap) {
             scale <<= 1;
         }
         int w = Math.max(1, map.width / scale);

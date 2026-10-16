@@ -181,7 +181,7 @@
 <string name="shared_storage_layout_status">当前模式：%1$s\n内部：%2$s\n外部：%3$s</string>
 <string name="shared_storage_layout_changed">存储目录选择已更新。请重启 Minecraft 并重新打开内容管理，以确保变更完全生效。</string>
 <string name="extended_root_path_title">启动器数据路径</string>
-    <string name="extended_root_path_desc">备份、HTML 导出、结构文件与地图缓存放这里（默认：Download/LeviLauncher）</string>
+    <string name="extended_root_path_desc">备份、HTML 导出、结构文件与地图缓存放这里</string>
     <string name="extended_root_path_current">当前：%s</string>
     <string name="custom_storage_path_title">自定义存储路径</string>
 <string name="custom_storage_path_desc">设置 Minecraft 数据的自定义根目录。留空则使用默认路径。</string>
@@ -1127,7 +1127,7 @@
 <string name="instance_delete_confirm_title">删除实例</string>
 <string name="instance_delete_confirm_msg">确定要删除此实例吗？包括世界在内的所有数据都将被永久移除。</string>
 <string name="instance_backup_title">备份实例</string>
-<string name="instance_backup_desc">将此实例完整备份到 Download/LeviLauncher/Backups/minecraft item。</string>
+<string name="instance_backup_desc">将此实例完整备份到启动器数据文件夹。</string>
 <string name="instance_backup_button">备份实例</string>
 <string name="instance_backup_confirm_message">现在创建此实例的完整备份吗？如果 Minecraft 正在运行，建议先退出游戏，避免备份过程中数据变化。</string>
 <string name="instance_backup_in_progress">正在备份实例…</string>

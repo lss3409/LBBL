@@ -55,7 +55,6 @@ public final class BackupListDialog extends Dialog {
         String gamerTag;
         String xuid;
         String clientId;
-        boolean bakedCacheIncluded;
         /** 三级明细：类型 0=资源包(mcpack) 1=行为包(mcaddon) 2=模组 3=世界存档。 */
         final List<ResItem> resources = new ArrayList<>();
         final List<ResItem> worlds = new ArrayList<>();
@@ -110,8 +109,9 @@ public final class BackupListDialog extends Dialog {
         root.addView(titleView);
 
         TextView subtitle = new TextView(context);
-        subtitle.setText(zh ? "备份目录：Download/LeviLauncher/Backups/minecraft item/"
-                : "Backup folder: Download/LeviLauncher/Backups/minecraft item/");
+        // v0.4.73：目录跟随启动器数据路径设置（不再写死 Download/LeviLauncher）
+        subtitle.setText(zh ? "备份目录：" + getBackupDirPath() + "/"
+                : "Backup folder: " + getBackupDirPath() + "/");
         subtitle.setTextColor(context.getColor(R.color.text_secondary));
         subtitle.setTextSize(11);
         subtitle.setPadding(0, dp(4), 0, dp(10));
@@ -193,17 +193,30 @@ public final class BackupListDialog extends Dialog {
 
     // ---------------- 扫描与解析 ----------------
 
+    /** v0.4.73：备份目录跟随启动器数据路径设置。 */
+    private String getBackupDirPath() {
+        return new File(LauncherStorage.getBackupsRoot(context), "minecraft item").getAbsolutePath();
+    }
+
     private void scanAndFill() {
         executor.execute(() -> {
-            File dir = new File(LauncherStorage.getBackupsRoot(context), "minecraft item");
-            if (!dir.isDirectory()) {
-                // 兜底：直接拼路径
-                dir = new File(android.os.Environment.getExternalStorageDirectory(),
-                        "Download/LeviLauncher/Backups/minecraft item");
+            File dir = new File(getBackupDirPath());
+            // v0.4.73：内容根被自定义后，旧默认目录里的备份也一并列出
+            java.util.LinkedHashSet<File> dirs = new java.util.LinkedHashSet<>();
+            if (dir.isDirectory()) {
+                dirs.add(dir);
             }
-            File[] files = dir.listFiles();
+            File legacyDir = new File(android.os.Environment.getExternalStorageDirectory(),
+                    "Download/LeviLauncher/Backups/minecraft item");
+            if (legacyDir.isDirectory()) {
+                dirs.add(legacyDir);
+            }
             List<BackupInfo> infos = new ArrayList<>();
-            if (files != null) {
+            for (File d : dirs) {
+                File[] files = d.listFiles();
+                if (files == null) {
+                    continue;
+                }
                 for (File f : files) {
                     if (!f.isFile() || !InstanceBackupManager.isBackupFileName(f.getName())) {
                         continue;
@@ -326,8 +339,6 @@ public final class BackupListDialog extends Dialog {
                             }
                         }
                     }
-                } else if (n.startsWith("baked_cache/")) {
-                    info.bakedCacheIncluded = true;
                 }
             }
         } catch (Exception ignored) {
@@ -541,9 +552,6 @@ public final class BackupListDialog extends Dialog {
                     m.installed ? (zh ? "已安装实例" : "Installed") : (zh ? "自建实例" : "Custom")));
             infoBody.addView(kvRow(zh ? "创建时间" : "Created", formatTimeFull(m.createdAt)));
             infoBody.addView(kvRow(zh ? "文件大小" : "Size", formatSize(info.size)));
-            infoBody.addView(kvRow(zh ? "烘培缓存" : "Baked cache",
-                    info.bakedCacheIncluded ? (zh ? "已包含" : "Included")
-                            : (zh ? "未包含" : "Not included")));
         }
         detail.addView(infoPair[0]);
 

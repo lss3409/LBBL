@@ -219,7 +219,7 @@ Migration must complete before LBBL can continue.</string>
 <string name="shared_storage_layout_status">Current mode: %1$s\nInternal: %2$s\nExternal: %3$s</string>
 <string name="shared_storage_layout_changed">Storage directory selection updated. Restart Minecraft and reopen content management for the change to fully apply.</string>
 <string name="extended_root_path_title">Launcher data path</string>
-    <string name="extended_root_path_desc">Backups, HTML exports, structure files and map cache live here (default: Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">Backups, HTML exports, structure files and map cache live here</string>
     <string name="extended_root_path_current">Current: %s</string>
     <string name="custom_storage_path_title">Custom Storage Path</string>
 <string name="custom_storage_path_desc">Set a custom root directory for Minecraft data. Leave empty to use the default path.</string>
@@ -436,7 +436,7 @@ Migration must complete before LBBL can continue.</string>
 <string name="instance_delete_confirm_title">Delete Instance</string>
 <string name="instance_delete_confirm_msg">Are you sure you want to delete this instance? All data including worlds will be permanently removed.</string>
 <string name="instance_backup_title">Backup Instance</string>
-<string name="instance_backup_desc">Create a full backup of this instance in Download/LeviLauncher/Backups/minecraft item.</string>
+<string name="instance_backup_desc">Create a full backup of this instance in the Launcher data folder.</string>
 <string name="instance_backup_button">Backup Instance</string>
 <string name="instance_backup_confirm_message">Create a full backup of this instance now? Exit Minecraft first if it is running to avoid changing files during backup.</string>
 <string name="instance_backup_in_progress">Backing up instance…</string>

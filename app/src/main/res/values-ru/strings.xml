@@ -821,7 +821,7 @@
 <string name="delete_account_title">Удалить аккаунт</string>
 <string name="delete_account_confirm">Вы уверены, что хотите удалить этот аккаунт?</string>
 <string name="extended_root_path_title">Путь данных лаунчера</string>
-    <string name="extended_root_path_desc">Резервные копии, экспорт HTML, структуры и кэш (по умолчанию: Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">Резервные копии, экспорт HTML, структуры и кэш</string>
     <string name="extended_root_path_current">Текущий: %s</string>
     <string name="custom_storage_path_title">Пользовательский путь хранения</string>
 <string name="custom_storage_path_desc">Задайте пользовательский корневой каталог для данных Minecraft. Оставьте пустым, чтобы использовать путь по умолчанию.</string>
@@ -941,7 +941,7 @@
 <string name="jump_to_page">Перейти к странице</string>
 <string name="go">Перейти</string>
 <string name="instance_backup_title">Резервная копия экземпляра</string>
-<string name="instance_backup_desc">Создаёт полную резервную копию этого экземпляра в Download/LeviLauncher/Backups/minecraft item.</string>
+<string name="instance_backup_desc">Создаёт полную резервную копию этого экземпляра в папке данных лаунчера.</string>
 <string name="instance_backup_button">Создать резервную копию</string>
 <string name="instance_backup_confirm_message">Создать полную резервную копию этого экземпляра сейчас? Если Minecraft запущена, сначала выйдите из неё, чтобы файлы не менялись во время копирования.</string>
 <string name="instance_backup_in_progress">Создание резервной копии…</string>
@@ -1932,4 +1932,26 @@
     <string name="ore_label_redstone">Редстоуновая руда</string>
     <string name="ore_label_quartz">Кварцевая руда Нижнего мира</string>
     <string name="ore_label_ancient_debris">Древние обломки</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">Опишите, что произошло (необязательно)</string>
+    <string name="report_logs">Отправить журналы</string>
+    <string name="report_logs_desc">Журналы по умолчанию отправляются на почту разработчика (или загружаются на logshare.cn).</string>
+    <string name="report_method_mail">Отправить на почту</string>
+    <string name="report_method_site">Загрузить на сайт</string>
+    <string name="report_send">Отправить</string>
+    <string name="report_desc_sub">Опишите, что произошло (необязательно). Описание загружается вместе с журналами.</string>
+    <string name="report_uploading">Загрузка журналов…</string>
+    <string name="report_upload_success">Журналы загружены ✓</string>
+    <string name="report_upload_success_desc">Поделитесь ссылкой с разработчиком или сообществом:</string>
+    <string name="report_upload_failed_title">Ошибка загрузки</string>
+    <string name="report_upload_failed">Не удалось загрузить: %1$s</string>
+    <string name="report_copy_link">Копировать ссылку</string>
+    <string name="report_share_link">Поделиться ссылкой</string>
+    <string name="report_send_email_fallback">Отправить через почтовое приложение</string>
+    <string name="report_logs_collecting">Сбор журналов…</string>
+    <string name="report_logs_done">Журналы упакованы. Выберите приложение для отправки.</string>
+    <string name="report_logs_failed">Не удалось собрать журналы: %1$s</string>
+    <string name="report_logs_empty">Файлы журналов не найдены</string>
+    <string name="report_logs_no_app">Нет почтового приложения</string>
 </resources>

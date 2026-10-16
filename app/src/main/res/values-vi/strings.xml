@@ -240,7 +240,7 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="instance_delete_confirm_title">Xóa phiên bản</string>
 <string name="instance_delete_confirm_msg">Bạn có chắc chắn muốn xóa phiên bản này không? Tất cả dữ liệu, bao gồm cả thế giới, sẽ bị xóa vĩnh viễn.</string>
 <string name="instance_backup_title">Sao lưu phiên bản</string>
-<string name="instance_backup_desc">Tạo bản sao lưu đầy đủ của phiên bản này trong Download/LeviLauncher/Backups.</string>
+<string name="instance_backup_desc">Tạo bản sao lưu đầy đủ của phiên bản này trong thư mục dữ liệu của trình khởi chạy.</string>
 <string name="instance_backup_button">Sao lưu phiên bản</string>
 <string name="instance_backup_confirm_message">Tạo bản sao lưu đầy đủ của phiên bản này ngay bây giờ? Nếu Minecraft đang chạy, hãy thoát trước để tránh làm thay đổi các file trong quá trình sao lưu.</string>
 <string name="instance_backup_in_progress">Đang sao lưu phiên bản…</string>
@@ -851,7 +851,7 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="shared_storage_layout_status">Chế độ hiện tại: %1$s\nBên trong: %2$s\nBên ngoài: %3$s</string>
 <string name="shared_storage_layout_changed">Đã cập nhật lựa chọn thư mục lưu trữ. Hãy khởi động lại Minecraft và mở lại mục quản lý nội dung để thay đổi có hiệu lực hoàn toàn.</string>
 <string name="extended_root_path_title">Đường dẫn dữ liệu launcher</string>
-    <string name="extended_root_path_desc">Sao lưu, xuất HTML, cấu trúc và bộ nhớ đệm (mặc định: Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">Sao lưu, xuất HTML, cấu trúc và bộ nhớ đệm</string>
     <string name="extended_root_path_current">Hiện tại: %s</string>
     <string name="custom_storage_path_title">Đường dẫn lưu trữ tùy chỉnh</string>
 <string name="custom_storage_path_desc">Đặt thư mục gốc tùy chỉnh cho dữ liệu Minecraft. Để trống để dùng đường dẫn mặc định.</string>
@@ -1931,4 +1931,26 @@ Mã mời: P/%1$s
     <string name="ore_label_redstone">Quặng redstone</string>
     <string name="ore_label_quartz">Quặng thạch anh Nether</string>
     <string name="ore_label_ancient_debris">Mảnh vỡ cổ đại</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">Mô tả điều đã xảy ra (tùy chọn)</string>
+    <string name="report_logs">Báo cáo Nhật ký</string>
+    <string name="report_logs_desc">Nhật ký được gửi đến email của nhà phát triển theo mặc định (hoặc tải lên logshare.cn nếu chọn).</string>
+    <string name="report_method_mail">Gửi qua email</string>
+    <string name="report_method_site">Tải lên trang web</string>
+    <string name="report_send">Gửi</string>
+    <string name="report_desc_sub">Mô tả điều đã xảy ra (tùy chọn). Mô tả của bạn được tải lên cùng nhật ký.</string>
+    <string name="report_uploading">Đang tải nhật ký lên…</string>
+    <string name="report_upload_success">Đã tải nhật ký lên ✓</string>
+    <string name="report_upload_success_desc">Chia sẻ liên kết này với nhà phát triển hoặc cộng đồng:</string>
+    <string name="report_upload_failed_title">Tải lên thất bại</string>
+    <string name="report_upload_failed">Không tải lên được: %1$s</string>
+    <string name="report_copy_link">Sao chép Liên kết</string>
+    <string name="report_share_link">Chia sẻ Liên kết</string>
+    <string name="report_send_email_fallback">Gửi qua ứng dụng email</string>
+    <string name="report_logs_collecting">Đang thu thập nhật ký…</string>
+    <string name="report_logs_done">Đã đóng gói nhật ký. Chọn một ứng dụng để gửi.</string>
+    <string name="report_logs_failed">Không thu thập được nhật ký: %1$s</string>
+    <string name="report_logs_empty">Không tìm thấy tệp nhật ký</string>
+    <string name="report_logs_no_app">Không có ứng dụng email</string>
 </resources>

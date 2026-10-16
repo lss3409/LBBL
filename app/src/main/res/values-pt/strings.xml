@@ -791,7 +791,7 @@ A migração deve ser concluída antes que o LeviLauncher continue.</string>
 <string name="delete_account_title">Excluir Conta</string>
 <string name="delete_account_confirm">Tem certeza de que deseja excluir esta conta?</string>
 <string name="extended_root_path_title">Caminho de dados do launcher</string>
-    <string name="extended_root_path_desc">Backups, exportações HTML, estruturas e cache (padrão: Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">Backups, exportações HTML, estruturas e cache</string>
     <string name="extended_root_path_current">Atual: %s</string>
     <string name="custom_storage_path_title">Caminho de Armazenamento Personalizado</string>
 <string name="custom_storage_path_desc">Defina um diretório raiz personalizado para os dados do Minecraft. Deixe vazio para usar o caminho padrão.</string>
@@ -911,7 +911,7 @@ A migração deve ser concluída antes que o LeviLauncher continue.</string>
 <string name="jump_to_page">Ir para a página</string>
 <string name="go">Ir</string>
 <string name="instance_backup_title">Fazer Backup da Instância</string>
-<string name="instance_backup_desc">Cria um backup completo desta instância em Download/LeviLauncher/Backups/minecraft.</string>
+<string name="instance_backup_desc">Cria um backup completo desta instância na pasta de dados do iniciador.</string>
 <string name="instance_backup_button">Fazer Backup da Instância</string>
 <string name="instance_backup_confirm_message">Criar um backup completo desta instância agora? Saia do Minecraft primeiro se ele estiver em execução para evitar alterações nos arquivos durante o backup.</string>
 <string name="instance_backup_in_progress">Fazendo backup da instância…</string>
@@ -1902,4 +1902,26 @@ Código de convite: P/%1$s
     <string name="ore_label_redstone">Minério de redstone</string>
     <string name="ore_label_quartz">Minério de quartzo do Nether</string>
     <string name="ore_label_ancient_debris">Detritos ancestrais</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">Descreva o que aconteceu (opcional)</string>
+    <string name="report_logs">Reportar Logs</string>
+    <string name="report_logs_desc">Os logs são enviados ao e-mail do desenvolvedor por padrão (ou para logshare.cn se escolhido).</string>
+    <string name="report_method_mail">Enviar por e-mail</string>
+    <string name="report_method_site">Enviar para o site</string>
+    <string name="report_send">Enviar</string>
+    <string name="report_desc_sub">Descreva o que aconteceu (opcional). Sua descrição é enviada junto com os logs.</string>
+    <string name="report_uploading">Enviando logs…</string>
+    <string name="report_upload_success">Logs enviados ✓</string>
+    <string name="report_upload_success_desc">Compartilhe este link com o desenvolvedor ou a comunidade:</string>
+    <string name="report_upload_failed_title">Falha no Envio</string>
+    <string name="report_upload_failed">Falha ao enviar: %1$s</string>
+    <string name="report_copy_link">Copiar Link</string>
+    <string name="report_share_link">Compartilhar Link</string>
+    <string name="report_send_email_fallback">Enviar pelo app de e-mail</string>
+    <string name="report_logs_collecting">Coletando logs…</string>
+    <string name="report_logs_done">Logs empacotados. Escolha um app para enviá-los.</string>
+    <string name="report_logs_failed">Falha ao coletar logs: %1$s</string>
+    <string name="report_logs_empty">Nenhum arquivo de log encontrado</string>
+    <string name="report_logs_no_app">Nenhum app de e-mail disponível</string>
 </resources>

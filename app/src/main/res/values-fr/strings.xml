@@ -791,7 +791,7 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="delete_account_title">Supprimer le compte</string>
 <string name="delete_account_confirm">Voulez-vous vraiment supprimer ce compte ?</string>
 <string name="extended_root_path_title">Chemin des données du launcher</string>
-    <string name="extended_root_path_desc">Sauvegardes, exports HTML, structures et cache (défaut : Download/LeviLauncher)</string>
+    <string name="extended_root_path_desc">Sauvegardes, exports HTML, structures et cache</string>
     <string name="extended_root_path_current">Actuel : %s</string>
     <string name="custom_storage_path_title">Chemin de stockage personnalisé</string>
 <string name="custom_storage_path_desc">Définir un répertoire racine personnalisé pour les données de Minecraft. Laissez vide pour utiliser le chemin par défaut.</string>
@@ -911,7 +911,7 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="jump_to_page">Aller à la page</string>
 <string name="go">Aller</string>
 <string name="instance_backup_title">Sauvegarder l\'instance</string>
-<string name="instance_backup_desc">Créer une sauvegarde complète de cette instance dans le dossier Download/LeviLauncher/Backups/minecraft.</string>
+<string name="instance_backup_desc">Créer une sauvegarde complète de cette instance dans le dossier de données du lanceur.</string>
 <string name="instance_backup_button">Sauvegarder l\'instance</string>
 <string name="instance_backup_confirm_message">Créer maintenant une sauvegarde complète de cette instance ? Quittez d\'abord Minecraft s\'il est en cours d\'exécution pour éviter toute modification de fichiers pendant la sauvegarde.</string>
 <string name="instance_backup_in_progress">Sauvegarde de l\'instance…</string>
@@ -1902,4 +1902,26 @@ Code d\'invitation : P/%1$s
     <string name="ore_label_redstone">Minerai de redstone</string>
     <string name="ore_label_quartz">Minerai de quartz du Nether</string>
     <string name="ore_label_ancient_debris">Débris antiques</string>
+
+    <!-- v0.4.73：日志上报系列翻译补全 -->
+    <string name="report_crash_desc_hint">Décrivez ce qui est arrivé (facultatif)</string>
+    <string name="report_logs">Signaler les journaux</string>
+    <string name="report_logs_desc">Les journaux sont envoyés à l\'e-mail du développeur par défaut (ou téléversés sur logshare.cn).</string>
+    <string name="report_method_mail">Envoyer par e-mail</string>
+    <string name="report_method_site">Téléverser sur le site</string>
+    <string name="report_send">Envoyer</string>
+    <string name="report_desc_sub">Décrivez ce qui est arrivé (facultatif). Votre description est téléversée avec les journaux.</string>
+    <string name="report_uploading">Téléversement des journaux…</string>
+    <string name="report_upload_success">Journaux téléversés ✓</string>
+    <string name="report_upload_success_desc">Partagez ce lien avec le développeur ou la communauté :</string>
+    <string name="report_upload_failed_title">Échec du téléversement</string>
+    <string name="report_upload_failed">Échec du téléversement : %1$s</string>
+    <string name="report_copy_link">Copier le lien</string>
+    <string name="report_share_link">Partager le lien</string>
+    <string name="report_send_email_fallback">Envoyer via une app de messagerie</string>
+    <string name="report_logs_collecting">Collecte des journaux…</string>
+    <string name="report_logs_done">Journaux empaquetés. Choisissez une app pour les envoyer.</string>
+    <string name="report_logs_failed">Échec de la collecte des journaux : %1$s</string>
+    <string name="report_logs_empty">Aucun fichier journal trouvé</string>
+    <string name="report_logs_no_app">Aucune app de messagerie disponible</string>
 </resources>

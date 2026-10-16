@@ -68,8 +68,6 @@ public class InstanceBackupManager {
     /** v570：Xbox 登录数据（files/xal/，含 gamertag）随备份捎带——
      * 导入菜单二级详情可显示玩家登录信息。 */
     private static final String XAL_PREFIX = "xal/";
-    private static final String DOWNLOAD_RELATIVE_PATH =
-            Environment.DIRECTORY_DOWNLOADS + "/LeviLauncher/Backups/minecraft item";
     private static final Gson GSON = new GsonBuilder().serializeNulls().setPrettyPrinting().create();
 
     private final Context context;
@@ -334,22 +332,34 @@ public class InstanceBackupManager {
                 + BACKUP_EXTENSION;
     }
 
+    /** 实例备份目录：<启动器数据根>/Backups/minecraft item（v0.4.73 起跟随可配置内容根）。 */
+    private File getInstanceBackupDir() {
+        return new File(LauncherStorage.getBackupsRoot(context), "minecraft item");
+    }
+
     private OutputTarget createOutputTarget(String fileName) throws IOException {
         OutputTarget target = new OutputTarget();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        File backupDir = getInstanceBackupDir();
+        File downloadRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        boolean useMediaStore = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                && isWithinRoot(downloadRoot.getAbsolutePath(), backupDir.getAbsolutePath());
+        if (useMediaStore) {
+            // 默认内容根仍在 Download 集合下：走 MediaStore（Q+ 公共目录唯一可写通道）
             ContentResolver resolver = context.getContentResolver();
+            String relativePath = downloadRoot.toURI().relativize(backupDir.toURI()).getPath();
             // 同名备份已存在：删除旧条目，实现「覆盖更新」而不是再生成一个带时间戳的新文件
+            // （限定本目录，避免误删其他目录同名文件）
             try {
                 resolver.delete(MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-                        MediaStore.MediaColumns.DISPLAY_NAME + "=?",
-                        new String[]{fileName});
+                        MediaStore.MediaColumns.DISPLAY_NAME + "=? AND "
+                                + MediaStore.MediaColumns.RELATIVE_PATH + "=?",
+                        new String[]{fileName, relativePath});
             } catch (Exception ignored) {
             }
-
             ContentValues values = new ContentValues();
             values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
             values.put(MediaStore.MediaColumns.MIME_TYPE, "application/zip");
-            values.put(MediaStore.MediaColumns.RELATIVE_PATH, DOWNLOAD_RELATIVE_PATH);
+            values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath);
             values.put(MediaStore.MediaColumns.IS_PENDING, 1);
 
             target.uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
@@ -360,14 +370,11 @@ public class InstanceBackupManager {
             if (target.outputStream == null) {
                 throw new IOException("Failed to open backup output");
             }
-            target.displayPath = DOWNLOAD_RELATIVE_PATH + "/" + fileName;
+            target.displayPath = new File(backupDir, fileName).getAbsolutePath();
             return target;
         }
 
-        File backupDir = new File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "LeviLauncher/Backups/minecraft item"
-        );
+        // 自定义内容根（SAF 授权路径/应用可写路径）或 pre-Q：直接文件写入
         if (!backupDir.exists() && !backupDir.mkdirs()) {
             throw new IOException("Failed to create backup directory: " + backupDir.getAbsolutePath());
         }

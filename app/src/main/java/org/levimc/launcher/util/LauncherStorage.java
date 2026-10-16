@@ -479,6 +479,13 @@ public final class LauncherStorage {
         return dir;
     }
 
+    /** v0.4.73：结构文件目录：<内容根>/structures（跟随启动器数据路径设置）。 */
+    public static File getStructuresDir(Context context) {
+        File dir = new File(getExtendedRootDir(context), "structures");
+        ensureDir(dir);
+        return dir;
+    }
+
     /** v569：扩展缓存目录：<内容根>/Cache/map_cache（烘培地图数据）。 */
     public static File getBakedMapCacheDir(Context context) {
         File dir = new File(getExtendedRootDir(context), "Cache/map_cache");

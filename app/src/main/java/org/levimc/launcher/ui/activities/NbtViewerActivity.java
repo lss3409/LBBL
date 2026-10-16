@@ -920,10 +920,38 @@ public class NbtViewerActivity extends BaseActivity {
     /** v0.4.64：标点&结构列表分类过滤（0=全部 1=标点 2=结构）。 */
     private int pointListFilter = 0;
 
+    /** v0.4.73：动态设置 View 的 maxHeight（ScrollView 的 maxHeight 只有
+     *  XML 属性，framework 无公开 setter——反射 mMaxHeight 兜底，失败
+     *  保持 XML 420dp 限高）。 */
+    private void setViewMaxHeight(View view, int maxPx) {
+        try {
+            java.lang.reflect.Field f = android.view.View.class.getDeclaredField("mMaxHeight");
+            f.setAccessible(true);
+            f.setInt(view, Math.max(0, maxPx));
+            view.requestLayout();
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void renderLeftPointList(String query) {
         binding.pointListContainer.removeAllViews();
         String q = query != null ? query.toLowerCase().trim() : "";
         float d = getResources().getDisplayMetrics().density;
+
+        // v0.4.73：手机横屏 leftbar 底部圆角超出屏幕——body 高度动态
+        // 限制为 屏高 − 顶边距 − 底部留白（竖屏/平板不受影响：上限更大时
+        // 内容仍按 wrap 收缩）
+        int screenH = getResources().getDisplayMetrics().heightPixels;
+        int bodyCapPx = screenH - (int) (140 * d);
+        if (bodyCapPx < (int) (200 * d)) {
+            bodyCapPx = (int) (200 * d);
+        }
+        setViewMaxHeight(binding.leftbarBody, bodyCapPx);
+        // 网格限高 = body 上限 − 标题/搜索框/chips 行高
+        int gridCapPx = bodyCapPx - (int) (150 * d);
+        if (gridCapPx < (int) (100 * d)) {
+            gridCapPx = (int) (100 * d);
+        }
 
         // ---- 分类选项行：全部 / 标点 / 结构 ----
         LinearLayout chipRow = new LinearLayout(this);
@@ -1080,10 +1108,19 @@ public class NbtViewerActivity extends BaseActivity {
             grid.addView(rowL);
         }
         android.widget.ScrollView sc = new android.widget.ScrollView(this);
-        sc.setVerticalScrollBarEnabled(false);
+        // v0.4.73：常显滚动滑块（此前完全禁用滚动条——条目多时不知道
+        // 还能滚，最后两项"半截"看似截断）
+        sc.setVerticalScrollBarEnabled(true);
+        sc.setScrollbarFadingEnabled(false);
+        sc.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+        // v0.4.73：动态限高（手机横屏时不再把 leftbar 撑出屏幕底部）
+        int gridMaxPx = (int) (300 * d);
+        if (gridCapPx < gridMaxPx) {
+            gridMaxPx = gridCapPx;
+        }
         sc.setFillViewport(false);
         LinearLayout.LayoutParams scLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, (int) (300 * d));
+                LinearLayout.LayoutParams.MATCH_PARENT, gridMaxPx);
         sc.addView(grid);
         binding.pointListContainer.addView(sc, scLp);
     }
@@ -1269,6 +1306,14 @@ public class NbtViewerActivity extends BaseActivity {
     @Override
     protected boolean onGamepadZoom(float factor) {
         binding.worldMapImage.zoomBy(factor);
+        return true;
+    }
+
+    /** v0.4.73：LT=缩小、RT=放大（地图页触发器缩放；此前 LT/RT 是页面
+     *  滚动——地图页没有可滚列表，用户按 LT/RT 期望缩放地图）。 */
+    @Override
+    protected boolean onGamepadScroll(int dir) {
+        binding.worldMapImage.zoomBy(dir > 0 ? 1.25f : 1 / 1.25f);
         return true;
     }
 
@@ -4112,10 +4157,8 @@ public class NbtViewerActivity extends BaseActivity {
         if (currentWorldDir == null) {
             return;
         }
-        File dir = new File("/sdcard/Download/LeviLauncher/structures");
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
+        // v0.4.73：结构目录跟随启动器数据路径设置
+        File dir = org.levimc.launcher.util.LauncherStorage.getStructuresDir(this);
         String name = "structure_" + minX + "_" + minZ + "_" + size + ".mcstructure";
         File out = new File(dir, name);
         binding.nbtLoading.setVisibility(View.VISIBLE);
