@@ -108,8 +108,10 @@ public class BaseActivity extends AppCompatActivity {
                     }
                     return true;
                 case android.view.KeyEvent.KEYCODE_BUTTON_B:
-                    android.util.Log.i("GamepadPanel", "B key, focus=" + getCurrentFocus());
-                    getOnBackPressedDispatcher().onBackPressed();
+                    // v0.4.80：直接调 onBackPressed（dispatcher 的 callback
+                    // 链不可靠——面板 B 键关闭实测没走到 Activity 的
+                    // onBackPressed 而是退了页面）
+                    onBackPressed();
                     return true;
                 case android.view.KeyEvent.KEYCODE_BUTTON_L1:
                     return onGamepadTabSwitch(-1);
@@ -130,6 +132,12 @@ public class BaseActivity extends AppCompatActivity {
         } else if (event.getAction() == android.view.KeyEvent.ACTION_UP) {
             if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BUTTON_THUMBR) {
                 r3Held = false;
+                return true;
+            }
+            // v0.4.80：B 键 UP 也吞掉——super 链传到 View/系统层可能
+            // 触发手柄按键映射（BUTTON_B→BACK 映射），导致二级面板
+            // 关闭后页面仍被退出
+            if (event.getKeyCode() == android.view.KeyEvent.KEYCODE_BUTTON_B) {
                 return true;
             }
         }
