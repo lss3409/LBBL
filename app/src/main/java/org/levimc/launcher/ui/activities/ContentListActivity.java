@@ -842,7 +842,6 @@ public class ContentListActivity extends BaseActivity {
     }
 
     private void openGamepadActionPanel(View cardView) {
-        android.util.Log.i("GamepadPanel", "open card=" + cardView);
         gamepadPanelCard = cardView;
         ensureGamepadActionPanel();
         gamepadActionPanel.setVisibility(View.VISIBLE);
@@ -1704,7 +1703,6 @@ public class ContentListActivity extends BaseActivity {
     @Override
     public void onBackPressed() {
         // v0.4.79：B 键先关二级面板（面板开着时回卡片，不退出页面）
-        android.util.Log.i("GamepadPanel", "onBackPressed card=" + gamepadPanelCard);
         if (gamepadPanelCard != null) {
             closeGamepadActionPanel();
             return;
