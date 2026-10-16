@@ -834,7 +834,8 @@ public class ContentListActivity extends BaseActivity {
     @Override
     protected boolean clickGamepadFocused() {
         View current = getCurrentFocus();
-        if (current != null && current.getId() == R.id.world_card) {
+        if (current != null && (current.getId() == R.id.world_card
+                || current.getId() == R.id.pack_card)) {
             openGamepadActionPanel(current);
             return true;
         }
@@ -844,6 +845,25 @@ public class ContentListActivity extends BaseActivity {
     private void openGamepadActionPanel(View cardView) {
         gamepadPanelCard = cardView;
         ensureGamepadActionPanel();
+        // 按卡片类型构建按钮（world_card=种子/游玩/地图/更多；
+        // pack_card=导出/更多）
+        gamepadActionPanel.removeAllViews();
+        boolean zh = java.util.Locale.getDefault().getLanguage().startsWith("zh");
+        if (cardView.getId() == R.id.pack_card) {
+            gamepadActionPanel.addView(panelButton(zh ? "导出" : "Export",
+                    R.id.pack_export_button));
+            gamepadActionPanel.addView(panelButton(zh ? "更多" : "More",
+                    R.id.pack_overflow_button));
+        } else {
+            gamepadActionPanel.addView(panelButton(zh ? "复制种子" : "Copy Seed",
+                    R.id.world_seed));
+            gamepadActionPanel.addView(panelButton(getString(R.string.world_play),
+                    R.id.world_play_button));
+            gamepadActionPanel.addView(panelButton(getString(R.string.world_view_map),
+                    R.id.world_edit_button));
+            gamepadActionPanel.addView(panelButton(zh ? "更多" : "More",
+                    R.id.world_overflow_button));
+        }
         gamepadActionPanel.setVisibility(View.VISIBLE);
         View first = gamepadActionPanel.getChildAt(0);
         if (first != null) {
@@ -900,15 +920,6 @@ public class ContentListActivity extends BaseActivity {
         bg.setColor(0xFF1E1E24); // 不透明底（UI 铁律：弹窗背景不透明）
         bg.setCornerRadius(14 * d);
         gamepadActionPanel.setBackground(bg);
-        boolean zh = java.util.Locale.getDefault().getLanguage().startsWith("zh");
-        gamepadActionPanel.addView(panelButton(zh ? "复制种子" : "Copy Seed",
-                R.id.world_seed));
-        gamepadActionPanel.addView(panelButton(getString(R.string.world_play),
-                R.id.world_play_button));
-        gamepadActionPanel.addView(panelButton(getString(R.string.world_view_map),
-                R.id.world_edit_button));
-        gamepadActionPanel.addView(panelButton(zh ? "更多" : "More",
-                R.id.world_overflow_button));
         // 挂 Activity 视图树（DecorView 底部居中）——焦点留在 Activity
         // 窗口，BaseActivity 的 DPAD 拦截与焦点描边全部正常生效；
         // 独立窗口（TYPE_APPLICATION_PANEL）会被 Activity 层 DPAD
