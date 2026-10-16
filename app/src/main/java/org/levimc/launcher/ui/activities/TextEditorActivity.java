@@ -71,12 +71,8 @@ public class TextEditorActivity extends BaseActivity {
             return;
         }
         executor.execute(() -> {
-            String text = readFile();
             // v0.4.74：显示截断到 300KB 字符（TextView 渲染 1MB 文本会卡）
-            int maxChars = 300 * 1024;
-            if (text.length() > maxChars) {
-                text = text.substring(0, maxChars) + "\n…";
-            }
+            String text = truncateForDisplay(readFile());
             if (isJsonFile()) {
                 SpannableString highlighted = highlightJson(text);
                 mainHandler.post(() -> previewText.setText(highlighted));
@@ -106,6 +102,15 @@ public class TextEditorActivity extends BaseActivity {
         } catch (IOException e) {
             return "";
         }
+    }
+
+    /** v0.4.74：显示截断（保留 lambda 内变量 effectively final）。 */
+    private static String truncateForDisplay(String text) {
+        int maxChars = 300 * 1024;
+        if (text.length() > maxChars) {
+            return text.substring(0, maxChars) + "\n…";
+        }
+        return text;
     }
 
     /** BOM → UTF-8 严格 → GBK → Latin-1。 */
