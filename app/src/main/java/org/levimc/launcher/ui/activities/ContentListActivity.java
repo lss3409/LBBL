@@ -831,6 +831,17 @@ public class ContentListActivity extends BaseActivity {
     private android.widget.LinearLayout gamepadActionPanel;
     private View gamepadPanelCard;
 
+    /** v0.4.84：面板打开时方向键先关面板焦点回卡片（用户再按方向
+     *  移到相邻实例再 A 键=跨实例二级菜单）。 */
+    @Override
+    protected boolean onGamepadNavExitPanel(int direction) {
+        if (gamepadPanelCard != null) {
+            closeGamepadActionPanel();
+            return true;
+        }
+        return false;
+    }
+
     /** A 键在卡片上=展开二级面板而非直接点击（卡片主体点击本无反应）。 */
     @Override
     protected boolean clickGamepadFocused() {

@@ -188,6 +188,12 @@ public class BaseActivity extends AppCompatActivity {
     }
 
     private boolean moveGamepadFocus(int direction) {
+        // v0.4.84：二级面板打开时方向键先关面板（子类钩子——面板
+        // 按钮在屏幕底部，DOWN 没有下一候选，焦点移不出去；关面板
+        // 焦点回卡片后用户再按方向即可移到相邻卡片/实例）
+        if (onGamepadNavExitPanel(direction)) {
+            return true;
+        }
         // v0.4.18：焦点导航激活描边门控
         gamepadNavActive = true;
         // v0.4.10：焦点导航 = 显式切回焦点模式（光标可见时先隐藏并
@@ -805,6 +811,12 @@ public class BaseActivity extends AppCompatActivity {
     /** v0.4.82：上次手柄焦点（焦点丢失/RecyclerView 回收后优先恢复，
      *  防描边跳回页面顶部乱跳）。 */
     private View lastGamepadFocus;
+
+    /** v0.4.84：子类钩子——二级面板打开时方向键先关面板（焦点回
+     *  卡片），返回 true 消费本次导航。 */
+    protected boolean onGamepadNavExitPanel(int direction) {
+        return false;
+    }
 
     /** 焦点变化时给当前焦点视图加强调色描边（手柄导航视觉引导）。 */
     private void setupGamepadFocusOutline() {
