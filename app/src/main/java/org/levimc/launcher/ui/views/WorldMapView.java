@@ -273,6 +273,9 @@ public class WorldMapView extends View {
     /** v0.4.61：全图绘制最近邻采样（HTML imageSmoothingEnabled=false
      *  同款）——双线性会把色块地图糊掉（"还是糊"的根因）。 */
     private final android.graphics.Paint fullMapPaint = new android.graphics.Paint();
+    /** v0.4.81 恢复：mip 未就绪时缩小的双线性兜底画笔（v0.4.53 同款
+     *  软糊观感；v0.4.76 删掉后最近邻缩小混叠=刚打开糊根因）。 */
+    private android.graphics.Paint fullMapLinearPaint;
     private final android.graphics.RectF fullMapDst = new android.graphics.RectF();
     /** 全图模式的缩放上限（px/方块；HTML 等效 2048x）。 */
     private static final float FULL_MAX_PIXELS_PER_BLOCK = 512f;
