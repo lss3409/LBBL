@@ -309,24 +309,32 @@ public class FmDialogs {
             android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
             // v0.4.75：低像素图整数倍最近邻放大（像素图软件同款）——
             // ImageView 默认双线性放大把像素图糊成单色块
-            if (bitmap != null) {
-                int w = bitmap.getWidth(), h = bitmap.getHeight();
-                int up = Math.min(2048 / Math.max(1, w), 2048 / Math.max(1, h));
-                if (up > 1) {
-                    android.graphics.Bitmap scaled = android.graphics.Bitmap.createBitmap(
-                            w * up, h * up, android.graphics.Bitmap.Config.ARGB_8888);
-                    android.graphics.Canvas c = new android.graphics.Canvas(scaled);
-                    android.graphics.Paint p = new android.graphics.Paint();
-                    p.setFilterBitmap(false); // 最近邻
-                    c.drawBitmap(bitmap, null, new android.graphics.Rect(0, 0, w * up, h * up), p);
-                    bitmap.recycle();
-                    bitmap = scaled;
-                }
-            }
+            android.graphics.Bitmap finalBitmap = upscaleNearest(bitmap);
             a.runOnUiThread(() -> {
-                if (bitmap != null) imageView.setImageBitmap(bitmap);
+                if (finalBitmap != null) imageView.setImageBitmap(finalBitmap);
             });
         }).start();
+    }
+
+    /** v0.4.75：低像素图整数倍最近邻预放大（长边到 ≤2048），
+     *  返回新位图（原图已回收）；无需放大时原样返回。 */
+    private static android.graphics.Bitmap upscaleNearest(android.graphics.Bitmap bitmap) {
+        if (bitmap == null) {
+            return null;
+        }
+        int w = bitmap.getWidth(), h = bitmap.getHeight();
+        int up = Math.min(2048 / Math.max(1, w), 2048 / Math.max(1, h));
+        if (up <= 1) {
+            return bitmap;
+        }
+        android.graphics.Bitmap scaled = android.graphics.Bitmap.createBitmap(
+                w * up, h * up, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas c = new android.graphics.Canvas(scaled);
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setFilterBitmap(false); // 最近邻
+        c.drawBitmap(bitmap, null, new android.graphics.Rect(0, 0, w * up, h * up), p);
+        bitmap.recycle();
+        return scaled;
     }
 
     /** 跳转 MT 管理器深度编辑（v670，照旧版 openInMt）。 */
