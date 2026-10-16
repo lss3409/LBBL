@@ -803,14 +803,15 @@ public class WorldMapView extends View {
         }
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
                 && (fullMapBlockScale <= 1
-                        || pixelsPerBlock <= 1f / Math.max(1f, fullMapBlockScale)
-                        || (map.chunkColors == null && map.colors == null))) {
+                        ? (pixelsPerBlock < 3f || map.chunkColors == null)
+                        : (pixelsPerBlock <= 1f / Math.max(1f, fullMapBlockScale)
+                                || (map.chunkColors == null && map.colors == null)))) {
             // 全图纹理模式（HTML 同款——单次 drawBitmap 变换）：
-            // ① blockScale==1（全图即原分辨率，含小世界/主世界大图）——
-            //   v0.4.73：恒走全图，任意缩放零 chunk 平铺（"大地图缩放
-            //   卡/稍微缩小就糊"的根因：v0.4.63 tile 回退在 blockScale=1
-            //   主世界 ppb=2 时视口 9600 chunk 平铺卡死）；放大 24 上限
-            //   内最近邻锐利（HTML 同款）
+            // ① blockScale==1 全分辨率（小世界恒全图；主世界大图 ppb<3
+            //   走全图+mip 小纹理，ppb≥3 回退 chunk tile）——
+            //   v0.4.86：此前恒走全图，高倍放大每帧从 4096² 大纹理
+            //   采样=GPU 带宽压力=大地图缩放卡；ppb≥3 时视口 tile 数
+            //   (2560/(16×3))²≈2800 张 16×16 小图，CPU/GPU 都轻
             // ② blockScale>1 降采样全图（下界稀疏大 bounds）：仅在全图
             //   真正缩小（scalePx=blockScale×ppb≤1）时使用——v0.4.77
             //   误用 ppb≤1（blockScale=8 时 ppb=0.5→scalePx=4=全图放大

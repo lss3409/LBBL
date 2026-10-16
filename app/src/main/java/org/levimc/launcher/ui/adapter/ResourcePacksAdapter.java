@@ -294,10 +294,6 @@ public class ResourcePacksAdapter extends RecyclerView.Adapter<ResourcePacksAdap
             packUuid = itemView.findViewById(R.id.pack_uuid);
             exportButton = itemView.findViewById(R.id.pack_export_button);
             overflowButton = itemView.findViewById(R.id.pack_overflow_button);
-            // v0.4.84：子操作按钮退出焦点环（摇杆只选卡片整体，
-            // 子操作走 A 键二级面板）
-            exportButton.setFocusable(false);
-            overflowButton.setFocusable(false);
             selectionIndicator = itemView.findViewById(R.id.pack_selection_indicator);
             preloadLabel = itemView.findViewById(R.id.preload_label);
             preloadSwitch = itemView.findViewById(R.id.preload_switch);
