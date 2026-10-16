@@ -377,6 +377,13 @@ public class WorldsAdapter extends RecyclerView.Adapter<WorldsAdapter.WorldViewH
             playButton = itemView.findViewById(R.id.world_play_button);
             editButton = itemView.findViewById(R.id.world_edit_button);
             overflowButton = itemView.findViewById(R.id.world_overflow_button);
+            // v0.4.84：子操作按钮退出焦点环（ImageButton 构造器强制
+            // focusable=true 覆盖 XML——代码显式关）。摇杆只选卡片整体，
+            // 子操作走 A 键二级面板
+            worldSeed.setFocusable(false);
+            playButton.setFocusable(false);
+            editButton.setFocusable(false);
+            overflowButton.setFocusable(false);
             selectionIndicator = itemView.findViewById(R.id.world_selection_indicator);
             hardcoreHeartBadge = itemView.findViewById(R.id.world_hardcore_heart_badge);
         }
