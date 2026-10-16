@@ -219,7 +219,11 @@ public class BaseActivity extends AppCompatActivity {
             return false;
         }
         View next = current.focusSearch(direction);
-        if (next != null && next != current && next.isFocusable()) {
+        // v0.4.82：focusSearch 结果校验——不可点击的滚动容器
+        // （ScrollView/RecyclerView 拿焦点=大描边框+与按钮间振荡，
+        // 日志 manage_mods_button↔ScrollView 来回）直接弃用改几何搜索
+        if (next != null && next != current && next.isFocusable()
+                && (next.isClickable() || next instanceof android.widget.EditText)) {
             next.requestFocus();
             lastGamepadFocus = next;
             return true;
@@ -292,6 +296,11 @@ public class BaseActivity extends AppCompatActivity {
         for (int i = 0; i < group.getChildCount(); i++) {
             View child = group.getChildAt(i);
             if (!child.isShown()) {
+                continue;
+            }
+            // v0.4.82：nav 栏整树排除（tab/登录/新闻不再进几何搜索
+            // 候选——此前焦点被甩进 nav 沿四个 tab 横移=描边乱跳）
+            if (child.getId() == R.id.nav_bar_root) {
                 continue;
             }
             if (child instanceof ViewGroup) {
@@ -1121,12 +1130,21 @@ public class BaseActivity extends AppCompatActivity {
             R.id.nav_tab_online, R.id.nav_tab_settings
         };
 
-        // v0.4.79：tab 行容器（HorizontalScrollView）关掉 focusable——
-        // 焦点环里有这个可聚焦容器时，摇杆在内容区移动会"跳回上面
-        // 四个栏"（焦点进容器→自动转给第一个 tab）
-        View tabScroll = findViewById(R.id.nav_tab_scroll);
-        if (tabScroll != null) {
-            tabScroll.setFocusable(false);
+        // v0.4.82：整个 nav 栏退出焦点环——tab 行容器+4 个 tab+登录
+        // 按钮+新闻容器全部不可聚焦。此前 tab 留在焦点环里，几何搜索
+        // 兜底会把焦点甩进 nav 栏沿四个 tab 横移="描边乱跳"（日志实锤
+        // launch→sign_in→news→settings→online→instances→launch 链）；
+        // 切栏位有 LB/RB 键，无需焦点进 tab
+        int[] navIds = {
+            R.id.nav_tab_scroll, R.id.nav_tab_launch, R.id.nav_tab_instances,
+            R.id.nav_tab_online, R.id.nav_tab_settings,
+            R.id.nav_news_container, R.id.nav_sign_in_button
+        };
+        for (int id : navIds) {
+            View navView = findViewById(id);
+            if (navView != null) {
+                navView.setFocusable(false);
+            }
         }
 
         PersonalizationManager pm = new PersonalizationManager(this);
@@ -1139,12 +1157,7 @@ public class BaseActivity extends AppCompatActivity {
             tab.setTextColor(color);
             tab.setTypeface(tab.getTypeface(), android.graphics.Typeface.NORMAL);
             TextViewCompat.setCompoundDrawableTintList(tab, ColorStateList.valueOf(color));
-            // v0.4.4：tab 可聚焦——切 tab 后焦点落到当前 tab 并描边。
-            // v0.4.9：去掉 setFocusableInTouchMode(true)——touch mode 下
-            // 点击抢焦点不触发 click，触摸切栏位要双击（用户实测回归），
-            // 且抢焦点触发描边"不识别触摸"。手柄按键输入时系统自动
-            // 退出 touch mode，焦点导航不受影响
-            tab.setFocusable(true);
+            // v0.4.82：tab 不再可聚焦（见上注释）；触摸点击不受影响
         }
 
         if (pm.hasBackgroundImage()) {
