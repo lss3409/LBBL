@@ -280,18 +280,6 @@ public class WorldMapView extends View {
     /** 全图模式的缩放上限（px/方块；HTML 等效 2048x）。 */
     private static final float FULL_MAX_PIXELS_PER_BLOCK = 512f;
 
-    // ---- v0.4.75：全图 mipmap 金字塔（像素图软件同款缩小） ----
-    // 缩小时直接双线性会糊（相邻色块混合成灰）；最近邻会混叠。正确做法：
-    // 预生成 1/2、1/4、1/8 三级预平均图（双线性预过滤一次），绘制时按
-    // 缩放选最接近的级再最近邻放大——每个屏幕像素聚合整数个源像素，
-    // 颜色准确、色块锐利（等效"拆成多份小地图"的区块逻辑）。
-    private android.graphics.Bitmap fullMapMip2;
-    private android.graphics.Bitmap fullMapMip4;
-    private android.graphics.Bitmap fullMapMip8;
-    private int mipGen;
-    private final java.util.concurrent.ExecutorService mipExecutor =
-            java.util.concurrent.Executors.newSingleThreadExecutor();
-
     /** 设置全图纹理（接管 Bitmap 所有权，WorldMapView 负责回收）。 */
     public void setFullMapImage(android.graphics.Bitmap bmp, int composedW, int composedH,
                                 int blockScale) {
@@ -306,67 +294,11 @@ public class WorldMapView extends View {
         fullMapWidth = w;
         fullMapHeight = h;
         fullMapBlockScale = Math.max(1, blockScale);
-        recycleMips();
-        // v0.4.84：mip 按需生成（不再挂载时全量提交三级——单线程队列
-        // 堆积导致最新全图的 mip 迟到数十秒="刚打开糊过一会不糊"；
-        // 打开 fit 视图只缺 mip8，按需生成几十 ms 即就绪）
-        if (bmp != null && !bmp.isRecycled()) {
-            mipGen++;
-        }
         invalidateFullRender();
     }
 
-    /** 按需生成某级 mip（2/4/8）；生成中或已就绪则跳过。 */
-    private void ensureMip(int level) {
-        android.graphics.Bitmap cur = level == 2 ? fullMapMip2
-                : level == 4 ? fullMapMip4 : fullMapMip8;
-        if (cur != null && !cur.isRecycled()) {
-            return;
-        }
-        synchronized (mipLock) {
-            cur = level == 2 ? fullMapMip2 : level == 4 ? fullMapMip4 : fullMapMip8;
-            if ((cur != null && !cur.isRecycled()) || mipPending.contains(level)) {
-                return;
-            }
-            mipPending.add(level);
-        }
-        final int gen = mipGen;
-        final android.graphics.Bitmap src = fullMapBitmap;
-        if (src == null || src.isRecycled()) {
-            return;
-        }
-        mipExecutor.execute(() -> {
-            android.graphics.Bitmap m = null;
-            try {
-                m = android.graphics.Bitmap.createScaledBitmap(
-                        src, Math.max(1, src.getWidth() / level),
-                        Math.max(1, src.getHeight() / level), true);
-            } catch (Throwable ignored) {
-            }
-            synchronized (mipLock) {
-                mipPending.remove(level);
-                if (gen != mipGen || fullMapBitmap != src) {
-                    if (m != null) m.recycle();
-                    return;
-                }
-                if (level == 2) fullMapMip2 = m;
-                else if (level == 4) fullMapMip4 = m;
-                else fullMapMip8 = m;
-            }
-            postInvalidate();
-        });
-    }
-
-    private final Object mipLock = new Object();
-    private final java.util.Set<Integer> mipPending = new java.util.HashSet<>();
-
     private void recycleMips() {
-        if (fullMapMip2 != null && !fullMapMip2.isRecycled()) fullMapMip2.recycle();
-        if (fullMapMip4 != null && !fullMapMip4.isRecycled()) fullMapMip4.recycle();
-        if (fullMapMip8 != null && !fullMapMip8.isRecycled()) fullMapMip8.recycle();
-        fullMapMip2 = null;
-        fullMapMip4 = null;
-        fullMapMip8 = null;
+        // v0.4.87：mip 链已删除（回滚 v0.4.53 恒全图单 draw）
     }
 
     private void clearFullMapImage() {
@@ -391,35 +323,12 @@ public class WorldMapView extends View {
         if (scalePx >= 1f) {
             canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
         } else {
-            android.graphics.Bitmap mip = null;
-            if (scalePx >= 0.5f) {
-                mip = fullMapMip2;
-                if (mip == null || mip.isRecycled()) {
-                    ensureMip(2);
-                }
-            } else if (scalePx >= 0.25f) {
-                mip = fullMapMip4;
-                if (mip == null || mip.isRecycled()) {
-                    ensureMip(4);
-                }
-            } else {
-                mip = fullMapMip8;
-                if (mip == null || mip.isRecycled()) {
-                    ensureMip(8);
-                }
+            // v0.4.87：缩小=双线性单 draw（v0.4.53 同款——"缩放永远
+            // 是一张图片的变换"；mip 链已删）
+            if (fullMapLinearPaint == null) {
+                fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
             }
-            if (mip != null && !mip.isRecycled()) {
-                canvas.drawBitmap(mip, null, fullMapDst, fullMapPaint);
-            } else {
-                // v0.4.81：mip 未就绪（后台生成中）→ 双线性缩小兜底
-                // （v0.4.53 同款观感——均匀软糊；v0.4.76 改成最近邻
-                // 缩小的混叠噪点是"刚打开糊过一会不糊"的根因：打开
-                // 初期 mip 没生成好时 fit 视图全是噪点，mip 就绪才清晰）
-                if (fullMapLinearPaint == null) {
-                    fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
-                }
-                canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
-            }
+            canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
         }
     }
 
