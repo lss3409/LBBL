@@ -891,6 +891,15 @@ public class ContentListActivity extends BaseActivity {
         gamepadPanelCard = null;
         if (card != null) {
             card.requestFocus();
+            // v0.4.85：按键分发期间 requestFocus 可能失效——post 一帧
+            // 后兜底重试（焦点丢失会落到页面顶部，破坏跨实例流程）
+            card.post(() -> {
+                if (!isFinishing() && !isDestroyed()
+                        && getCurrentFocus() == null
+                        && card.isAttachedToWindow()) {
+                    card.requestFocus();
+                }
+            });
         }
     }
 
