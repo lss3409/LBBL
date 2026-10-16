@@ -204,14 +204,87 @@ public class BaseActivity extends AppCompatActivity {
             return false;
         }
         View next = current.focusSearch(direction);
-        if (next != null && next != current) {
+        if (next != null && next != current && next.isFocusable()) {
             next.requestFocus();
+            return true;
+        }
+        // v0.4.80：焦点环断裂（focusSearch 返回 null/自身/卡在容器）
+        // → 手动几何搜索：收集全窗口可点击叶节点按方向选最近——
+        // 通用兜底，治"摇杆选不到/焦点跳回顶部栏"一类问题
+        View manual = manualFocusSearch(current, direction);
+        if (manual != null) {
+            manual.requestFocus();
             return true;
         }
         // v0.4.4：方向到头（列表底部/顶部）→ 滚动内容翻页，
         // 「底部还有信息往下翻」由这里与 X/Y 键共同保证
         return scrollGamepadContent(direction == View.FOCUS_DOWN || direction == View.FOCUS_RIGHT
                 ? 1 : -1);
+    }
+
+    /** 收集全窗口可聚焦叶节点（可点击控件/输入框；跳过纯容器）。 */
+    private final java.util.List<View> focusCandidates = new java.util.ArrayList<>();
+
+    private View manualFocusSearch(View current, int direction) {
+        focusCandidates.clear();
+        ViewGroup decor = (ViewGroup) getWindow().getDecorView();
+        collectFocusCandidates(decor);
+        if (focusCandidates.size() < 2) {
+            return null;
+        }
+        int[] curLoc = new int[2];
+        current.getLocationOnScreen(curLoc);
+        float cx = curLoc[0] + current.getWidth() / 2f;
+        float cy = curLoc[1] + current.getHeight() / 2f;
+        View best = null;
+        float bestScore = Float.MAX_VALUE;
+        int[] loc = new int[2];
+        for (View v : focusCandidates) {
+            if (v == current) {
+                continue;
+            }
+            v.getLocationOnScreen(loc);
+            float vx = loc[0] + v.getWidth() / 2f;
+            float vy = loc[1] + v.getHeight() / 2f;
+            float dx = vx - cx;
+            float dy = vy - cy;
+            // 方向筛选（主轴偏移 > 0 且主导）
+            boolean toward;
+            if (direction == View.FOCUS_DOWN) {
+                toward = dy > 4f && Math.abs(dy) >= Math.abs(dx) * 0.4f;
+            } else if (direction == View.FOCUS_UP) {
+                toward = dy < -4f && Math.abs(dy) >= Math.abs(dx) * 0.4f;
+            } else if (direction == View.FOCUS_RIGHT) {
+                toward = dx > 4f && Math.abs(dx) >= Math.abs(dy) * 0.4f;
+            } else {
+                toward = dx < -4f && Math.abs(dx) >= Math.abs(dy) * 0.4f;
+            }
+            if (!toward) {
+                continue;
+            }
+            float score = dx * dx + dy * dy;
+            if (score < bestScore) {
+                bestScore = score;
+                best = v;
+            }
+        }
+        return best;
+    }
+
+    private void collectFocusCandidates(ViewGroup group) {
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (!child.isShown()) {
+                continue;
+            }
+            if (child instanceof ViewGroup) {
+                collectFocusCandidates((ViewGroup) child);
+            }
+            if (child.isFocusable() && child.isEnabled()
+                    && (child.isClickable() || child instanceof android.widget.EditText)) {
+                focusCandidates.add(child);
+            }
+        }
     }
 
     /** 手柄导航的首页焦点视图（当前底部 tab 按钮）；子类可覆盖。
