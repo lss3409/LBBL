@@ -204,6 +204,24 @@ public class FmEntryAdapter extends RecyclerView.Adapter<FmEntryAdapter.Holder> 
                 || n.endsWith(".webp") || n.endsWith(".gif") || n.endsWith(".bmp");
     }
 
+    /** v0.4.76：小图整数倍最近邻放大到长边 ~256（列表 icon 用；原图
+     *  已回收），无需放大时原样返回。 */
+    private static android.graphics.Bitmap upscaleThumb(android.graphics.Bitmap bmp) {
+        int w = bmp.getWidth(), h = bmp.getHeight();
+        int up = Math.max(1, 256 / Math.max(1, Math.max(w, h)));
+        if (up <= 1) {
+            return bmp;
+        }
+        android.graphics.Bitmap scaled = android.graphics.Bitmap.createBitmap(
+                w * up, h * up, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas c = new android.graphics.Canvas(scaled);
+        android.graphics.Paint p = new android.graphics.Paint();
+        p.setFilterBitmap(false); // 最近邻
+        c.drawBitmap(bmp, null, new android.graphics.Rect(0, 0, w * up, h * up), p);
+        bmp.recycle();
+        return scaled;
+    }
+
     private void loadThumb(FmEntry e, ImageView iv) {
         final String path = e.getPath().toString();
         iv.setTag(path);
@@ -238,24 +256,13 @@ public class FmEntryAdapter extends RecyclerView.Adapter<FmEntryAdapter.Holder> 
                     return;
                 }
                 // 小图整数倍最近邻放大到长边 ~256（防 ImageView 双线性糊）
-                int w = bmp.getWidth(), h = bmp.getHeight();
-                int up = Math.max(1, 256 / Math.max(1, Math.max(w, h)));
-                if (up > 1) {
-                    android.graphics.Bitmap scaled = android.graphics.Bitmap.createBitmap(
-                            w * up, h * up, android.graphics.Bitmap.Config.ARGB_8888);
-                    android.graphics.Canvas c = new android.graphics.Canvas(scaled);
-                    android.graphics.Paint p = new android.graphics.Paint();
-                    p.setFilterBitmap(false); // 最近邻
-                    c.drawBitmap(bmp, null, new android.graphics.Rect(0, 0, w * up, h * up), p);
-                    bmp.recycle();
-                    bmp = scaled;
-                }
+                final android.graphics.Bitmap result = upscaleThumb(bmp);
                 synchronized (THUMB_CACHE) {
-                    THUMB_CACHE.put(path, bmp);
+                    THUMB_CACHE.put(path, result);
                 }
                 iv.post(() -> {
                     if (path.equals(iv.getTag())) {
-                        iv.setImageBitmap(bmp);
+                        iv.setImageBitmap(result);
                     }
                 });
             } catch (Throwable ignored) {
