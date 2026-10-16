@@ -1019,6 +1019,14 @@ public class BaseActivity extends AppCompatActivity {
             R.id.nav_tab_online, R.id.nav_tab_settings
         };
 
+        // v0.4.79：tab 行容器（HorizontalScrollView）关掉 focusable——
+        // 焦点环里有这个可聚焦容器时，摇杆在内容区移动会"跳回上面
+        // 四个栏"（焦点进容器→自动转给第一个 tab）
+        View tabScroll = findViewById(R.id.nav_tab_scroll);
+        if (tabScroll != null) {
+            tabScroll.setFocusable(false);
+        }
+
         PersonalizationManager pm = new PersonalizationManager(this);
         int accent = pm.getAccentColor();
 
