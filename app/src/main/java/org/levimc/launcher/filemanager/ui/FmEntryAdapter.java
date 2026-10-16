@@ -216,10 +216,40 @@ public class FmEntryAdapter extends RecyclerView.Adapter<FmEntryAdapter.Holder> 
             return;
         }
         THUMB_POOL.execute(() -> {
-            android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
-            opts.inSampleSize = 8;
-            android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(path, opts);
-            if (bmp != null) {
+            try {
+                // v0.4.75+：动态降采样——只压大图；小图（像素贴图）全尺寸
+                // 解码（此前 inSampleSize=8 固定：16×16 像素图只剩 2×2，
+                // ImageView 放大显示=单色块）
+                android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                android.graphics.BitmapFactory.decodeFile(path, bounds);
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                    return;
+                }
+                android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                int sample = 1;
+                int maxSide = Math.max(bounds.outWidth, bounds.outHeight);
+                while (maxSide / (sample * 2) >= 256) {
+                    sample *= 2;
+                }
+                opts.inSampleSize = sample;
+                android.graphics.Bitmap bmp = android.graphics.BitmapFactory.decodeFile(path, opts);
+                if (bmp == null) {
+                    return;
+                }
+                // 小图整数倍最近邻放大到长边 ~256（防 ImageView 双线性糊）
+                int w = bmp.getWidth(), h = bmp.getHeight();
+                int up = Math.max(1, 256 / Math.max(1, Math.max(w, h)));
+                if (up > 1) {
+                    android.graphics.Bitmap scaled = android.graphics.Bitmap.createBitmap(
+                            w * up, h * up, android.graphics.Bitmap.Config.ARGB_8888);
+                    android.graphics.Canvas c = new android.graphics.Canvas(scaled);
+                    android.graphics.Paint p = new android.graphics.Paint();
+                    p.setFilterBitmap(false); // 最近邻
+                    c.drawBitmap(bmp, null, new android.graphics.Rect(0, 0, w * up, h * up), p);
+                    bmp.recycle();
+                    bmp = scaled;
+                }
                 synchronized (THUMB_CACHE) {
                     THUMB_CACHE.put(path, bmp);
                 }
@@ -228,6 +258,7 @@ public class FmEntryAdapter extends RecyclerView.Adapter<FmEntryAdapter.Holder> 
                         iv.setImageBitmap(bmp);
                     }
                 });
+            } catch (Throwable ignored) {
             }
         });
     }

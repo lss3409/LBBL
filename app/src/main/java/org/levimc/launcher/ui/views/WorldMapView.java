@@ -273,8 +273,6 @@ public class WorldMapView extends View {
     /** v0.4.61：全图绘制最近邻采样（HTML imageSmoothingEnabled=false
      *  同款）——双线性会把色块地图糊掉（"还是糊"的根因）。 */
     private final android.graphics.Paint fullMapPaint = new android.graphics.Paint();
-    /** v0.4.62：全图缩小时的双线性画笔（防最近邻混叠噪声，惰性建）。 */
-    private android.graphics.Paint fullMapLinearPaint;
     private final android.graphics.RectF fullMapDst = new android.graphics.RectF();
     /** 全图模式的缩放上限（px/方块；HTML 等效 2048x）。 */
     private static final float FULL_MAX_PIXELS_PER_BLOCK = 512f;
@@ -382,11 +380,10 @@ public class WorldMapView extends View {
             if (mip != null && !mip.isRecycled()) {
                 canvas.drawBitmap(mip, null, fullMapDst, fullMapPaint);
             } else {
-                // mip 未就绪（后台生成中）：双线性兜底
-                if (fullMapLinearPaint == null) {
-                    fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
-                }
-                canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
+                // v0.4.75+：mip 未就绪（后台生成中/失败）时也最近邻缩小
+                // （HTML 同款 imageSmoothingEnabled=false——用户认可 HTML
+                // 的观感；双线性兜底在 mip 生成失败时就是"特定比例糊"）
+                canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
             }
         }
     }
@@ -797,12 +794,14 @@ public class WorldMapView extends View {
                     || Math.abs(offsetY - cachedOffsetY) >= viewH;
             if (scalePreviewActive && cachedBmp != null && !farMoved) {
                 // 缓存位图变换预览：屏幕 = offset + k × (缓存坐标 - cachedOffset)
+                // v0.4.75+：最近邻画笔（默认双线性把放大预览糊掉——
+                // "小地图最大缩放变糊"根因，HTML 同款锐利）
                 float k = pixelsPerBlock / cachedPpb;
                 canvas.save();
                 canvas.translate(offsetX, offsetY);
                 canvas.scale(k, k);
                 canvas.translate(-cachedOffsetX, -cachedOffsetY);
-                canvas.drawBitmap(cachedBmp, 0, 0, null);
+                canvas.drawBitmap(cachedBmp, 0, 0, fullMapPaint);
                 canvas.restore();
             } else if (cachedBmp == null || cachedW != viewW || cachedH != viewH
                     || ppbChanged || farMoved) {
