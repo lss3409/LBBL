@@ -301,6 +301,22 @@ public class WorldMapView extends View {
         fullMapHeight = h;
         fullMapBlockScale = Math.max(1, blockScale);
         invalidateFullRender();
+        prewarmLod();
+    }
+
+    /** v0.4.97：全图就绪后预热常用 LOD 级——m2/m4 覆盖 scalePx≥0.19
+     *  的绝大多数缩放区间，缩放动画中切换级别不再兜底原图（那是
+     *  "开了 LOD 还卡"的一半原因）；小图（≤2048²）链总量小直接预热
+     *  到最大级。m8/m16 大图保持按需（内存考虑）。 */
+    private void prewarmLod() {
+        if (!lodEnabled || fullMapBitmap == null || fullMapBitmap.isRecycled()) {
+            return;
+        }
+        int warmTo = (fullMapWidth <= 2048 && fullMapHeight <= 2048)
+                ? lodMaxLevel : Math.min(lodMaxLevel, 4);
+        for (int lv = 2; lv <= warmTo; lv *= 2) {
+            requestLodLevel(lv);
+        }
     }
 
     private void clearFullMapImage() {
@@ -366,11 +382,11 @@ public class WorldMapView extends View {
     private boolean lodEnabled = true;
     /** 切换阈值：scalePx 缩到阈值以下才切下一级（默认 0.75，HTML 同款）。 */
     private float lodThreshold = 0.75f;
-    /** 最大降采样倍数（2 的幂：2/4/8/16）。 */
+    /** 最大降采样倍数（2 的幂：2/4/8/16/32）。 */
     private int lodMaxLevel = 16;
     /** 降采样链：index=log2(倍数)，lodLevels[1]=1/2、[2]=1/4…（[0] 恒空=原图）。 */
-    private final android.graphics.Bitmap[] lodLevels = new android.graphics.Bitmap[5];
-    private final boolean[] lodPending = new boolean[5];
+    private final android.graphics.Bitmap[] lodLevels = new android.graphics.Bitmap[6];
+    private final boolean[] lodPending = new boolean[6];
     /** 被替换后等待在途 LOD 任务结束再回收的源（避免后台 createScaledBitmap
      *  读已回收位图崩溃——Bitmap 原生像素在 recycle 后不可读）。 */
     private final java.util.List<android.graphics.Bitmap> retiredSources =
@@ -392,7 +408,8 @@ public class WorldMapView extends View {
     }
 
     public void setLodThreshold(float threshold) {
-        lodThreshold = Math.max(0.3f, Math.min(0.99f, threshold));
+        // v0.4.97：范围放开到 0.05~0.99（用户要更大调节空间）
+        lodThreshold = Math.max(0.05f, Math.min(0.99f, threshold));
         invalidate();
     }
 
@@ -916,16 +933,21 @@ public class WorldMapView extends View {
                 canvas.drawBitmap(cachedBmp, offsetX - cachedOffsetX, offsetY - cachedOffsetY, null);
             }
         }
-        drawGrid(canvas);
-        drawSlimeChunks(canvas);
-        drawLinks(canvas);
-        drawPoints(canvas);
-        drawOreMarkers(canvas); // v413：矿石标点（色块菱形）
-        drawEntities(canvas);
-        drawStructures(canvas);
-        drawTapMarker(canvas);
+        // v0.4.97：捏合缩放动画期间只画底图+玩家标记——大地图缩小时
+        // 视口覆盖全图，矿石标点/结构/实体几千条每帧重绘才是缩放卡的
+        // 主因（LOD 只优化了底图那一下）；onScaleEnd 全量补画
+        if (!scaling) {
+            drawGrid(canvas);
+            drawSlimeChunks(canvas);
+            drawLinks(canvas);
+            drawPoints(canvas);
+            drawOreMarkers(canvas); // v413：矿石标点（色块菱形）
+            drawEntities(canvas);
+            drawStructures(canvas);
+            drawTapMarker(canvas);
+            drawVoxelSelection(canvas); // 3D 区域选择矩形（最上层）
+        }
         drawMarkers(canvas); // 玩家/出生点标记画在最上层（不被实体贴图遮挡）
-        drawVoxelSelection(canvas); // 3D 区域选择矩形（最上层）
     }
 
     /** v413：矿石标点图层——v425 起优先用 MC 原版贴图

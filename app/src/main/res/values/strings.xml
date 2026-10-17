@@ -2004,6 +2004,7 @@ Invite code: P/%1$s
     <string name="lod_level_4">4×</string>
     <string name="lod_level_8">8×</string>
     <string name="lod_level_16">16×</string>
+    <string name="lod_level_32">32×</string>
     <string name="lod_threshold_title">Switch threshold</string>
     <string name="lod_threshold_hint">Higher = smoother, lower = sharper</string>
     <string name="ore_label_diamond">Diamond Ore</string>

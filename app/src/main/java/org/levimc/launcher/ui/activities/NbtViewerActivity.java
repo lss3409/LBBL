@@ -921,8 +921,9 @@ public class NbtViewerActivity extends BaseActivity {
         binding.worldMapImage.setLodMaxLevel(maxLevel);
         binding.worldMapImage.setLodThreshold(threshold);
         applyLodLevelSeg(maxLevel);
-        int seek = Math.round((threshold - 0.50f) / 0.05f);
-        binding.lodThresholdSeek.setProgress(Math.max(0, Math.min(9, seek)));
+        // v0.4.97：阈值范围 0.05~0.95（步长 0.05，SeekBar 18 格）
+        int seek = Math.round((threshold - 0.05f) / 0.05f);
+        binding.lodThresholdSeek.setProgress(Math.max(0, Math.min(18, seek)));
         binding.lodThresholdValue.setText(String.format(java.util.Locale.US,
                 "%.2f", threshold));
 
@@ -938,8 +939,10 @@ public class NbtViewerActivity extends BaseActivity {
                 lv = 4;
             } else if (v == binding.lodLevel8) {
                 lv = 8;
-            } else {
+            } else if (v == binding.lodLevel16) {
                 lv = 16;
+            } else {
+                lv = 32;
             }
             binding.worldMapImage.setLodMaxLevel(lv);
             applyLodLevelSeg(lv);
@@ -949,8 +952,9 @@ public class NbtViewerActivity extends BaseActivity {
         binding.lodLevel4.setOnClickListener(lvClick);
         binding.lodLevel8.setOnClickListener(lvClick);
         binding.lodLevel16.setOnClickListener(lvClick);
+        binding.lodLevel32.setOnClickListener(lvClick);
         for (TextView t : new TextView[]{binding.lodLevel2, binding.lodLevel4,
-                binding.lodLevel8, binding.lodLevel16}) {
+                binding.lodLevel8, binding.lodLevel16, binding.lodLevel32}) {
             DynamicAnim.applyPressScale(t);
         }
         binding.lodThresholdSeek.setOnSeekBarChangeListener(
@@ -958,7 +962,7 @@ public class NbtViewerActivity extends BaseActivity {
                     @Override
                     public void onProgressChanged(android.widget.SeekBar sb,
                                                   int progress, boolean fromUser) {
-                        float t = 0.50f + progress * 0.05f;
+                        float t = 0.05f + progress * 0.05f;
                         binding.lodThresholdValue.setText(String.format(
                                 java.util.Locale.US, "%.2f", t));
                         if (fromUser) {
@@ -971,7 +975,7 @@ public class NbtViewerActivity extends BaseActivity {
 
                     @Override
                     public void onStopTrackingTouch(android.widget.SeekBar sb) {
-                        float t = 0.50f + sb.getProgress() * 0.05f;
+                        float t = 0.05f + sb.getProgress() * 0.05f;
                         prefs.edit().putFloat("lod_threshold", t).apply();
                     }
                 });
@@ -983,8 +987,8 @@ public class NbtViewerActivity extends BaseActivity {
                 : ContextCompat.getColor(this, R.color.primary);
         int inactive = ContextCompat.getColor(this, R.color.text_secondary);
         TextView[] segs = {binding.lodLevel2, binding.lodLevel4,
-                binding.lodLevel8, binding.lodLevel16};
-        int[] vals = {2, 4, 8, 16};
+                binding.lodLevel8, binding.lodLevel16, binding.lodLevel32};
+        int[] vals = {2, 4, 8, 16, 32};
         for (int i = 0; i < segs.length; i++) {
             boolean sel = vals[i] == level;
             segs[i].setBackgroundResource(sel ? R.drawable.bg_tab_selected

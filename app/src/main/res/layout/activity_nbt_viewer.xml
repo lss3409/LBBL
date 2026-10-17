@@ -620,6 +620,21 @@
                                 android:text="@string/lod_level_16"
                                 android:textColor="@color/text_secondary"
                                 android:textSize="11sp" />
+
+                            <TextView
+                                android:id="@+id/lod_level_32"
+                                android:layout_width="0dp"
+                                android:layout_height="32dp"
+                                android:layout_marginStart="4dp"
+                                android:layout_weight="1"
+                                android:background="@drawable/bg_tab_unselected"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:fontFamily="@font/misans"
+                                android:gravity="center"
+                                android:text="@string/lod_level_32"
+                                android:textColor="@color/text_secondary"
+                                android:textSize="11sp" />
                         </LinearLayout>
 
                         <TextView
@@ -643,7 +658,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:max="9" />
+                                android:max="18" />
 
                             <TextView
                                 android:id="@+id/lod_threshold_value"
