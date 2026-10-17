@@ -294,7 +294,7 @@ public class FmDialogs {
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(file.getName())
                 .setCustomView(imageView)
-                .setNegativeButton(a.getString(R.string.close), null)
+                .setNegativeButton(a.getString(R.string.close), v -> dialog.dismiss())
                 ;
         trackShow(dialog);
 

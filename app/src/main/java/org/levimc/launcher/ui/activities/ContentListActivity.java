@@ -454,15 +454,10 @@ public class ContentListActivity extends BaseActivity {
         binding.contentRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         binding.contentRecyclerView.setAdapter(worldsAdapter);
         binding.contentRecyclerView.post(() -> DynamicAnim.staggerRecyclerChildren(binding.contentRecyclerView));
-        // v0.4.79：手柄初始焦点落到搜索框（系统自动聚焦顶部 tab 后，
-        // 摇杆 DOWN 会跳过搜索/选择/超平坦/极限管理整行直达卡片）。
-        // v0.4.82：仅无焦点时聚焦——导航中途抢焦点=描边乱跳
-        binding.contentRecyclerView.post(() -> {
-            if (!isFinishing() && !isDestroyed() && binding.searchEditText != null
-                    && getCurrentFocus() == null) {
-                binding.searchEditText.requestFocus();
-            }
-        });
+        // v0.4.87：不再进入页面自动聚焦搜索框（requestFocus 唤出输入法
+        // ="打开内容管理跳到搜索"）；手柄初始焦点由 moveGamepadFocus
+        // 的 current==null 分支处理（gamepadFirstFocusView=搜索框，
+        // 聚焦输入框不拉键盘见 BaseActivity）
     }
 
     // ---------------------------------------------------------------- v445 置顶/排序持久化

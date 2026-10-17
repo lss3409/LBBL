@@ -27,21 +27,42 @@ public final class HtmlMapExporter {
         if (map == null || map.width <= 0 || map.height <= 0) {
             throw new Exception("no map data");
         }
-        int[] full = null;
-        try {
-            full = MapImageComposer.compose(map, HTML_MAX_DIM);
-        } catch (OutOfMemoryError oom) {
-            // v0.4.73：低内存设备回退 4096（清晰度让位于可用性）
-            full = MapImageComposer.compose(map, HTML_FALLBACK_DIM);
+        int w;
+        int h;
+        String data;
+        int maxSide = Math.max(map.width, map.height);
+        if (maxSide <= HTML_MAX_DIM) {
+            // 快速路径：≤8192 走 compose（一次全量数组）
+            int[] full = null;
+            try {
+                full = MapImageComposer.compose(map, HTML_MAX_DIM);
+            } catch (OutOfMemoryError oom) {
+                // v0.4.73：低内存设备回退 4096（清晰度让位于可用性）
+                full = MapImageComposer.compose(map, HTML_FALLBACK_DIM);
+            }
+            if (full == null) {
+                throw new Exception("no rendered chunks");
+            }
+            w = full[0];
+            h = full[1];
+            // v0.4.73：不再拷贝一份像素数组（8192² 时再拷一份=多占 268MB），
+            // 直接对 full 偏移编码
+            data = encodeRle(full, 2, w * h);
+        } else {
+            // v0.4.88：超大地图（>8192）流式全分辨率导出——此前降采样
+            // 到 8192 导致"大地图 HTML 只有 1.4MB 比小地图还糊"。
+            // 逐行采样+流式 RLE，内存=一行像素+游程缓冲（不再需要
+            // 全图 int[]）；上限 16384（JS 端 ImageData 1GB 是浏览器
+            // 极限，再大降采样）
+            int cap = 16384;
+            int scale = 1;
+            while (maxSide / scale > cap) {
+                scale <<= 1;
+            }
+            w = Math.max(1, map.width / scale);
+            h = Math.max(1, map.height / scale);
+            data = encodeRleStreaming(map, w, h, scale);
         }
-        if (full == null) {
-            throw new Exception("no rendered chunks");
-        }
-        int w = full[0], h = full[1];
-
-        // v0.4.73：不再拷贝一份像素数组（8192² 时再拷一份=多占 268MB），
-        // 直接对 full 偏移编码
-        String data = encodeRle(full, 2, w * h);
         String html = buildHtml(title, seed, version, w, h,
                 map.minBlockX, map.minBlockZ, playerX, playerZ, spawnX, spawnZ,
                 deathX, deathZ, points, data);
@@ -51,6 +72,98 @@ public final class HtmlMapExporter {
             fos.write(html.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
         return out;
+    }
+
+    /** v0.4.88：超大地图流式全分辨率编码——逐行采样像素（内存=一行），
+     *  runs 边扫边写（相邻同色走 lastColor 快速路径，游程地图命中率
+     *  极高），最后拼 palette 头 + runs → base64。 */
+    private static String encodeRleStreaming(WorldMapRenderer.WorldMap map,
+                                             int w, int h, int scale) throws java.io.IOException {
+        java.util.LinkedHashMap<Integer, Integer> palette = new java.util.LinkedHashMap<>();
+        java.io.ByteArrayOutputStream runs = new java.io.ByteArrayOutputStream(
+                Math.min(w * h, 1 << 22));
+        int[] row = new int[w];
+        int lastC = 0;
+        int lastId = -1;
+        int runId = -1;
+        int runLen = 0;
+        for (int z = 0; z < h; z++) {
+            writeRow(map, row, z, w, scale);
+            for (int x = 0; x < w; x++) {
+                int c = row[x];
+                int id;
+                if (c == lastC && lastId >= 0) {
+                    id = lastId;
+                } else {
+                    Integer g = palette.get(c);
+                    if (g == null) {
+                        g = palette.size();
+                        palette.put(c, g);
+                    }
+                    id = g;
+                    lastC = c;
+                    lastId = id;
+                }
+                if (id == runId && runLen < 65535) {
+                    runLen++;
+                } else {
+                    if (runLen > 0) {
+                        writeShortLE(runs, runId);
+                        writeShortLE(runs, runLen);
+                    }
+                    runId = id;
+                    runLen = 1;
+                }
+            }
+        }
+        if (runLen > 0) {
+            writeShortLE(runs, runId);
+            writeShortLE(runs, runLen);
+        }
+        // 拼：paletteCount(2B) + RGB×n(3B) + runs
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream(
+                runs.size() + palette.size() * 3 + 16);
+        writeShortLE(bos, palette.size());
+        for (int c : palette.keySet()) {
+            bos.write((c >> 16) & 0xFF);
+            bos.write((c >> 8) & 0xFF);
+            bos.write(c & 0xFF);
+        }
+        runs.writeTo(bos);
+        return android.util.Base64.encodeToString(bos.toByteArray(),
+                android.util.Base64.NO_WRAP);
+    }
+
+    /** 生成第 z 行像素（缩放坐标）：小世界直读 colors；大世界按 chunk
+     *  行缓存遍历 chunkColors（每行只查 w×scale/16 次 HashMap）。 */
+    private static void writeRow(WorldMapRenderer.WorldMap map, int[] row,
+                                 int z, int w, int scale) {
+        if (map.colors != null) {
+            int srcZ = z * scale * map.width;
+            for (int x = 0; x < w; x++) {
+                int i = srcZ + x * scale;
+                row[x] = i < map.colors.length ? map.colors[i] : 0;
+            }
+            return;
+        }
+        if (map.chunkColors == null) {
+            java.util.Arrays.fill(row, 0);
+            return;
+        }
+        int cz = Math.floorDiv(map.minBlockZ + z * scale, 16);
+        int lz = Math.floorMod(map.minBlockZ + z * scale, 16);
+        int curCx = Integer.MIN_VALUE;
+        int[] chunk = null;
+        for (int x = 0; x < w; x++) {
+            int bx = map.minBlockX + x * scale;
+            int cx = Math.floorDiv(bx, 16);
+            if (cx != curCx) {
+                curCx = cx;
+                chunk = map.chunkColors.get(((long) cx << 32) | (cz & 0xFFFFFFFFL));
+            }
+            int lx = Math.floorMod(bx, 16);
+            row[x] = chunk != null && chunk.length >= 256 ? chunk[lz * 16 + lx] : 0;
+        }
     }
 
     /** 调色板 + 游程编码：paletteCount(2B) + RGB×n(3B each) +

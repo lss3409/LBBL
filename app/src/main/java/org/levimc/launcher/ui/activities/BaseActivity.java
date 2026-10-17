@@ -220,6 +220,19 @@ public class BaseActivity extends AppCompatActivity {
             if (first != null && first.isShown()) {
                 first.requestFocus();
                 lastGamepadFocus = first;
+                // v0.4.87：手柄导航聚焦输入框不唤键盘（触屏点击才唤——
+                // 摇杆选到搜索框唤出 IME 是打扰）
+                if (first instanceof android.widget.EditText) {
+                    try {
+                        android.view.inputmethod.InputMethodManager imm =
+                                (android.view.inputmethod.InputMethodManager)
+                                        getSystemService(INPUT_METHOD_SERVICE);
+                        if (imm != null) {
+                            imm.hideSoftInputFromWindow(first.getWindowToken(), 0);
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
                 return true;
             }
             return false;
