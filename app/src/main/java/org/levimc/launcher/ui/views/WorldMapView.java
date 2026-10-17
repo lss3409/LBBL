@@ -209,10 +209,18 @@ public class WorldMapView extends View {
         }
         chunkLodCache.clear();
         chunkLodPending.clear();
+        // v0.4.102：水位回退（新图/新数据重新预生成）
+        lodReadySpan = 64;
+        lodPrewarmRunning = false;
     }
 
     /** 烘焙/增量更新渲染完成后调用（v0.4.59：LOD 已删除，只需重绘）。 */
     public void onChunksRendered(java.util.Set<Long> chunkKeys) {
+        // v0.4.102：空集合=烘焙完成信号——块图基于旧 chunk 数据已过期，
+        // 清缓存重新预生成（烘焙中每批不清：否则块永远生成不完）
+        if (chunkKeys != null && chunkKeys.isEmpty()) {
+            clearChunkLod();
+        }
         invalidate();
     }
 
@@ -886,7 +894,9 @@ public class WorldMapView extends View {
             new java.util.LinkedHashMap<Long, Bitmap>(64, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(java.util.Map.Entry<Long, Bitmap> eldest) {
-                    if (size() > 1024) {
+                    // v0.4.102：span=16 全图预生成 ≈1400 块（64²×4=16KB/块
+                    // → 2048 块=32MB），太小会被预生成自己挤爆
+                    if (size() > 2048) {
                         eldest.getValue().recycle();
                         return true;
                     }
@@ -896,6 +906,11 @@ public class WorldMapView extends View {
     private final java.util.Set<Long> chunkLodPending = new java.util.HashSet<>();
     /** 换图代次——后台块生成结果跨图丢弃（防串污染）。 */
     private int chunkGen = 0;
+    /** v0.4.102：预生成就绪水位——span ≥ 水位的块已全图生成；缩放
+     *  动画中统一画水位级（全就绪=无兜底=视觉一致+流畅），水位随
+     *  后台预生成（64→32→16）下降渐清晰。 */
+    private int lodReadySpan = 64;
+    private boolean lodPrewarmRunning = false;
 
     /** v0.4.101：本帧 chunk LOD 选中的 span（诊断日志用）。 */
     private int curLodSpan = 0;
@@ -909,7 +924,10 @@ public class WorldMapView extends View {
 
     /** v0.4.101：按 ppb 选 span——块像素 ≤ 目标 且 块屏 ≥96px（块数
      *  可控），2 的幂阶梯（4/8/16/32/64），缩放动画中只在跨 2 倍时
-     *  切换（缓存命中率平滑）。 */
+     *  切换（缓存命中率平滑）。
+     *  v0.4.102：动画中 span 抬高到预生成水位（全就绪=无兜底=无
+     *  "左边放大右边缩小"的混绘+无 8 万张 chunk 兜底卡）；停手即
+     *  用目标 span（按需生成、精确清晰）。 */
     private int pickLodSpan() {
         float ppb = pixelsPerBlock;
         float maxSpanF = Math.min(64f, 4f * lodBlockPx() / ppb);
@@ -917,7 +935,77 @@ public class WorldMapView extends View {
         while (span * 2 <= maxSpanF && span * 16f * ppb < 96f) {
             span *= 2;
         }
+        if (scaling && span < lodReadySpan) {
+            span = lodReadySpan;
+        }
         return span;
+    }
+
+    /** v0.4.102：后台预生成全图块（span 64→32→16，粗到细），每级
+     *  完成即降水位——缩放动画中统一画就绪级。换图/清缓存后需重启
+     *  （调用方负责）。 */
+    private void startChunkLodPrewarm() {
+        if (lodPrewarmRunning || map == null || map.chunkColors == null) {
+            return;
+        }
+        lodPrewarmRunning = true;
+        final int gen = chunkGen;
+        final WorldMapRenderer.WorldMap srcMap = map;
+        LOD_EXECUTOR.execute(() -> {
+            try {
+                for (int span = 64; span >= 16; span /= 2) {
+                    int minBx = Math.floorDiv(Math.floorDiv(srcMap.minBlockX, 16), span);
+                    int minBz = Math.floorDiv(Math.floorDiv(srcMap.minBlockZ, 16), span);
+                    int maxBx = Math.floorDiv(
+                            Math.floorDiv(srcMap.minBlockX + srcMap.width - 1, 16), span);
+                    int maxBz = Math.floorDiv(
+                            Math.floorDiv(srcMap.minBlockZ + srcMap.height - 1, 16), span);
+                    for (int bz = minBz; bz <= maxBz; bz++) {
+                        for (int bx = minBx; bx <= maxBx; bx++) {
+                            if (gen != chunkGen || map != srcMap) {
+                                return;
+                            }
+                            final long key = lodKey(span, bx, bz);
+                            Bitmap bmp = null;
+                            try {
+                                bmp = buildChunkLod(srcMap, bx, bz, span);
+                            } catch (Throwable ignored) {
+                            }
+                            if (bmp == null) {
+                                continue;
+                            }
+                            final Bitmap out = bmp;
+                            MAIN_HANDLER.post(() -> {
+                                if (gen != chunkGen || map != srcMap) {
+                                    out.recycle();
+                                    return;
+                                }
+                                if (chunkLodCache.containsKey(key)) {
+                                    out.recycle();
+                                    return;
+                                }
+                                chunkLodCache.put(key, out);
+                            });
+                        }
+                    }
+                    final int readySpan = span;
+                    MAIN_HANDLER.post(() -> {
+                        if (gen == chunkGen && map == srcMap) {
+                            lodReadySpan = readySpan;
+                            invalidate();
+                        }
+                    });
+                }
+            } finally {
+                // 换图后旧任务退出：只有代次一致才复位标志（新图任务接管）
+                final boolean sameGen = gen == chunkGen;
+                MAIN_HANDLER.post(() -> {
+                    if (sameGen) {
+                        lodPrewarmRunning = false;
+                    }
+                });
+            }
+        });
     }
     private float scaleFocusX;
     private float scaleFocusY;
@@ -1162,6 +1250,10 @@ public class WorldMapView extends View {
         // v0.4.101：ppb<3 走动态 span 超级块（块像素恒定目标、块屏
         // ~100px），LOD 开关统一控制；ppb≥3 逐 chunk 锐利
         if (lodEnabled && pixelsPerBlock < 3f) {
+            // v0.4.102：后台预生成全图块（水位渐进下降）
+            if (!lodPrewarmRunning) {
+                startChunkLodPrewarm();
+            }
             drawChunkLodLayer(canvas, pickLodSpan());
             return;
         }
