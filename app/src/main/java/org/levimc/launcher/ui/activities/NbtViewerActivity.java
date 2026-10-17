@@ -529,6 +529,8 @@ public class NbtViewerActivity extends BaseActivity {
         setupNetherYSegment();
         // 下界剔除方块黑名单
         setupNetherExclude();
+        // v0.4.95：LOD 金字塔渲染设置（开关/级数/阈值，持久化）
+        setupLodSettings();
 
         // 左栏标点搜索 → 列表过滤
         binding.pointSearchInput.addTextChangedListener(new android.text.TextWatcher() {
@@ -894,6 +896,91 @@ public class NbtViewerActivity extends BaseActivity {
         TextView[] segs = {binding.netherModeSatellite, binding.netherModeHeight};
         for (int i = 0; i < segs.length; i++) {
             boolean sel = (i == 1) == heightmap;
+            segs[i].setBackgroundResource(sel ? R.drawable.bg_tab_selected
+                    : R.drawable.bg_tab_unselected);
+            segs[i].setTextColor(sel ? active : inactive);
+        }
+    }
+
+    /** v0.4.95：LOD 金字塔渲染设置（HTML 瓦片 mip 同款）——开关/最大
+     *  降采样级数/切换阈值，参数持久化（nbt_viewer prefs）。 */
+    private void setupLodSettings() {
+        android.content.SharedPreferences prefs =
+                getSharedPreferences("nbt_viewer", MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean("lod_enabled", true);
+        int maxLevel = prefs.getInt("lod_max_level", 16);
+        float threshold = prefs.getFloat("lod_threshold", 0.75f);
+        binding.swLod.setChecked(enabled);
+        binding.worldMapImage.setLodEnabled(enabled);
+        binding.worldMapImage.setLodMaxLevel(maxLevel);
+        binding.worldMapImage.setLodThreshold(threshold);
+        applyLodLevelSeg(maxLevel);
+        int seek = Math.round((threshold - 0.50f) / 0.05f);
+        binding.lodThresholdSeek.setProgress(Math.max(0, Math.min(9, seek)));
+        binding.lodThresholdValue.setText(String.format(java.util.Locale.US,
+                "%.2f", threshold));
+
+        binding.swLod.setOnCheckedChangeListener((btn, checked) -> {
+            binding.worldMapImage.setLodEnabled(checked);
+            prefs.edit().putBoolean("lod_enabled", checked).apply();
+        });
+        View.OnClickListener lvClick = v -> {
+            int lv;
+            if (v == binding.lodLevel2) {
+                lv = 2;
+            } else if (v == binding.lodLevel4) {
+                lv = 4;
+            } else if (v == binding.lodLevel8) {
+                lv = 8;
+            } else {
+                lv = 16;
+            }
+            binding.worldMapImage.setLodMaxLevel(lv);
+            applyLodLevelSeg(lv);
+            prefs.edit().putInt("lod_max_level", lv).apply();
+        };
+        binding.lodLevel2.setOnClickListener(lvClick);
+        binding.lodLevel4.setOnClickListener(lvClick);
+        binding.lodLevel8.setOnClickListener(lvClick);
+        binding.lodLevel16.setOnClickListener(lvClick);
+        for (TextView t : new TextView[]{binding.lodLevel2, binding.lodLevel4,
+                binding.lodLevel8, binding.lodLevel16}) {
+            DynamicAnim.applyPressScale(t);
+        }
+        binding.lodThresholdSeek.setOnSeekBarChangeListener(
+                new android.widget.SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(android.widget.SeekBar sb,
+                                                  int progress, boolean fromUser) {
+                        float t = 0.50f + progress * 0.05f;
+                        binding.lodThresholdValue.setText(String.format(
+                                java.util.Locale.US, "%.2f", t));
+                        if (fromUser) {
+                            binding.worldMapImage.setLodThreshold(t);
+                        }
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(android.widget.SeekBar sb) {}
+
+                    @Override
+                    public void onStopTrackingTouch(android.widget.SeekBar sb) {
+                        float t = 0.50f + sb.getProgress() * 0.05f;
+                        prefs.edit().putFloat("lod_threshold", t).apply();
+                    }
+                });
+    }
+
+    /** 高亮 LOD 最大级数胶囊（个性化主题色贯通）。 */
+    private void applyLodLevelSeg(int level) {
+        int active = accentColor != 0 ? accentColor
+                : ContextCompat.getColor(this, R.color.primary);
+        int inactive = ContextCompat.getColor(this, R.color.text_secondary);
+        TextView[] segs = {binding.lodLevel2, binding.lodLevel4,
+                binding.lodLevel8, binding.lodLevel16};
+        int[] vals = {2, 4, 8, 16};
+        for (int i = 0; i < segs.length; i++) {
+            boolean sel = vals[i] == level;
             segs[i].setBackgroundResource(sel ? R.drawable.bg_tab_selected
                     : R.drawable.bg_tab_unselected);
             segs[i].setTextColor(sel ? active : inactive);

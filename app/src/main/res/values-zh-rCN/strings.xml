@@ -1832,6 +1832,17 @@
     <string name="no_structures">无结构</string>
     <string name="filter_points">标点</string>
     <string name="settings_placeholder">更多功能即将到来…</string>
+    <!-- v0.4.95：LOD 金字塔渲染设置 -->
+    <string name="lod_title">渲染性能</string>
+    <string name="lod_enable">LOD 金字塔渲染</string>
+    <string name="lod_enable_hint">缩小时改用预降采样地图减少卡顿；关闭则直接缩小原图</string>
+    <string name="lod_level_title">最大降采样级数</string>
+    <string name="lod_level_2">2×</string>
+    <string name="lod_level_4">4×</string>
+    <string name="lod_level_8">8×</string>
+    <string name="lod_level_16">16×</string>
+    <string name="lod_threshold_title">切换阈值</string>
+    <string name="lod_threshold_hint">阈值越高越流畅，越低越清晰</string>
     <string name="ore_label_diamond">钻石矿石</string>
     <string name="ore_label_emerald">绿宝石矿石</string>
     <string name="ore_label_gold">金矿石</string>

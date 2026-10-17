@@ -1995,6 +1995,17 @@ Invite code: P/%1$s
     <string name="no_structures">No structures</string>
     <string name="filter_points">Points</string>
     <string name="settings_placeholder">More tools coming soon…</string>
+    <!-- v0.4.95：LOD 金字塔渲染设置 -->
+    <string name="lod_title">Render Performance</string>
+    <string name="lod_enable">LOD pyramid rendering</string>
+    <string name="lod_enable_hint">Use pre-downsampled map images when zooming out to reduce lag; disable to shrink the original image directly</string>
+    <string name="lod_level_title">Max downsample level</string>
+    <string name="lod_level_2">2×</string>
+    <string name="lod_level_4">4×</string>
+    <string name="lod_level_8">8×</string>
+    <string name="lod_level_16">16×</string>
+    <string name="lod_threshold_title">Switch threshold</string>
+    <string name="lod_threshold_hint">Higher = smoother, lower = sharper</string>
     <string name="ore_label_diamond">Diamond Ore</string>
     <string name="ore_label_emerald">Emerald Ore</string>
     <string name="ore_label_gold">Gold Ore</string>

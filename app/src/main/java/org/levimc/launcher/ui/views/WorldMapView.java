@@ -284,7 +284,13 @@ public class WorldMapView extends View {
     public void setFullMapImage(android.graphics.Bitmap bmp, int composedW, int composedH,
                                 int blockScale) {
         if (fullMapBitmap != null && fullMapBitmap != bmp) {
-            fullMapBitmap.recycle();
+            releaseLodChain();
+            if (lodInFlight > 0) {
+                // 后台 LOD 任务还在读旧源：退休延后回收（任务结束自会释放）
+                retiredSources.add(fullMapBitmap);
+            } else {
+                fullMapBitmap.recycle();
+            }
         }
         installFullMap(bmp, composedW, composedH, blockScale);
     }
@@ -298,15 +304,22 @@ public class WorldMapView extends View {
     }
 
     private void clearFullMapImage() {
-        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()) {
+        if (fullMapBitmap == null) {
+            return;
+        }
+        releaseLodChain();
+        if (lodInFlight > 0) {
+            retiredSources.add(fullMapBitmap);
+        } else if (!fullMapBitmap.isRecycled()) {
             fullMapBitmap.recycle();
         }
         fullMapBitmap = null;
     }
 
     /** 全图模式绘制：单次 drawBitmap + GPU 变换（零 CPU 重采样）。
-     *  放大（scalePx≥1）最近邻保持锐利色块；缩小（scalePx<1）走 mipmap
-     *  金字塔（v0.4.75，见上）——双线性直接缩小是"缩到一定比例糊"根因。 */
+     *  放大（scalePx≥1）最近邻保持锐利色块；缩小（scalePx<1）走 LOD
+     *  金字塔（v0.4.95，HTML 瓦片 mip 同款——按倍率选预降采样图，
+     *  避免全图双线性缩小="缩到一定比例卡"根因）。 */
     private void drawFullMapLayer(android.graphics.Canvas canvas) {
         if (map == null || fullMapBitmap == null || fullMapBitmap.isRecycled()) {
             return;
@@ -317,14 +330,145 @@ public class WorldMapView extends View {
                 offsetY + fullMapHeight * scalePx);
         if (scalePx >= 1f) {
             canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
-        } else {
-            // v0.4.87：缩小=双线性单 draw（v0.4.53 同款——"缩放永远
-            // 是一张图片的变换"；mip 链已删）
-            if (fullMapLinearPaint == null) {
-                fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
-            }
-            canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
+            return;
         }
+        if (fullMapLinearPaint == null) {
+            fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+        }
+        if (!lodEnabled) {
+            // LOD 关：原图直接双线性缩小（v0.4.87 行为）
+            canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
+            return;
+        }
+        // 选级：level×scalePx ≥ 阈值的最大 2 的幂（level=1 即原图，
+        // 缩到阈值以下就换 1/2、1/4…——HTML mip 同款区间）
+        int level = 1;
+        while (scalePx * level < lodThreshold && level < lodMaxLevel) {
+            level *= 2;
+        }
+        Bitmap lodBmp = lodLevels[Integer.numberOfTrailingZeros(level)];
+        if (lodBmp == null || lodBmp.isRecycled()) {
+            // 该级未就绪：原图双线性兜底（与 HTML 生成中先画上一级同款）+ 后台生成
+            canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
+            requestLodLevel(level);
+            return;
+        }
+        // m_k 的 1 像素显示尺寸（≈阈值~2×阈值之间，接近 1:1 显示=重采样最轻）
+        float levelScalePx = scalePx * level;
+        canvas.drawBitmap(lodBmp, null, fullMapDst,
+                levelScalePx >= 1f ? fullMapPaint : fullMapLinearPaint);
+    }
+
+    // ---- v0.4.95：LOD 金字塔（HTML 瓦片 mip 同款）——按需后台生成
+    //      1/2、1/4… 降采样链，缩放时按倍率选级，单次 drawBitmap ----
+
+    /** LOD 开关（关=原图直接缩小，v0.4.87 行为）。 */
+    private boolean lodEnabled = true;
+    /** 切换阈值：scalePx 缩到阈值以下才切下一级（默认 0.75，HTML 同款）。 */
+    private float lodThreshold = 0.75f;
+    /** 最大降采样倍数（2 的幂：2/4/8/16）。 */
+    private int lodMaxLevel = 16;
+    /** 降采样链：index=log2(倍数)，lodLevels[1]=1/2、[2]=1/4…（[0] 恒空=原图）。 */
+    private final android.graphics.Bitmap[] lodLevels = new android.graphics.Bitmap[5];
+    private final boolean[] lodPending = new boolean[5];
+    /** 被替换后等待在途 LOD 任务结束再回收的源（避免后台 createScaledBitmap
+     *  读已回收位图崩溃——Bitmap 原生像素在 recycle 后不可读）。 */
+    private final java.util.List<android.graphics.Bitmap> retiredSources =
+            new java.util.ArrayList<>();
+    /** 引用旧源的在途 LOD 任务数（只在主线程增减）。 */
+    private int lodInFlight = 0;
+    private static final android.os.Handler MAIN_HANDLER =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private static final java.util.concurrent.ExecutorService LOD_EXECUTOR =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "WorldMapView-LOD");
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+
+    public void setLodEnabled(boolean enabled) {
+        lodEnabled = enabled;
+        invalidate();
+    }
+
+    public void setLodThreshold(float threshold) {
+        lodThreshold = Math.max(0.3f, Math.min(0.99f, threshold));
+        invalidate();
+    }
+
+    public void setLodMaxLevel(int level) {
+        lodMaxLevel = level;
+        // 清理超出新上限的链级
+        int maxIdx = Integer.numberOfTrailingZeros(level);
+        for (int i = maxIdx + 1; i < lodLevels.length; i++) {
+            if (lodLevels[i] != null) {
+                lodLevels[i].recycle();
+                lodLevels[i] = null;
+            }
+            lodPending[i] = false;
+        }
+        invalidate();
+    }
+
+    /** 释放 LOD 链（换图/清图时调用；原图位图由调用方管理）。 */
+    private void releaseLodChain() {
+        for (int i = 0; i < lodLevels.length; i++) {
+            if (lodLevels[i] != null) {
+                lodLevels[i].recycle();
+                lodLevels[i] = null;
+            }
+            lodPending[i] = false;
+        }
+    }
+
+    /** 后台生成第 level 级降采样图（幂等：已生成/已排队则跳过）。 */
+    private void requestLodLevel(int level) {
+        final int idx = Integer.numberOfTrailingZeros(level);
+        if (lodLevels[idx] != null || lodPending[idx]) {
+            return;
+        }
+        final android.graphics.Bitmap src = fullMapBitmap;
+        if (src == null || src.isRecycled()) {
+            return;
+        }
+        lodPending[idx] = true;
+        lodInFlight++;
+        LOD_EXECUTOR.execute(() -> {
+            android.graphics.Bitmap scaled = null;
+            try {
+                if (!src.isRecycled()) {
+                    scaled = android.graphics.Bitmap.createScaledBitmap(src,
+                            Math.max(1, src.getWidth() / level),
+                            Math.max(1, src.getHeight() / level), true);
+                }
+            } catch (Throwable ignored) {
+                // OOM/源已回收：兜底绘制继续用原图
+            }
+            final android.graphics.Bitmap out = scaled;
+            MAIN_HANDLER.post(() -> {
+                lodInFlight--;
+                lodPending[idx] = false;
+                if (fullMapBitmap != src) {
+                    // 源已被替换：丢弃结果，回收自己引用的退休源
+                    if (out != null) {
+                        out.recycle();
+                    }
+                    if (retiredSources.remove(src)) {
+                        src.recycle();
+                    }
+                    return;
+                }
+                if (out == null) {
+                    return;
+                }
+                android.graphics.Bitmap old = lodLevels[idx];
+                lodLevels[idx] = out;
+                if (old != null && old != out) {
+                    old.recycle();
+                }
+                invalidate();
+            });
+        });
     }
 
     // ---- v0.4.54：史莱姆 chunk 遮罩（每 chunk 1 像素预渲染位图，
