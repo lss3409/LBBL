@@ -204,21 +204,11 @@ public class WorldMapView extends View {
      *  代次 +1 让在途后台生成结果跨图丢弃。 */
     private void clearChunkLod() {
         chunkGen++;
-        for (Bitmap b : chunkLod4.values()) {
+        for (Bitmap b : chunkLodCache.values()) {
             b.recycle();
         }
-        chunkLod4.clear();
-        for (Bitmap b : chunkLod16.values()) {
-            b.recycle();
-        }
-        chunkLod16.clear();
-        for (Bitmap b : chunkLod64.values()) {
-            b.recycle();
-        }
-        chunkLod64.clear();
-        lod4Pending.clear();
-        lod16Pending.clear();
-        lod64Pending.clear();
+        chunkLodCache.clear();
+        chunkLodPending.clear();
     }
 
     /** 烘焙/增量更新渲染完成后调用（v0.4.59：LOD 已删除，只需重绘）。 */
@@ -367,6 +357,7 @@ public class WorldMapView extends View {
         if (map == null || fullMapBitmap == null || fullMapBitmap.isRecycled()) {
             return;
         }
+        curLodSpan = 0;
         float scalePx = fullMapBlockScale * pixelsPerBlock;
         fullMapDst.set(offsetX, offsetY,
                 offsetX + fullMapWidth * scalePx,
@@ -885,12 +876,13 @@ public class WorldMapView extends View {
     private String lastDrawPath = "-";
     private int dbgFrame;
 
-    // ---- v0.4.100：chunk LOD 超级块——bs>1 世界缩小（ppb<3）时视口
-    //      chunk tile 数爆炸（ppb=0.67 时 8 万张/帧=缩放卡主因，日志
-    //      实锤 path=chunk 全程、全图 LOD 参数根本没参与）。把
-    //      4×4/16×16 chunk 合并成一张 16×16 超级块（块级降采样），
-    //      tile 数 ÷16~÷256；后台生成+LRU+代次防串。 ----
-    private final java.util.LinkedHashMap<Long, Bitmap> chunkLod4 =
+    // ---- v0.4.101：chunk LOD 动态梯度超级块——bs>1 世界缩小（ppb<3）
+    //      时视口 chunk tile 数爆炸（ppb=0.67 时 8 万张/帧，日志实锤）。
+    //      span（2 的幂 4-64）随 ppb 连续选级：块输出 64×64，块像素
+    //      显示尺寸恒定 ~1-3px（阈值参数控制），块屏 ~100px 视口 ~950
+    //      块——三级跳变已废弃（0.5 倍用 lod16=16 方块/px 放大 8 倍
+    //      双线性="糊成狗屎"根因）。key=(span<<56)|packChunk。 ----
+    private final java.util.LinkedHashMap<Long, Bitmap> chunkLodCache =
             new java.util.LinkedHashMap<Long, Bitmap>(64, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(java.util.Map.Entry<Long, Bitmap> eldest) {
@@ -901,33 +893,32 @@ public class WorldMapView extends View {
                     return false;
                 }
             };
-    private final java.util.LinkedHashMap<Long, Bitmap> chunkLod16 =
-            new java.util.LinkedHashMap<Long, Bitmap>(64, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(java.util.Map.Entry<Long, Bitmap> eldest) {
-                    if (size() > 1024) {
-                        eldest.getValue().recycle();
-                        return true;
-                    }
-                    return false;
-                }
-            };
-    private final java.util.LinkedHashMap<Long, Bitmap> chunkLod64 =
-            new java.util.LinkedHashMap<Long, Bitmap>(64, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(java.util.Map.Entry<Long, Bitmap> eldest) {
-                    if (size() > 1024) {
-                        eldest.getValue().recycle();
-                        return true;
-                    }
-                    return false;
-                }
-            };
-    private final java.util.Set<Long> lod4Pending = new java.util.HashSet<>();
-    private final java.util.Set<Long> lod16Pending = new java.util.HashSet<>();
-    private final java.util.Set<Long> lod64Pending = new java.util.HashSet<>();
+    private final java.util.Set<Long> chunkLodPending = new java.util.HashSet<>();
     /** 换图代次——后台块生成结果跨图丢弃（防串污染）。 */
     private int chunkGen = 0;
+
+    /** v0.4.101：本帧 chunk LOD 选中的 span（诊断日志用）。 */
+    private int curLodSpan = 0;
+
+    /** v0.4.101：目标块像素显示尺寸（阈值映射：高阈值=流畅糊、
+     *  低阈值=清晰块多）。 */
+    private float lodBlockPx() {
+        float px = 1f + (lodThreshold - 0.05f) / 0.9f * 2f;
+        return scaling ? px * 1.5f : px; // 动画中更激进（静止即恢复）
+    }
+
+    /** v0.4.101：按 ppb 选 span——块像素 ≤ 目标 且 块屏 ≥96px（块数
+     *  可控），2 的幂阶梯（4/8/16/32/64），缩放动画中只在跨 2 倍时
+     *  切换（缓存命中率平滑）。 */
+    private int pickLodSpan() {
+        float ppb = pixelsPerBlock;
+        float maxSpanF = Math.min(64f, 4f * lodBlockPx() / ppb);
+        int span = 4;
+        while (span * 2 <= maxSpanF && span * 16f * ppb < 96f) {
+            span *= 2;
+        }
+        return span;
+    }
     private float scaleFocusX;
     private float scaleFocusY;
 
@@ -1055,6 +1046,7 @@ public class WorldMapView extends View {
                     + " bs=" + fullMapBlockScale
                     + " lod=" + lodEnabled + "/" + String.format(java.util.Locale.US,
                             "%.2f", lodThreshold) + "/" + lodMaxLevel
+                    + " span=" + curLodSpan
                     + " gesture=" + (scaling ? "scale" : panning ? "pan" : "-"));
         }
     }
@@ -1167,19 +1159,10 @@ public class WorldMapView extends View {
      *  修缩放卡）；ppb≥3 逐 chunk tile 最近邻（锐利放大）。 */
     private void drawChunkLayer(android.graphics.Canvas canvas) {
         lastDrawPath = "chunk";
-        // v0.4.100：三级 chunk LOD——ppb<0.4 用 4096 chunk 超级块
-        // （全图仅 88 块）、0.4-1.5 用 256 chunk 块、1.5-3 用 16 chunk
-        // 块；每级 miss 兜底下一级（lod64→lod16→chunk）
-        if (pixelsPerBlock < 0.4f) {
-            drawChunkLodLayer(canvas, 64, chunkLod64, lod64Pending, "clod64");
-            return;
-        }
-        if (pixelsPerBlock < 1.5f) {
-            drawChunkLodLayer(canvas, 16, chunkLod16, lod16Pending, "clod16");
-            return;
-        }
-        if (pixelsPerBlock < 3f) {
-            drawChunkLodLayer(canvas, 4, chunkLod4, lod4Pending, "clod4");
+        // v0.4.101：ppb<3 走动态 span 超级块（块像素恒定目标、块屏
+        // ~100px），LOD 开关统一控制；ppb≥3 逐 chunk 锐利
+        if (lodEnabled && pixelsPerBlock < 3f) {
+            drawChunkLodLayer(canvas, pickLodSpan());
             return;
         }
         int viewW = getWidth();
@@ -1229,13 +1212,12 @@ public class WorldMapView extends View {
         }
     }
 
-    /** v0.4.100：chunk LOD 超级块层绘制——块覆盖 span×span chunk
-     *  （span*16 方块），一张 16×16 位图；miss 逐级兜底
-     *  （64→lod16→lod4→chunk）。 */
-    private void drawChunkLodLayer(android.graphics.Canvas canvas, int span,
-                                   java.util.LinkedHashMap<Long, Bitmap> cache,
-                                   java.util.Set<Long> pending, String path) {
-        lastDrawPath = path;
+    /** v0.4.101：chunk LOD 动态梯度层——块覆盖 span×span chunk，输出
+     *  64×64（每输出像素 = span/4 方块均值）；miss 逐级兜底
+     *  （span→span/2→chunk），生成请求按距屏幕中心排序（中心先出）。 */
+    private void drawChunkLodLayer(android.graphics.Canvas canvas, int span) {
+        lastDrawPath = "clod" + span;
+        curLodSpan = span;
         int viewW = getWidth();
         int viewH = getHeight();
         float invPpb = 1f / pixelsPerBlock;
@@ -1255,43 +1237,41 @@ public class WorldMapView extends View {
                 Math.floorDiv(Math.floorDiv((int) Math.ceil(rightWorld), 16), span));
         int lastBz = Math.min(maxBz,
                 Math.floorDiv(Math.floorDiv((int) Math.ceil(bottomWorld), 16), span));
-        drawChunkLodRange(canvas, span, cache, pending,
-                firstBx, firstBz, lastBx, lastBz);
+        drawChunkLodRange(canvas, span, firstBx, firstBz, lastBx, lastBz);
     }
 
-    /** 画块范围；miss 块逐级兜底（span/4 级或 chunk 级）。 */
+    /** 画块范围；miss 块收集后按距屏幕中心排序请求（中心先出）。 */
     private void drawChunkLodRange(android.graphics.Canvas canvas, int span,
-                                   java.util.LinkedHashMap<Long, Bitmap> cache,
-                                   java.util.Set<Long> pending,
                                    int firstBx, int firstBz, int lastBx, int lastBz) {
         Paint lodPaint = new Paint();
         lodPaint.setFilterBitmap(true); // 块级降采样图：双线性（缩小/放大都平滑）
         android.graphics.RectF dst = new android.graphics.RectF();
         int maxChunkCx = Math.floorDiv(map.minBlockX + map.width - 1, 16);
         int maxChunkCz = Math.floorDiv(map.minBlockZ + map.height - 1, 16);
+        float cx = getWidth() / 2f;
+        float cy = getHeight() / 2f;
+        java.util.List<long[]> missList = null;
         for (int bz = firstBz; bz <= lastBz; bz++) {
             for (int bx = firstBx; bx <= lastBx; bx++) {
-                long bk = packChunk(bx, bz);
-                Bitmap bmp = cache.get(bk);
+                long key = lodKey(span, bx, bz);
+                Bitmap bmp = chunkLodCache.get(key);
                 if (bmp == null) {
-                    requestChunkLod(bx, bz, span, cache, pending);
+                    if (missList == null) {
+                        missList = new java.util.ArrayList<>();
+                    }
+                    missList.add(new long[]{key, bx, bz});
                     if (span > 4) {
-                        // 兜底下一级（64→16、16→4）
-                        int subSpan = span / 4;
-                        java.util.LinkedHashMap<Long, Bitmap> subCache =
-                                subSpan == 16 ? chunkLod16 : chunkLod4;
-                        java.util.Set<Long> subPending =
-                                subSpan == 16 ? lod16Pending : lod4Pending;
-                        int subMaxBx = Math.floorDiv(
-                                Math.floorDiv(map.minBlockX + map.width - 1, 16), subSpan);
-                        int subMaxBz = Math.floorDiv(
-                                Math.floorDiv(map.minBlockZ + map.height - 1, 16), subSpan);
-                        drawChunkLodRange(canvas, subSpan, subCache, subPending,
-                                bx * 4, bz * 4,
-                                Math.min(subMaxBx, bx * 4 + 3),
-                                Math.min(subMaxBz, bz * 4 + 3));
+                        // 兜底半级（span/2 块若缓存就绪则用它，否则 chunk）
+                        int subSpan = span / 2;
+                        drawChunkLodRange(canvas, subSpan,
+                                bx * 2, bz * 2,
+                                Math.min(Math.floorDiv(Math.floorDiv(
+                                        map.minBlockX + map.width - 1, 16), subSpan),
+                                        bx * 2 + 1),
+                                Math.min(Math.floorDiv(Math.floorDiv(
+                                        map.minBlockZ + map.height - 1, 16), subSpan),
+                                        bz * 2 + 1));
                     } else {
-                        // 兜底逐 chunk（生成完成后 invalidate 换块）
                         drawChunkRange(canvas,
                                 bx * span, bz * span,
                                 Math.min(maxChunkCx, bx * span + span - 1),
@@ -1306,14 +1286,32 @@ public class WorldMapView extends View {
                 canvas.drawBitmap(bmp, null, dst, lodPaint);
             }
         }
+        if (missList != null && !missList.isEmpty()) {
+            // 按距屏幕中心距离升序（中心块先生成，缩放停止后最先清晰）
+            float worldCx = (cx - offsetX) / pixelsPerBlock + map.minBlockX;
+            float worldCz = (cy - offsetY) / pixelsPerBlock + map.minBlockZ;
+            missList.sort((a, b) -> {
+                float dax = a[1] * span * 16f - worldCx;
+                float daz = a[2] * span * 16f - worldCz;
+                float dbx = b[1] * span * 16f - worldCx;
+                float dbz = b[2] * span * 16f - worldCz;
+                return Float.compare(dax * dax + daz * daz, dbx * dbx + dbz * dbz);
+            });
+            for (long[] m : missList) {
+                requestChunkLod((int) m[1], (int) m[2], span);
+            }
+        }
     }
 
-    /** v0.4.100：请求后台生成超级块（幂等；代次防跨图污染）。 */
-    private void requestChunkLod(int bx, int bz, int span,
-                                 java.util.LinkedHashMap<Long, Bitmap> cache,
-                                 java.util.Set<Long> pending) {
-        final long bk = packChunk(bx, bz);
-        if (!pending.add(bk)) {
+    /** 缓存 key：span（2 的幂 4-64）+ 块坐标。 */
+    private static long lodKey(int span, int bx, int bz) {
+        return ((long) span << 56) | packChunk(bx, bz);
+    }
+
+    /** v0.4.101：请求后台生成超级块（幂等；代次防跨图污染）。 */
+    private void requestChunkLod(int bx, int bz, int span) {
+        final long key = lodKey(span, bx, bz);
+        if (!chunkLodPending.add(key)) {
             return;
         }
         final int gen = chunkGen;
@@ -1327,31 +1325,33 @@ public class WorldMapView extends View {
             }
             final Bitmap out = bmp;
             MAIN_HANDLER.post(() -> {
-                pending.remove(bk);
+                chunkLodPending.remove(key);
                 if (out == null || gen != chunkGen || map != srcMap) {
                     if (out != null) {
                         out.recycle();
                     }
                     return;
                 }
-                cache.put(bk, out);
+                chunkLodCache.put(key, out);
                 invalidate();
             });
         });
     }
 
-    /** 后台生成超级块：span×span chunk 平均成 16×16（每输出像素 =
-     *  span×span 方块均值；透明像素不参与平均，全透明输出 0）。 */
+    /** 后台生成超级块：span×span chunk 平均成 64×64（每输出像素 =
+     *  span/4 方块均值；透明像素不参与平均，全透明输出 0）。 */
     private static Bitmap buildChunkLod(WorldMapRenderer.WorldMap srcMap,
                                         int bx, int bz, int span) {
-        long[] rsum = new long[256];
-        long[] gsum = new long[256];
-        long[] bsum = new long[256];
-        int[] cnt = new int[256];
+        int outPx = 64;
+        long[] rsum = new long[outPx * outPx];
+        long[] gsum = new long[outPx * outPx];
+        long[] bsum = new long[outPx * outPx];
+        int[] cnt = new int[outPx * outPx];
         java.util.Map<Long, int[]> colors = srcMap.chunkColors;
         if (colors == null) {
             return null;
         }
+        int step = span / 4; // 每输出像素 = step×step 方块（span≥4 恒整除）
         for (int kz = 0; kz < span; kz++) {
             for (int kx = 0; kx < span; kx++) {
                 int[] cc = colors.get(packChunk(bx * span + kx, bz * span + kz));
@@ -1365,9 +1365,9 @@ public class WorldMapView extends View {
                         if ((c & 0xFF000000) == 0) {
                             continue;
                         }
-                        int dx = (kx * 16 + px) / span;
-                        int dy = (kz * 16 + pz) / span;
-                        int idx = dy * 16 + dx;
+                        int dx = (kx * 16 + px) / step;
+                        int dy = (kz * 16 + pz) / step;
+                        int idx = dy * outPx + dx;
                         rsum[idx] += (c >> 16) & 0xFF;
                         gsum[idx] += (c >> 8) & 0xFF;
                         bsum[idx] += c & 0xFF;
@@ -1376,9 +1376,9 @@ public class WorldMapView extends View {
                 }
             }
         }
-        int[] out = new int[256];
+        int[] out = new int[outPx * outPx];
         boolean any = false;
-        for (int i = 0; i < 256; i++) {
+        for (int i = 0; i < out.length; i++) {
             if (cnt[i] == 0) {
                 out[i] = 0;
                 continue;
@@ -1392,8 +1392,8 @@ public class WorldMapView extends View {
         if (!any) {
             return null;
         }
-        Bitmap bmp = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888);
-        bmp.setPixels(out, 0, 16, 0, 0, 16, 16);
+        Bitmap bmp = Bitmap.createBitmap(outPx, outPx, Bitmap.Config.ARGB_8888);
+        bmp.setPixels(out, 0, outPx, 0, 0, outPx, outPx);
         return bmp;
     }
 

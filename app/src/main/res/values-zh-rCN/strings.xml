@@ -1835,7 +1835,7 @@
     <!-- v0.4.95：LOD 金字塔渲染设置 -->
     <string name="lod_title">渲染性能</string>
     <string name="lod_enable">LOD 金字塔渲染</string>
-    <string name="lod_enable_hint">缩小时改用预降采样地图减少卡顿；关闭则直接缩小原图</string>
+    <string name="lod_enable_hint">缩小时改用预降采样图减少卡顿（全图路径与区块路径同时生效）；关闭则全部用原图绘制</string>
     <string name="lod_level_title">最大降采样级数</string>
     <string name="lod_level_2">2×</string>
     <string name="lod_level_4">4×</string>

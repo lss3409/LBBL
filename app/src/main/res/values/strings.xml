@@ -1998,7 +1998,7 @@ Invite code: P/%1$s
     <!-- v0.4.95：LOD 金字塔渲染设置 -->
     <string name="lod_title">Render Performance</string>
     <string name="lod_enable">LOD pyramid rendering</string>
-    <string name="lod_enable_hint">Use pre-downsampled map images when zooming out to reduce lag; disable to shrink the original image directly</string>
+    <string name="lod_enable_hint">Use pre-downsampled map images when zooming out to reduce lag; applies to both full-map and chunk-tile paths. Disable to draw original images everywhere</string>
     <string name="lod_level_title">Max downsample level</string>
     <string name="lod_level_2">2×</string>
     <string name="lod_level_4">4×</string>
