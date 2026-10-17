@@ -34,7 +34,7 @@
             android:ellipsize="start"
             android:paddingHorizontal="4dp"
             android:textSize="15sp"
-            android:textColor="@color/on_surface"
+            android:textColor="#FF3B82F6"
             android:background="?android:attr/selectableItemBackground" />
 
         <ImageView

@@ -119,6 +119,8 @@ public class FileManagerActivity extends BaseActivity {
     private SeekBar audioSeek;
     private final Handler audioHandler = new Handler(Looper.getMainLooper());
     private String audioSourcePath;
+    /** v0.4.89：根目录双击退出计时。 */
+    private long lastBackClick;
 
     private FmEntryAdapter entryAdapter;
     private FmTrashAdapter trashAdapter;
@@ -296,7 +298,15 @@ public class FileManagerActivity extends BaseActivity {
             if (showingTrash) {
                 showFiles();
             } else if (!vm.consumeBack()) {
-                finish();
+                // v0.4.89：已到根目录——双击退出（防误触）
+                long now = android.os.SystemClock.uptimeMillis();
+                if (now - lastBackClick < 1500) {
+                    finish();
+                } else {
+                    lastBackClick = now;
+                    Toast.makeText(this, R.string.fm_double_back_exit,
+                            Toast.LENGTH_SHORT).show();
+                }
             }
         });
         txtPath.setOnClickListener(v -> FmDialogs.showJumpDialog(this, vm,

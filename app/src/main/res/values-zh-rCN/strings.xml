@@ -1843,4 +1843,8 @@
     <string name="ore_label_redstone">红石矿石</string>
     <string name="ore_label_quartz">下界石英矿石</string>
     <string name="ore_label_ancient_debris">远古残骸</string>
+    <!-- v0.4.89：文件管理器双击退出提示 -->
+    <string name="fm_double_back_exit">再按一次退出文件管理</string>
+    <!-- v0.4.89：跳转弹窗子文件夹标题 -->
+    <string name="fm_ui_subfolders">子文件夹</string>
 </resources>

@@ -181,10 +181,72 @@ public class FmDialogs {
     // ---------------- 路径跳转 ----------------
 
     public static void showJumpDialog(BaseActivity a, FileManagerViewModel vm, String currentPath) {
+        // v0.4.89：跳转弹窗升级——显示父级目录链（点击上跳）+ 当前目录
+        // 子文件夹列表（点击进入）+ 手动输入路径兜底
+        float d = a.getResources().getDisplayMetrics().density;
+        android.widget.LinearLayout box = new android.widget.LinearLayout(a);
+        box.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+        java.io.File cur = null;
+        try {
+            cur = new java.io.File(currentPath);
+        } catch (Exception ignored) {
+        }
+        // 当前路径（蓝色，提示可点元素颜色一致）
+        android.widget.TextView curTv = new android.widget.TextView(a);
+        curTv.setText(currentPath);
+        curTv.setTextColor(0xFF3B82F6);
+        curTv.setTextSize(12);
+        curTv.setPadding((int) (4 * d), 0, (int) (4 * d), (int) (8 * d));
+        box.addView(curTv);
+
+        // 父级目录链（倒序：最近父级在前）
+        if (cur != null) {
+            java.util.List<java.io.File> chain = new java.util.ArrayList<>();
+            java.io.File p = cur.getParentFile();
+            while (p != null) {
+                chain.add(p);
+                p = p.getParentFile();
+            }
+            for (java.io.File dir : chain) {
+                box.addView(jumpRow(a, vm, "↑ " + (dir.getParent() == null
+                        ? dir.getPath() : dir.getName()), dir.getAbsolutePath()));
+            }
+        }
+
+        // 子文件夹列表
+        if (cur != null && cur.isDirectory()) {
+            java.io.File[] subs = cur.listFiles(f -> f.isDirectory());
+            if (subs != null && subs.length > 0) {
+                java.util.Arrays.sort(subs,
+                        (x, y) -> x.getName().compareToIgnoreCase(y.getName()));
+                android.widget.TextView subTitle = new android.widget.TextView(a);
+                subTitle.setText(a.getString(R.string.fm_ui_subfolders));
+                subTitle.setTextColor(a.getResources().getColor(R.color.text_secondary, a.getTheme()));
+                subTitle.setTextSize(11);
+                subTitle.setPadding((int) (4 * d), (int) (8 * d), (int) (4 * d), (int) (4 * d));
+                box.addView(subTitle);
+                for (java.io.File sub : subs) {
+                    box.addView(jumpRow(a, vm, sub.getName(), sub.getAbsolutePath()));
+                }
+            }
+        }
+
+        // 手动输入兜底
         EditText et = buildInput(a, a.getString(R.string.fm_ui_jump_hint), currentPath, true);
+        et.setHint(a.getString(R.string.fm_ui_jump_hint));
+        box.addView(et);
+
+        // 限高滚动（父链/子文件夹多时防溢出）
+        android.widget.ScrollView sc = new android.widget.ScrollView(a);
+        sc.addView(box);
+        int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.55f);
+        sc.setLayoutParams(new android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, maxH));
+
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(a.getString(R.string.fm_ui_jump))
-                .setCustomView(et)
+                .setCustomView(sc)
                 .setPositiveButton(a.getString(R.string.confirm), v -> {
                     if (!vm.submitJump(et.getText().toString().trim())) {
                         android.widget.Toast.makeText(a, R.string.fm_ui_jump_invalid, android.widget.Toast.LENGTH_SHORT).show();
@@ -193,6 +255,27 @@ public class FmDialogs {
                 .setNegativeButton(a.getString(R.string.cancel), null)
                 ;
                 trackShow(dialog);
+    }
+
+    /** v0.4.89：跳转弹窗行（名称 + 点击跳转）。 */
+    private static android.widget.TextView jumpRow(BaseActivity a, FileManagerViewModel vm,
+                                                   String label, String path) {
+        float d = a.getResources().getDisplayMetrics().density;
+        android.widget.TextView tv = new android.widget.TextView(a);
+        tv.setText(label);
+        tv.setTextColor(0xFF3B82F6);
+        tv.setTextSize(13);
+        tv.setPadding((int) (8 * d), (int) (7 * d), (int) (8 * d), (int) (7 * d));
+        tv.setMaxLines(1);
+        tv.setEllipsize(android.text.TextUtils.TruncateAt.MIDDLE);
+        tv.setBackgroundResource(org.levimc.launcher.R.drawable.bg_search_box);
+        tv.setOnClickListener(v -> vm.submitJump(path));
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = (int) (4 * d);
+        tv.setLayoutParams(lp);
+        return tv;
     }
 
     // ---------------- 属性 ----------------

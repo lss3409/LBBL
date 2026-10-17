@@ -2006,4 +2006,8 @@ Invite code: P/%1$s
     <string name="ore_label_redstone">Redstone Ore</string>
     <string name="ore_label_quartz">Nether Quartz Ore</string>
     <string name="ore_label_ancient_debris">Ancient Debris</string>
+    <!-- v0.4.89：文件管理器双击退出提示 -->
+    <string name="fm_double_back_exit">Press back again to exit</string>
+    <!-- v0.4.89：跳转弹窗子文件夹标题 -->
+    <string name="fm_ui_subfolders">Subfolders</string>
 </resources>
