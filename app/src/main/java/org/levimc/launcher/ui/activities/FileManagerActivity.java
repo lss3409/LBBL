@@ -77,7 +77,8 @@ public class FileManagerActivity extends BaseActivity {
 
     private RecyclerView recycler;
     private RecyclerView trashRecycler;
-    private TextView txtPath;
+    private android.widget.LinearLayout pathBar;
+    private String fmRootPath;
     private TextView emptyView;
     private TextView txtClip;
     private TextView taskText;
@@ -185,6 +186,7 @@ public class FileManagerActivity extends BaseActivity {
         if (rootPath == null || rootPath.isEmpty()) {
             rootPath = Environment.getExternalStorageDirectory().getAbsolutePath();
         }
+        fmRootPath = rootPath;
 
         SavedStateHandle handle = new SavedStateHandle();
         handle.set(FileManagerViewModel.KEY_ROOT_PATH, rootPath);
@@ -223,7 +225,7 @@ public class FileManagerActivity extends BaseActivity {
     private void bindViews() {
         recycler = findViewById(R.id.fm_recycler);
         trashRecycler = findViewById(R.id.fm_trash_recycler);
-        txtPath = findViewById(R.id.fm_txt_path);
+        pathBar = findViewById(R.id.fm_path_bar);
         emptyView = findViewById(R.id.fm_empty);
         txtClip = findViewById(R.id.fm_txt_clip);
         taskText = findViewById(R.id.fm_task_text);
@@ -309,9 +311,10 @@ public class FileManagerActivity extends BaseActivity {
                 }
             }
         });
-        txtPath.setOnClickListener(v -> FmDialogs.showJumpDialog(this, vm,
-                lastState != null && lastState.getCurrentDir() != null
-                        ? lastState.getCurrentDir().toString() : ""));
+        findViewById(R.id.fm_btn_path_more).setOnClickListener(v ->
+                FmDialogs.showJumpDialog(this, vm,
+                        lastState != null && lastState.getCurrentDir() != null
+                                ? lastState.getCurrentDir().toString() : ""));
         findViewById(R.id.fm_btn_search).setOnClickListener(v -> vm.showSearchDialog());
         findViewById(R.id.fm_btn_sort).setOnClickListener(v -> FmDialogs.showSortDialog(this, vm,
                 lastState != null ? lastState.getSortConfig()
@@ -605,13 +608,68 @@ public class FileManagerActivity extends BaseActivity {
         emptyView.setVisibility(View.GONE);
     }
 
+
+    /** v0.4.90：面包屑路径栏（系统文件管理器同款）——根名 + 相对段，
+     *  每段点击直接跳到该路径；「⋯」按钮打开跳转菜单显示全部路径。 */
+    private void rebuildPathBar(String currentPath) {
+        if (pathBar == null) {
+            return;
+        }
+        pathBar.removeAllViews();
+        float d = getResources().getDisplayMetrics().density;
+        java.io.File root = new java.io.File(fmRootPath);
+        String rel = "";
+        if (currentPath != null && !currentPath.equals(fmRootPath)
+                && currentPath.startsWith(fmRootPath + "/")) {
+            rel = currentPath.substring(fmRootPath.length() + 1);
+        }
+        // 根名（包文件名）段：点击回根
+        pathBar.addView(pathSegment(root.getName(), fmRootPath, false));
+        for (String seg : rel.split("/")) {
+            if (seg.isEmpty()) {
+                continue;
+            }
+            // 分隔符
+            TextView slash = new TextView(this);
+            slash.setText("/");
+            slash.setTextColor(textSecondary);
+            slash.setTextSize(14);
+            slash.setPadding((int) (2 * d), 0, (int) (2 * d), 0);
+            pathBar.addView(slash);
+            pathBar.addView(pathSegment(seg, currentPath, true));
+        }
+    }
+
+    private TextView pathSegment(String label, String path, boolean isLeaf) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextColor(0xFF3B82F6);
+        tv.setTextSize(14);
+        tv.setMaxLines(1);
+        if (isLeaf) {
+            tv.setTypeface(null, android.graphics.Typeface.BOLD);
+        }
+        tv.setBackgroundResource(org.levimc.launcher.R.drawable.bg_search_box);
+        float d = getResources().getDisplayMetrics().density;
+        tv.setPadding((int) (6 * d), (int) (3 * d), (int) (6 * d), (int) (3 * d));
+        // 叶子段（当前目录）不跳自己；其它段点击跳转
+        if (!isLeaf) {
+            tv.setOnClickListener(v -> {
+                if (!vm.submitJump(path)) {
+                    Toast.makeText(this, R.string.fm_ui_jump_invalid, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        return tv;
+    }
+
     // ---------------- 状态渲染 ----------------
 
     private void onState(FileManagerUiState s) {
         lastState = s;
 
         if (s.getCurrentDir() != null) {
-            txtPath.setText(s.getCurrentDir().toString());
+            rebuildPathBar(s.getCurrentDir().toString());
         }
         // 热路径防护：任务进度等高频更新不重建适配器，只按引用比较增量刷新
         if (entryAdapter == null || entryAdapter.getBoundList() != s.getVisibleEntries()) {

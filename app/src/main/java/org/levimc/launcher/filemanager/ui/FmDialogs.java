@@ -200,17 +200,21 @@ public class FmDialogs {
         curTv.setPadding((int) (4 * d), 0, (int) (4 * d), (int) (8 * d));
         box.addView(curTv);
 
-        // 父级目录链（倒序：最近父级在前）
+        // v0.4.90：完整路径段列表（根→当前，每段点击跳到该路径为止）
         if (cur != null) {
             java.util.List<java.io.File> chain = new java.util.ArrayList<>();
-            java.io.File p = cur.getParentFile();
-            while (p != null) {
-                chain.add(p);
-                p = p.getParentFile();
+            java.io.File f = cur;
+            while (f != null) {
+                chain.add(0, f);
+                f = f.getParentFile();
             }
             for (java.io.File dir : chain) {
-                box.addView(jumpRow(a, vm, "↑ " + (dir.getParent() == null
-                        ? dir.getPath() : dir.getName()), dir.getAbsolutePath()));
+                String label = dir.getParent() == null
+                        ? dir.getPath() : dir.getName();
+                if (dir.equals(cur)) {
+                    label = "● " + label; // 当前段标记
+                }
+                box.addView(jumpRow(a, vm, label, dir.getAbsolutePath()));
             }
         }
 
