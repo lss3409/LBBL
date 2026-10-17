@@ -25,7 +25,6 @@
             app:tint="@color/on_surface"
             android:contentDescription="@null" />
 
-        <TextView
         <!-- v0.4.90：面包屑路径栏（系统文件管理器同款：点段直接跳转） -->
         <HorizontalScrollView
             android:id="@+id/fm_path_scroll"
