@@ -209,9 +209,6 @@ public class WorldMapView extends View {
         }
         chunkLodCache.clear();
         chunkLodPending.clear();
-        // v0.4.102：水位回退（新图/新数据重新预生成）
-        lodReadySpan = 64;
-        lodPrewarmRunning = false;
     }
 
     /** 烘焙/增量更新渲染完成后调用（v0.4.59：LOD 已删除，只需重绘）。 */
@@ -906,28 +903,19 @@ public class WorldMapView extends View {
     private final java.util.Set<Long> chunkLodPending = new java.util.HashSet<>();
     /** 换图代次——后台块生成结果跨图丢弃（防串污染）。 */
     private int chunkGen = 0;
-    /** v0.4.102：预生成就绪水位——span ≥ 水位的块已全图生成；缩放
-     *  动画中统一画水位级（全就绪=无兜底=视觉一致+流畅），水位随
-     *  后台预生成（64→32→16）下降渐清晰。 */
-    private int lodReadySpan = 64;
-    private boolean lodPrewarmRunning = false;
 
     /** v0.4.101：本帧 chunk LOD 选中的 span（诊断日志用）。 */
     private int curLodSpan = 0;
 
     /** v0.4.101：目标块像素显示尺寸（阈值映射：高阈值=流畅糊、
-     *  低阈值=清晰块多）。 */
+     *  低阈值=清晰块多）。v0.4.103：动画与静止同一目标（span 稳定=
+     *  缓存命中率高，杜绝 v0.4.102 的 span 抖动引发整链 miss）。 */
     private float lodBlockPx() {
-        float px = 1f + (lodThreshold - 0.05f) / 0.9f * 2f;
-        return scaling ? px * 1.5f : px; // 动画中更激进（静止即恢复）
+        return 1f + (lodThreshold - 0.05f) / 0.9f * 2f;
     }
 
     /** v0.4.101：按 ppb 选 span——块像素 ≤ 目标 且 块屏 ≥96px（块数
-     *  可控），2 的幂阶梯（4/8/16/32/64），缩放动画中只在跨 2 倍时
-     *  切换（缓存命中率平滑）。
-     *  v0.4.102：动画中 span 抬高到预生成水位（全就绪=无兜底=无
-     *  "左边放大右边缩小"的混绘+无 8 万张 chunk 兜底卡）；停手即
-     *  用目标 span（按需生成、精确清晰）。 */
+     *  可控），2 的幂阶梯（4/8/16/32/64），只随 ppb 跨 2 倍变化。 */
     private int pickLodSpan() {
         float ppb = pixelsPerBlock;
         float maxSpanF = Math.min(64f, 4f * lodBlockPx() / ppb);
@@ -935,77 +923,7 @@ public class WorldMapView extends View {
         while (span * 2 <= maxSpanF && span * 16f * ppb < 96f) {
             span *= 2;
         }
-        if (scaling && span < lodReadySpan) {
-            span = lodReadySpan;
-        }
         return span;
-    }
-
-    /** v0.4.102：后台预生成全图块（span 64→32→16，粗到细），每级
-     *  完成即降水位——缩放动画中统一画就绪级。换图/清缓存后需重启
-     *  （调用方负责）。 */
-    private void startChunkLodPrewarm() {
-        if (lodPrewarmRunning || map == null || map.chunkColors == null) {
-            return;
-        }
-        lodPrewarmRunning = true;
-        final int gen = chunkGen;
-        final WorldMapRenderer.WorldMap srcMap = map;
-        LOD_EXECUTOR.execute(() -> {
-            try {
-                for (int span = 64; span >= 16; span /= 2) {
-                    int minBx = Math.floorDiv(Math.floorDiv(srcMap.minBlockX, 16), span);
-                    int minBz = Math.floorDiv(Math.floorDiv(srcMap.minBlockZ, 16), span);
-                    int maxBx = Math.floorDiv(
-                            Math.floorDiv(srcMap.minBlockX + srcMap.width - 1, 16), span);
-                    int maxBz = Math.floorDiv(
-                            Math.floorDiv(srcMap.minBlockZ + srcMap.height - 1, 16), span);
-                    for (int bz = minBz; bz <= maxBz; bz++) {
-                        for (int bx = minBx; bx <= maxBx; bx++) {
-                            if (gen != chunkGen || map != srcMap) {
-                                return;
-                            }
-                            final long key = lodKey(span, bx, bz);
-                            Bitmap bmp = null;
-                            try {
-                                bmp = buildChunkLod(srcMap, bx, bz, span);
-                            } catch (Throwable ignored) {
-                            }
-                            if (bmp == null) {
-                                continue;
-                            }
-                            final Bitmap out = bmp;
-                            MAIN_HANDLER.post(() -> {
-                                if (gen != chunkGen || map != srcMap) {
-                                    out.recycle();
-                                    return;
-                                }
-                                if (chunkLodCache.containsKey(key)) {
-                                    out.recycle();
-                                    return;
-                                }
-                                chunkLodCache.put(key, out);
-                            });
-                        }
-                    }
-                    final int readySpan = span;
-                    MAIN_HANDLER.post(() -> {
-                        if (gen == chunkGen && map == srcMap) {
-                            lodReadySpan = readySpan;
-                            invalidate();
-                        }
-                    });
-                }
-            } finally {
-                // 换图后旧任务退出：只有代次一致才复位标志（新图任务接管）
-                final boolean sameGen = gen == chunkGen;
-                MAIN_HANDLER.post(() -> {
-                    if (sameGen) {
-                        lodPrewarmRunning = false;
-                    }
-                });
-            }
-        });
     }
     private float scaleFocusX;
     private float scaleFocusY;
@@ -1250,10 +1168,6 @@ public class WorldMapView extends View {
         // v0.4.101：ppb<3 走动态 span 超级块（块像素恒定目标、块屏
         // ~100px），LOD 开关统一控制；ppb≥3 逐 chunk 锐利
         if (lodEnabled && pixelsPerBlock < 3f) {
-            // v0.4.102：后台预生成全图块（水位渐进下降）
-            if (!lodPrewarmRunning) {
-                startChunkLodPrewarm();
-            }
             drawChunkLodLayer(canvas, pickLodSpan());
             return;
         }
@@ -1329,31 +1243,32 @@ public class WorldMapView extends View {
                 Math.floorDiv(Math.floorDiv((int) Math.ceil(rightWorld), 16), span));
         int lastBz = Math.min(maxBz,
                 Math.floorDiv(Math.floorDiv((int) Math.ceil(bottomWorld), 16), span));
-        drawChunkLodRange(canvas, span, firstBx, firstBz, lastBx, lastBz);
+        drawChunkLodRange(canvas, span, firstBx, firstBz, lastBx, lastBz, true);
     }
 
-    /** 画块范围；miss 块收集后按距屏幕中心排序请求（中心先出）。 */
+    /** 画块范围；miss 块收集后按距屏幕中心排序请求（中心先出）。
+     *  v0.4.103：兜底断链——miss 逐级降 span/2（缓存大概率就绪），
+     *  最底级（span=4）仍 miss 就跳过画背景（渐进填充，像网页地图
+     *  瓦片加载）——绝不再兜底逐 chunk（bs=128 世界视口 8 万张
+     *  drawBitmap=300ms/帧=卡死根因）。collectMiss=true 才收集请求
+     *  （兜底递归不请求，只请求目标 span 级）。 */
     private void drawChunkLodRange(android.graphics.Canvas canvas, int span,
-                                   int firstBx, int firstBz, int lastBx, int lastBz) {
+                                   int firstBx, int firstBz, int lastBx, int lastBz,
+                                   boolean collectMiss) {
         Paint lodPaint = new Paint();
         lodPaint.setFilterBitmap(true); // 块级降采样图：双线性（缩小/放大都平滑）
         android.graphics.RectF dst = new android.graphics.RectF();
-        int maxChunkCx = Math.floorDiv(map.minBlockX + map.width - 1, 16);
-        int maxChunkCz = Math.floorDiv(map.minBlockZ + map.height - 1, 16);
-        float cx = getWidth() / 2f;
-        float cy = getHeight() / 2f;
-        java.util.List<long[]> missList = null;
+        java.util.List<long[]> missList = collectMiss ? new java.util.ArrayList<>() : null;
         for (int bz = firstBz; bz <= lastBz; bz++) {
             for (int bx = firstBx; bx <= lastBx; bx++) {
                 long key = lodKey(span, bx, bz);
                 Bitmap bmp = chunkLodCache.get(key);
                 if (bmp == null) {
-                    if (missList == null) {
-                        missList = new java.util.ArrayList<>();
+                    if (missList != null) {
+                        missList.add(new long[]{key, bx, bz});
                     }
-                    missList.add(new long[]{key, bx, bz});
                     if (span > 4) {
-                        // 兜底半级（span/2 块若缓存就绪则用它，否则 chunk）
+                        // 兜底半级（span/2 块若缓存就绪则画它）
                         int subSpan = span / 2;
                         drawChunkLodRange(canvas, subSpan,
                                 bx * 2, bz * 2,
@@ -1362,13 +1277,10 @@ public class WorldMapView extends View {
                                         bx * 2 + 1),
                                 Math.min(Math.floorDiv(Math.floorDiv(
                                         map.minBlockZ + map.height - 1, 16), subSpan),
-                                        bz * 2 + 1));
-                    } else {
-                        drawChunkRange(canvas,
-                                bx * span, bz * span,
-                                Math.min(maxChunkCx, bx * span + span - 1),
-                                Math.min(maxChunkCz, bz * span + span - 1));
+                                        bz * 2 + 1),
+                                false);
                     }
+                    // span=4 仍 miss：跳过（背景渐进填充，生成完 invalidate 补上）
                     continue;
                 }
                 dst.set(worldToScreenX(bx * span * 16f),
@@ -1380,8 +1292,8 @@ public class WorldMapView extends View {
         }
         if (missList != null && !missList.isEmpty()) {
             // 按距屏幕中心距离升序（中心块先生成，缩放停止后最先清晰）
-            float worldCx = (cx - offsetX) / pixelsPerBlock + map.minBlockX;
-            float worldCz = (cy - offsetY) / pixelsPerBlock + map.minBlockZ;
+            float worldCx = (getWidth() / 2f - offsetX) / pixelsPerBlock + map.minBlockX;
+            float worldCz = (getHeight() / 2f - offsetY) / pixelsPerBlock + map.minBlockZ;
             missList.sort((a, b) -> {
                 float dax = a[1] * span * 16f - worldCx;
                 float daz = a[2] * span * 16f - worldCz;
@@ -1389,7 +1301,16 @@ public class WorldMapView extends View {
                 float dbz = b[2] * span * 16f - worldCz;
                 return Float.compare(dax * dax + daz * daz, dbx * dbx + dbz * dbz);
             });
+            // v0.4.103：请求限流——动画中每帧最多 300、队列有界（缩放
+            // 快速移动时视口外的过期块不抢占生成线程）
+            int budget = scaling ? 300 : missList.size();
+            if (chunkLodPending.size() > 3000) {
+                budget = 0;
+            }
             for (long[] m : missList) {
+                if (budget-- <= 0) {
+                    break;
+                }
                 requestChunkLod((int) m[1], (int) m[2], span);
             }
         }
