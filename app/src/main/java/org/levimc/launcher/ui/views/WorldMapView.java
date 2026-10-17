@@ -350,6 +350,7 @@ public class WorldMapView extends View {
                 offsetY + fullMapHeight * scalePx);
         if (scalePx >= 1f) {
             canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapPaint);
+            lastDrawPath = "full-near";
             return;
         }
         if (fullMapLinearPaint == null) {
@@ -361,11 +362,13 @@ public class WorldMapView extends View {
         if (fullMapWidth <= 2048 && fullMapHeight <= 2048) {
             canvas.drawBitmap(fullMapBitmap, null, fullMapDst,
                     scalePx >= 1f ? fullMapPaint : fullMapLinearPaint);
+            lastDrawPath = "full-small";
             return;
         }
         if (!lodEnabled) {
             // LOD 关：原图直接双线性缩小（v0.4.87 行为）
             canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
+            lastDrawPath = "full-linear";
             return;
         }
         // 选级：level×scalePx ≥ 阈值的最大 2 的幂（level=1 即原图，
@@ -379,12 +382,14 @@ public class WorldMapView extends View {
             // 该级未就绪：原图双线性兜底（与 HTML 生成中先画上一级同款）+ 后台生成
             canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
             requestLodLevel(level);
+            lastDrawPath = "lod-fallback";
             return;
         }
         // v0.4.98：LOD 级恒双线性——最近邻放大 m2=色块放大糊
         // （"小地图糊"的另一半原因）；原图放大（scalePx≥1）仍最近邻
         // 保持像素锐利。m_k 显示比例接近 1，双线性代价可忽略
         canvas.drawBitmap(lodBmp, null, fullMapDst, fullMapLinearPaint);
+        lastDrawPath = "lod" + level;
     }
 
     // ---- v0.4.95：LOD 金字塔（HTML 瓦片 mip 同款）——按需后台生成
@@ -849,6 +854,11 @@ public class WorldMapView extends View {
     private boolean scalePreviewActive;
     /** 缩放进行中：暂停按需渲染缺失报告（缩放停止后恢复）。 */
     private boolean scaling;
+    /** v0.4.99：拖拽中（onScroll 连续回调期间）——与捏合同样跳过叠加层。 */
+    private boolean panning;
+    /** v0.4.99：诊断字段——本帧绘制路径（节流日志用）。 */
+    private String lastDrawPath = "-";
+    private int dbgFrame;
     private float scaleFocusX;
     private float scaleFocusY;
 
@@ -907,6 +917,7 @@ public class WorldMapView extends View {
             // 1) 纯平移 → 直接平移缓存位图，零重采样（拖动流畅）；
             // 2) 缩放/跳转动画期间 → 缓存位图按捏合焦点做缩放预览；
             // 3) 其它 → 全量重采样。
+            lastDrawPath = "cached";
             boolean ppbChanged = Math.abs(pixelsPerBlock - cachedPpb) > 1e-4f;
             boolean farMoved = Math.abs(offsetX - cachedOffsetX) >= viewW
                     || Math.abs(offsetY - cachedOffsetY) >= viewH;
@@ -950,7 +961,9 @@ public class WorldMapView extends View {
         // v0.4.97：捏合缩放动画期间只画底图+玩家标记——大地图缩小时
         // 视口覆盖全图，矿石标点/结构/实体几千条每帧重绘才是缩放卡的
         // 主因（LOD 只优化了底图那一下）；onScaleEnd 全量补画
-        if (!scaling) {
+        // v0.4.99：拖拽同样跳过（拖大地图时视口内几万标点每帧全画
+        // 同样是卡源），松手补画
+        if (!scaling && !panning) {
             drawGrid(canvas);
             drawSlimeChunks(canvas);
             drawLinks(canvas);
@@ -962,6 +975,19 @@ public class WorldMapView extends View {
             drawVoxelSelection(canvas); // 3D 区域选择矩形（最上层）
         }
         drawMarkers(canvas); // 玩家/出生点标记画在最上层（不被实体贴图遮挡）
+        // v0.4.99：节流诊断日志（32 帧一次≈0.27s@120Hz）——验证 LOD
+        // 参数生效路径：path 显示本帧绘制分支，lod2/4/8=用了对应
+        // 预降采样图，chunk/cached=全图路径根本没走（LOD 管不着）
+        if ((++dbgFrame & 31) == 0) {
+            android.util.Log.i("WorldMap", "draw path=" + lastDrawPath
+                    + " ppb=" + String.format(java.util.Locale.US, "%.3f", pixelsPerBlock)
+                    + " scalePx=" + String.format(java.util.Locale.US, "%.2f",
+                            fullMapBlockScale * pixelsPerBlock)
+                    + " bs=" + fullMapBlockScale
+                    + " lod=" + lodEnabled + "/" + String.format(java.util.Locale.US,
+                            "%.2f", lodThreshold) + "/" + lodMaxLevel
+                    + " gesture=" + (scaling ? "scale" : panning ? "pan" : "-"));
+        }
     }
 
     /** v413：矿石标点图层——v425 起优先用 MC 原版贴图
@@ -1070,6 +1096,7 @@ public class WorldMapView extends View {
     /** 大世界底层绘制：chunk tile 平铺（v0.4.59 LOD 已删除——全图纹理
      *  模式接管缩小场景；本路径只在放大时走，视口 chunk 数有限）。 */
     private void drawChunkLayer(android.graphics.Canvas canvas) {
+        lastDrawPath = "chunk";
         int viewW = getWidth();
         int viewH = getHeight();
         float ppb = pixelsPerBlock;
@@ -2097,6 +2124,8 @@ public class WorldMapView extends View {
         // 松手：全量重采样一帧（拖动期间是位图平移预览，边缘/新区域要刷新）
         if (event.getActionMasked() == MotionEvent.ACTION_UP
                 || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+            // v0.4.99：拖拽结束——补画叠加层 + 全量重采样
+            panning = false;
             if (!scalePreviewActive) {
                 invalidateFullRender();
             }
@@ -2345,6 +2374,7 @@ public class WorldMapView extends View {
         @Override
         public boolean onScroll(@Nullable MotionEvent e1, @NonNull MotionEvent e2,
                                 float distanceX, float distanceY) {
+            panning = true;
             offsetX -= distanceX;
             offsetY -= distanceY;
             // 拖动超过 16px 才清除点击标记（单击时手指微动不吞掉十字）
