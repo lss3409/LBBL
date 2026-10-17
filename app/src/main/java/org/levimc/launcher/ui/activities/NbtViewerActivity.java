@@ -905,6 +905,12 @@ public class NbtViewerActivity extends BaseActivity {
     /** v0.4.95：LOD 金字塔渲染设置（HTML 瓦片 mip 同款）——开关/最大
      *  降采样级数/切换阈值，参数持久化（nbt_viewer prefs）。 */
     private void setupLodSettings() {
+        // v0.4.96：布局变体（竖屏/横屏）id 必须齐全，缺失直接跳过
+        // （否则平板横屏 binding.swLod=null NPE——v0.4.95 崩溃根因）
+        if (binding.swLod == null || binding.lodLevel2 == null
+                || binding.lodThresholdSeek == null) {
+            return;
+        }
         android.content.SharedPreferences prefs =
                 getSharedPreferences("nbt_viewer", MODE_PRIVATE);
         boolean enabled = prefs.getBoolean("lod_enabled", true);
