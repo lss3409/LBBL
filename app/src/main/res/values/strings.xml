@@ -2007,6 +2007,9 @@ Invite code: P/%1$s
     <string name="lod_level_32">32×</string>
     <string name="lod_threshold_title">Switch threshold</string>
     <string name="lod_threshold_hint">Higher = smoother, lower = sharper</string>
+    <string name="lod_apply">Apply</string>
+    <string name="lod_compose_title">Full-map texture max size</string>
+    <string name="lod_compose_hint">Sampling resolution of the full map image (256-16384). Lower it (e.g. 2048) if zooming on large maps lags; re-bakes on apply</string>
     <string name="ore_label_diamond">Diamond Ore</string>
     <string name="ore_label_emerald">Emerald Ore</string>
     <string name="ore_label_gold">Gold Ore</string>

@@ -907,8 +907,9 @@ public class NbtViewerActivity extends BaseActivity {
     private void setupLodSettings() {
         // v0.4.96：布局变体（竖屏/横屏）id 必须齐全，缺失直接跳过
         // （否则平板横屏 binding.swLod=null NPE——v0.4.95 崩溃根因）
-        if (binding.swLod == null || binding.lodLevel2 == null
-                || binding.lodThresholdSeek == null) {
+        if (binding.swLod == null || binding.lodLevelInput == null
+                || binding.lodThresholdSeek == null
+                || binding.lodComposeInput == null) {
             return;
         }
         android.content.SharedPreferences prefs =
@@ -920,7 +921,9 @@ public class NbtViewerActivity extends BaseActivity {
         binding.worldMapImage.setLodEnabled(enabled);
         binding.worldMapImage.setLodMaxLevel(maxLevel);
         binding.worldMapImage.setLodThreshold(threshold);
-        applyLodLevelSeg(maxLevel);
+        // v0.4.98：输入框恒为空，「当前生效值」走 hint（v0.4.23 定版模式）
+        binding.lodLevelInput.setHint(String.valueOf(maxLevel));
+        binding.lodComposeInput.setHint(String.valueOf(composeMaxDim()));
         // v0.4.97：阈值范围 0.05~0.95（步长 0.05，SeekBar 18 格）
         int seek = Math.round((threshold - 0.05f) / 0.05f);
         binding.lodThresholdSeek.setProgress(Math.max(0, Math.min(18, seek)));
@@ -931,32 +934,12 @@ public class NbtViewerActivity extends BaseActivity {
             binding.worldMapImage.setLodEnabled(checked);
             prefs.edit().putBoolean("lod_enabled", checked).apply();
         });
-        View.OnClickListener lvClick = v -> {
-            int lv;
-            if (v == binding.lodLevel2) {
-                lv = 2;
-            } else if (v == binding.lodLevel4) {
-                lv = 4;
-            } else if (v == binding.lodLevel8) {
-                lv = 8;
-            } else if (v == binding.lodLevel16) {
-                lv = 16;
-            } else {
-                lv = 32;
-            }
-            binding.worldMapImage.setLodMaxLevel(lv);
-            applyLodLevelSeg(lv);
-            prefs.edit().putInt("lod_max_level", lv).apply();
-        };
-        binding.lodLevel2.setOnClickListener(lvClick);
-        binding.lodLevel4.setOnClickListener(lvClick);
-        binding.lodLevel8.setOnClickListener(lvClick);
-        binding.lodLevel16.setOnClickListener(lvClick);
-        binding.lodLevel32.setOnClickListener(lvClick);
-        for (TextView t : new TextView[]{binding.lodLevel2, binding.lodLevel4,
-                binding.lodLevel8, binding.lodLevel16, binding.lodLevel32}) {
-            DynamicAnim.applyPressScale(t);
-        }
+        // 级数自定义输入：2-256 任意值，应用时取 2 的幂
+        binding.lodLevelApply.setOnClickListener(v -> applyLodLevelInput());
+        DynamicAnim.applyPressScale(binding.lodLevelApply);
+        // 全图纹理尺寸上限自定义输入：256-16384，应用后重烘焙
+        binding.lodComposeApply.setOnClickListener(v -> applyComposeDimInput());
+        DynamicAnim.applyPressScale(binding.lodComposeApply);
         binding.lodThresholdSeek.setOnSeekBarChangeListener(
                 new android.widget.SeekBar.OnSeekBarChangeListener() {
                     @Override
@@ -981,19 +964,51 @@ public class NbtViewerActivity extends BaseActivity {
                 });
     }
 
-    /** 高亮 LOD 最大级数胶囊（个性化主题色贯通）。 */
-    private void applyLodLevelSeg(int level) {
-        int active = accentColor != 0 ? accentColor
-                : ContextCompat.getColor(this, R.color.primary);
-        int inactive = ContextCompat.getColor(this, R.color.text_secondary);
-        TextView[] segs = {binding.lodLevel2, binding.lodLevel4,
-                binding.lodLevel8, binding.lodLevel16, binding.lodLevel32};
-        int[] vals = {2, 4, 8, 16, 32};
-        for (int i = 0; i < segs.length; i++) {
-            boolean sel = vals[i] == level;
-            segs[i].setBackgroundResource(sel ? R.drawable.bg_tab_selected
-                    : R.drawable.bg_tab_unselected);
-            segs[i].setTextColor(sel ? active : inactive);
+    /** v0.4.98：应用级数自定义输入（空输入忽略；非法输入回退当前值）。 */
+    private void applyLodLevelInput() {
+        String s = binding.lodLevelInput.getText().toString().trim();
+        if (s.isEmpty()) {
+            return;
+        }
+        int lv;
+        try {
+            lv = Math.max(2, Math.min(256, Integer.parseInt(s)));
+        } catch (NumberFormatException ignored) {
+            binding.lodLevelInput.setText("");
+            return;
+        }
+        int effective = Integer.highestOneBit(lv);
+        binding.worldMapImage.setLodMaxLevel(effective);
+        getSharedPreferences("nbt_viewer", MODE_PRIVATE).edit()
+                .putInt("lod_max_level", effective).apply();
+        binding.lodLevelInput.setText("");
+        binding.lodLevelInput.setHint(String.valueOf(effective));
+    }
+
+    /** v0.4.98：应用全图纹理尺寸上限输入并重烘焙当前维度。 */
+    private void applyComposeDimInput() {
+        String s = binding.lodComposeInput.getText().toString().trim();
+        if (s.isEmpty()) {
+            return;
+        }
+        int dim;
+        try {
+            dim = Math.max(128, Math.min(16384, Integer.parseInt(s)));
+        } catch (NumberFormatException ignored) {
+            binding.lodComposeInput.setText("");
+            return;
+        }
+        getSharedPreferences("nbt_viewer", MODE_PRIVATE).edit()
+                .putInt("compose_max_dim", dim).apply();
+        binding.lodComposeInput.setText("");
+        binding.lodComposeInput.setHint(String.valueOf(dim));
+        // 重烘焙：全图尺寸变了必须重新 compose（RLE 缓存不受影响）
+        if (currentWorldDir != null && mapDimension != null) {
+            if (currentMap != null) {
+                composeFullMapAsync(currentMap);
+            } else {
+                loadMapForDimension(mapDimension);
+            }
         }
     }
 
@@ -2149,6 +2164,13 @@ public class NbtViewerActivity extends BaseActivity {
 
     /** v0.4.76+：CME（视口渲染并发写 chunkColors）失败延迟重试——
      *  此前静默放弃导致全图永不挂载（一直 chunk tile 缩小糊）。 */
+    /** v0.4.98：全图纹理尺寸上限（compose 采样分辨率，用户可调）。 */
+    private int composeMaxDim() {
+        return Math.max(128, Math.min(16384,
+                getSharedPreferences("nbt_viewer", MODE_PRIVATE)
+                        .getInt("compose_max_dim", 4096)));
+    }
+
     private void composeFullMapAsync(WorldMapRenderer.WorldMap targetMap, int attempt) {
         if (targetMap == null || renderPool == null) {
             return;
@@ -2177,7 +2199,10 @@ public class NbtViewerActivity extends BaseActivity {
                 // v0.4.84：渲染路径恢复 4096（v0.4.81 的 8192 位图 268MB
                 // 内存压力=大地图缩放卡；下界清晰靠 scalePx<=1 全图
                 // 条件+放大走 chunk tile，不依赖更高分辨率）
-                full = org.levimc.launcher.core.content.worldmap.MapImageComposer.compose(targetMap);
+                // v0.4.98：尺寸上限用户可调（prefs compose_max_dim，
+                // 默认 4096；大地图卡就调小如 2048）
+                full = org.levimc.launcher.core.content.worldmap.MapImageComposer
+                        .compose(targetMap, composeMaxDim());
             } catch (java.util.ConcurrentModificationException ignored) {
                 if (attempt < 3) {
                     final int next = attempt + 1;

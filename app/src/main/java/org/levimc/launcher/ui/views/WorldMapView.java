@@ -103,7 +103,9 @@ public class WorldMapView extends View {
      *  HUD）完全隔离，杜绝烘焙 HUD 等其它 setText 干扰。 */
     private void setPpb(float v) {
         pixelsPerBlock = v;
-        if (zoomListener != null) {
+        if (zoomListener != null && !scaling) {
+            // v0.4.98：捏合动画中冻结 HUD 更新（每帧 setText 触发布局/
+            // 重录=120Hz 下主线程 8ms 帧的帮凶），onScaleEnd 补发
             zoomListener.onZoomChanged(v);
         }
         notifyViewChanged();
@@ -306,14 +308,16 @@ public class WorldMapView extends View {
 
     /** v0.4.97：全图就绪后预热常用 LOD 级——m2/m4 覆盖 scalePx≥0.19
      *  的绝大多数缩放区间，缩放动画中切换级别不再兜底原图（那是
-     *  "开了 LOD 还卡"的一半原因）；小图（≤2048²）链总量小直接预热
-     *  到最大级。m8/m16 大图保持按需（内存考虑）。 */
+     *  "开了 LOD 还卡"的一半原因）。m8+ 保持按需（内存考虑）。
+     *  v0.4.98：小图（≤2048²）不走 LOD，跳过预热。 */
     private void prewarmLod() {
         if (!lodEnabled || fullMapBitmap == null || fullMapBitmap.isRecycled()) {
             return;
         }
-        int warmTo = (fullMapWidth <= 2048 && fullMapHeight <= 2048)
-                ? lodMaxLevel : Math.min(lodMaxLevel, 4);
+        if (fullMapWidth <= 2048 && fullMapHeight <= 2048) {
+            return;
+        }
+        int warmTo = Math.min(lodMaxLevel, 4);
         for (int lv = 2; lv <= warmTo; lv *= 2) {
             requestLodLevel(lv);
         }
@@ -351,6 +355,14 @@ public class WorldMapView extends View {
         if (fullMapLinearPaint == null) {
             fullMapLinearPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
         }
+        // v0.4.98：小图（≤2048²）恒走原图——LOD 降采样只会糊它
+        // （fit 视图 m2 放大 1.5-1.9 倍最近邻=色块，"小地图糊"根因），
+        // 2048² 原图缩小重采样轻，不需要 LOD 也不卡
+        if (fullMapWidth <= 2048 && fullMapHeight <= 2048) {
+            canvas.drawBitmap(fullMapBitmap, null, fullMapDst,
+                    scalePx >= 1f ? fullMapPaint : fullMapLinearPaint);
+            return;
+        }
         if (!lodEnabled) {
             // LOD 关：原图直接双线性缩小（v0.4.87 行为）
             canvas.drawBitmap(fullMapBitmap, null, fullMapDst, fullMapLinearPaint);
@@ -369,10 +381,10 @@ public class WorldMapView extends View {
             requestLodLevel(level);
             return;
         }
-        // m_k 的 1 像素显示尺寸（≈阈值~2×阈值之间，接近 1:1 显示=重采样最轻）
-        float levelScalePx = scalePx * level;
-        canvas.drawBitmap(lodBmp, null, fullMapDst,
-                levelScalePx >= 1f ? fullMapPaint : fullMapLinearPaint);
+        // v0.4.98：LOD 级恒双线性——最近邻放大 m2=色块放大糊
+        // （"小地图糊"的另一半原因）；原图放大（scalePx≥1）仍最近邻
+        // 保持像素锐利。m_k 显示比例接近 1，双线性代价可忽略
+        canvas.drawBitmap(lodBmp, null, fullMapDst, fullMapLinearPaint);
     }
 
     // ---- v0.4.95：LOD 金字塔（HTML 瓦片 mip 同款）——按需后台生成
@@ -382,11 +394,11 @@ public class WorldMapView extends View {
     private boolean lodEnabled = true;
     /** 切换阈值：scalePx 缩到阈值以下才切下一级（默认 0.75，HTML 同款）。 */
     private float lodThreshold = 0.75f;
-    /** 最大降采样倍数（2 的幂：2/4/8/16/32）。 */
+    /** 最大降采样倍数（2 的幂：2/4/8/16/32/64/128/256，自定义输入）。 */
     private int lodMaxLevel = 16;
     /** 降采样链：index=log2(倍数)，lodLevels[1]=1/2、[2]=1/4…（[0] 恒空=原图）。 */
-    private final android.graphics.Bitmap[] lodLevels = new android.graphics.Bitmap[6];
-    private final boolean[] lodPending = new boolean[6];
+    private final android.graphics.Bitmap[] lodLevels = new android.graphics.Bitmap[9];
+    private final boolean[] lodPending = new boolean[9];
     /** 被替换后等待在途 LOD 任务结束再回收的源（避免后台 createScaledBitmap
      *  读已回收位图崩溃——Bitmap 原生像素在 recycle 后不可读）。 */
     private final java.util.List<android.graphics.Bitmap> retiredSources =
@@ -414,9 +426,10 @@ public class WorldMapView extends View {
     }
 
     public void setLodMaxLevel(int level) {
-        lodMaxLevel = level;
+        // v0.4.98：自定义输入支持 2-256，钳到 2 的幂
+        lodMaxLevel = Math.max(2, Math.min(256, Integer.highestOneBit(level)));
         // 清理超出新上限的链级
-        int maxIdx = Integer.numberOfTrailingZeros(level);
+        int maxIdx = Integer.numberOfTrailingZeros(lodMaxLevel);
         for (int i = maxIdx + 1; i < lodLevels.length; i++) {
             if (lodLevels[i] != null) {
                 lodLevels[i].recycle();
@@ -850,7 +863,8 @@ public class WorldMapView extends View {
         // v417：缩放倍率 HUD 兜底实时更新——任何路径改了 ppb
         // （捏合/双击/程序化）onDraw 检测到变化就通知（用户反馈
         // "缩放后要点屏幕才更新倍率"）
-        if (Float.compare(pixelsPerBlock, lastNotifiedPpb) != 0) {
+        if (Float.compare(pixelsPerBlock, lastNotifiedPpb) != 0 && !scaling) {
+            // v0.4.98：捏合动画中冻结（onScaleEnd 补发）
             lastNotifiedPpb = pixelsPerBlock;
             notifyViewChanged();
         }
