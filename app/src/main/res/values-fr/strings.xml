@@ -1631,6 +1631,7 @@ La migration doit être terminée avant de continuer avec LeviLauncher.</string>
 <string name="fm_editor_file_too_large">Fichier trop volumineux pour être modifié comme texte</string>
 <string name="fm_editor_out_of_memory">Fichier trop volumineux pour la mémoire de l\'appareil</string>
 <string name="fm_editor_open_failed">Échec de l\'ouverture du fichier</string>
+<string name="fm_editor_preview_notice">Fichier volumineux : aperçu des 512 premiers Ko (lecture seule)</string>
 <string name="fm_editor_save_failed">Échec de l\'enregistrement du fichier</string>
 <string name="fm_editor_goto_line">Aller à la ligne</string>
 <string name="fm_editor_search_match_case">Respecter la casse</string>

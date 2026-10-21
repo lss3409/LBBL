@@ -25,7 +25,6 @@ import org.levimc.launcher.filemanager.viewmodel.EditorUiState
 import org.levimc.launcher.filemanager.viewmodel.FmSnackbar
 import org.levimc.launcher.filemanager.viewmodel.FmStateStore
 import org.levimc.launcher.filemanager.editor.EditorState
-import org.levimc.launcher.filemanager.editor.Content
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +63,7 @@ class EditorController(
                     it.copy(
                         state = EditorState.Success(content.text),
                         writable = Files.isWritable(path),
+                        previewOnly = content.previewOnly,
                         error = null
                     )
                 }
@@ -71,7 +71,8 @@ class EditorController(
                 if (e is CancellationException) return@launch
                 FmLog.error(TAG, "Open editor file failed: ${path}", e)
                 store.updateEditorUi {
-                    it.copy(error = store.fileOpErrorText(e, R.string.fm_editor_open_failed))
+                    it.copy(error = store.fileOpErrorText(e, R.string.fm_editor_open_failed),
+                            previewOnly = false)
                 }
             }
         }
@@ -151,7 +152,7 @@ class EditorController(
     /** 是否存在未保存的修改（供系统返回键判定） */
     fun hasDirty(): Boolean = store.editorUiValue().dirty
 
-    private fun loadFile(path: Path): Content {
+    private fun loadFile(path: Path): LoadResult {
         val size = Files.size(path)
         if (size > MAX_EDIT_SIZE || !hasEnoughMemoryFor(size)) {
             throw EditorFileTooLargeException(
@@ -161,9 +162,33 @@ class EditorController(
                 )
             )
         }
-        val bytes = Files.readAllBytes(path)
-        val text = decode(bytes)
-        return Content(text)
+        // v0.4.142：大文件（>2MB）只读前 2MB 字节；解码后超 512K 字符截断为只读预览——
+        // EditText 主线程排版超大文本会卡数秒，截断到 512K 字符约 100-300ms
+        val readLimit = if (size > PREVIEW_SIZE_BYTES) PREVIEW_READ_BYTES else size
+        val bytes = readUpTo(path, readLimit)
+        var text = decodePrefix(bytes)
+        var previewOnly = false
+        if (text.length > PREVIEW_CHARS) {
+            text = text.substring(0, PREVIEW_CHARS) + "\n…"
+            previewOnly = true
+        }
+        return LoadResult(text, previewOnly)
+    }
+
+    /** 读取文件前 limit 字节（多读 4 字节给截断边界回退用）。 */
+    private fun readUpTo(path: Path, limit: Long): ByteArray {
+        Files.newInputStream(path).use { input ->
+            val out = java.io.ByteArrayOutputStream(minOf(limit, 256L * 1024).toInt())
+            val buf = ByteArray(64 * 1024)
+            var remaining = limit
+            while (remaining > 0) {
+                val read = input.read(buf, 0, minOf(buf.size.toLong(), remaining).toInt())
+                if (read <= 0) break
+                out.write(buf, 0, read)
+                remaining -= read
+            }
+            return out.toByteArray()
+        }
     }
 
     /**
@@ -179,24 +204,31 @@ class EditorController(
     /**
      * 解码文件内容：优先识别 BOM，否则按严格 UTF-8 解码，
      * 解码失败回退 GBK（兼容旧编码的中文文本文件）。
+     * v0.4.142：大文件按字节数截断读取可能在多字节字符中间切断——
+     * UTF-8 解码失败时从尾部回退 1~3 字节重试（越过字符边界），
+     * 回退超过 3 字节仍失败才判定为非 UTF-8。
      */
-    private fun decode(bytes: ByteArray): String {
+    private fun decodePrefix(bytes: ByteArray): String {
         val bom = detectBom(bytes)
-        val contentBytes = bytes.copyOfRange(bom.length, bytes.size)
         if (bom.charset != null) {
             charset = bom.charset
-            return String(contentBytes, bom.charset)
+            return String(bytes, bom.length, bytes.size - bom.length, bom.charset)
         }
         val decoder = StandardCharsets.UTF_8.newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)
-        return try {
-            charset = StandardCharsets.UTF_8
-            decoder.decode(ByteBuffer.wrap(contentBytes)).toString()
-        } catch (e: CharacterCodingException) {
-            charset = Charset.forName("GBK")
-            String(contentBytes, charset)
+        var len = bytes.size
+        while (len > 0) {
+            try {
+                charset = StandardCharsets.UTF_8
+                return decoder.decode(ByteBuffer.wrap(bytes, 0, len)).toString()
+            } catch (e: CharacterCodingException) {
+                if (len < bytes.size - 3) break
+                len--
+            }
         }
+        charset = Charset.forName("GBK")
+        return String(bytes, 0, bytes.size, charset)
     }
 
     private fun detectBom(bytes: ByteArray): BomResult = when {
@@ -218,6 +250,9 @@ class EditorController(
         val charset: Charset?
     )
 
+    /** 加载结果：截断的只读预览标记（v0.4.142）。 */
+    private class LoadResult(val text: String, val previewOnly: Boolean)
+
     private class EditorFileTooLargeException(message: String) : Exception(message)
 
     companion object {
@@ -228,5 +263,11 @@ class EditorController(
         private const val MEMORY_OVERHEAD: Long = 16L * 1024 * 1024
         /** 允许占用的可用堆内存比例，保留余量给应用其他部分 */
         private const val MEMORY_SAFE_RATIO = 0.75
+        /** 超过该体积按大文件处理：只读前 PREVIEW_READ_BYTES 字节（v0.4.142） */
+        private const val PREVIEW_SIZE_BYTES: Long = 2L * 1024 * 1024
+        /** 大文件实际读取字节数（+4 给截断边界回退） */
+        private const val PREVIEW_READ_BYTES: Long = PREVIEW_SIZE_BYTES + 4
+        /** 显示字符上限：超出截断为只读预览（EditText 排版 512K 字符约 100-300ms） */
+        private const val PREVIEW_CHARS: Int = 512 * 1024
     }
 }

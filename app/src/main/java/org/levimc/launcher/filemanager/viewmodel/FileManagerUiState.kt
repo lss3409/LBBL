@@ -50,7 +50,9 @@ data class EditorUiState(
     /** 是否请求显示退出确认弹窗 */
     val exitConfirm: Boolean = false,
     /** 打开 / 加载失败的错误提示 */
-    val error: String? = null
+    val error: String? = null,
+    /** v0.4.142：大文件截断只读预览（禁止编辑与保存） */
+    val previewOnly: Boolean = false
 )
 
 /** 搜索状态 */

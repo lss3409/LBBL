@@ -378,9 +378,18 @@ public class FmDialogs {
         int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.55f);
         imageView.setMaxHeight(maxH);
 
+        // v0.4.142：解码期间显示转圈（大图解码有明确反馈）
+        float density = a.getResources().getDisplayMetrics().density;
+        android.widget.ProgressBar loading = new android.widget.ProgressBar(a);
+        android.widget.FrameLayout box = new android.widget.FrameLayout(a);
+        android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                (int) (36 * density), (int) (36 * density), android.view.Gravity.CENTER);
+        box.addView(imageView);
+        box.addView(loading, lp);
+
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(file.getName())
-                .setCustomView(imageView)
+                .setCustomView(box)
                 .setNegativeButton(a.getString(R.string.close), v -> dismissLast())
                 ;
         trackShow(dialog);
@@ -398,6 +407,7 @@ public class FmDialogs {
             // ImageView 默认双线性放大把像素图糊成单色块
             android.graphics.Bitmap finalBitmap = upscaleNearest(bitmap);
             a.runOnUiThread(() -> {
+                loading.setVisibility(android.view.View.GONE);
                 if (finalBitmap != null) imageView.setImageBitmap(finalBitmap);
             });
         }).start();

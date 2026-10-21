@@ -1661,6 +1661,7 @@
 <string name="fm_editor_file_too_large">Файл слишком велик для редактирования как текст</string>
 <string name="fm_editor_out_of_memory">Файл слишком велик для памяти устройства</string>
 <string name="fm_editor_open_failed">Не удалось открыть файл</string>
+<string name="fm_editor_preview_notice">Большой файл — предпросмотр только первых 512 КБ (только чтение)</string>
 <string name="fm_editor_save_failed">Не удалось сохранить файл</string>
 <string name="fm_editor_goto_line">Перейти к строке</string>
 <string name="fm_editor_search_match_case">Учитывать регистр</string>

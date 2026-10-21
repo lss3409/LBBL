@@ -1660,6 +1660,7 @@ Quá trình chuyển đổi phải hoàn tất trước khi LeviLauncher có th�
 <string name="fm_editor_file_too_large">Tệp quá lớn để chỉnh sửa dạng văn bản</string>
 <string name="fm_editor_out_of_memory">Tệp quá lớn so với bộ nhớ thiết bị</string>
 <string name="fm_editor_open_failed">Không thể mở tệp</string>
+<string name="fm_editor_preview_notice">Tệp lớn — chỉ xem trước 512 KB đầu tiên (chỉ đọc)</string>
 <string name="fm_editor_save_failed">Không thể lưu tệp</string>
 <string name="fm_editor_goto_line">Đi đến dòng</string>
 <string name="fm_editor_search_match_case">Phân biệt hoa thường</string>

@@ -1631,6 +1631,7 @@ A migração deve ser concluída antes que o LeviLauncher continue.</string>
 <string name="fm_editor_file_too_large">O arquivo é grande demais para editar como texto</string>
 <string name="fm_editor_out_of_memory">O arquivo é grande demais para a memória do dispositivo</string>
 <string name="fm_editor_open_failed">Falha ao abrir o arquivo</string>
+<string name="fm_editor_preview_notice">Arquivo grande — visualizando apenas os primeiros 512 KB (somente leitura)</string>
 <string name="fm_editor_save_failed">Falha ao salvar o arquivo</string>
 <string name="fm_editor_goto_line">Ir para a linha</string>
 <string name="fm_editor_search_match_case">Diferenciar maiúsculas e minúsculas</string>

@@ -1762,6 +1762,10 @@
 <string name="fm_ui_editor_save">保存</string>
 <string name="fm_ui_editor_saved">已保存</string>
 <string name="fm_ui_editor_save_failed">保存失败</string>
+<string name="fm_editor_preview_notice">文件过大，仅预览前 512KB（只读）</string>
+<string name="fm_editor_file_too_large">文件太大，无法以文本方式编辑</string>
+<string name="fm_editor_out_of_memory">文件太大，超出设备内存</string>
+<string name="fm_editor_open_failed">打开文件失败</string>
 <string name="fm_ui_editor_readonly">此文件只读</string>
 <string name="fm_ui_editor_unsaved_title">未保存的修改</string>
 <string name="fm_ui_editor_unsaved_msg">有未保存的修改，是否保存？</string>

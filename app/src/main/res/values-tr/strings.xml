@@ -1657,6 +1657,7 @@ LeviLauncher\'ın devam edebilmesi için taşımanın tamamlanması gerekiyor.</
 <string name="fm_editor_file_too_large">Dosya metin olarak düzenlenemeyecek kadar büyük</string>
 <string name="fm_editor_out_of_memory">Dosya cihaz belleği için çok büyük</string>
 <string name="fm_editor_open_failed">Dosya açılamadı</string>
+<string name="fm_editor_preview_notice">Büyük dosya — yalnızca ilk 512 KB önizleme (salt okunur)</string>
 <string name="fm_editor_save_failed">Dosya kaydedilemedi</string>
 <string name="fm_editor_goto_line">Satıra git</string>
 <string name="fm_editor_search_match_case">Büyük/küçük harf duyarlı</string>

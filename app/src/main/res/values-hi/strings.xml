@@ -1658,6 +1658,7 @@ LeviLauncher जारी रखने से पहले माइग्रे
 <string name="fm_editor_file_too_large">फ़ाइल इतनी बड़ी है कि टेक्स्ट के रूप में संपादित नहीं की जा सकती</string>
 <string name="fm_editor_out_of_memory">फ़ाइल डिवाइस मेमोरी के लिए बहुत बड़ी है</string>
 <string name="fm_editor_open_failed">फ़ाइल खोलने में विफल</string>
+<string name="fm_editor_preview_notice">बड़ी फ़ाइल — केवल पहले 512 KB का पूर्वावलोकन (रीड-ओनली)</string>
 <string name="fm_editor_save_failed">फ़ाइल सहेजने में विफल</string>
 <string name="fm_editor_goto_line">लाइन पर जाएँ</string>
 <string name="fm_editor_search_match_case">केस मिलान</string>

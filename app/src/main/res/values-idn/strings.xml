@@ -1654,6 +1654,7 @@ Migrasi harus selesai sebelum LeviLauncher dapat melanjutkan.</string>
 <string name="fm_editor_file_too_large">File terlalu besar untuk diedit sebagai teks</string>
 <string name="fm_editor_out_of_memory">File terlalu besar untuk memori perangkat</string>
 <string name="fm_editor_open_failed">Gagal membuka file</string>
+<string name="fm_editor_preview_notice">File besar — hanya pratinjau 512 KB pertama (baca-saja)</string>
 <string name="fm_editor_save_failed">Gagal menyimpan file</string>
 <string name="fm_editor_goto_line">Ke baris</string>
 <string name="fm_editor_search_match_case">Sesuaikan huruf besar/kecil</string>

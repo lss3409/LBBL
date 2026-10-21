@@ -101,6 +101,10 @@ public class FileManagerActivity extends BaseActivity {
     private boolean editorUserEdited;
     private boolean exitConfirmShown;
     private String lastEditorPath;
+    /** v0.4.142：大文件截断只读预览模式（隐藏保存/只读开关，跳过高亮）。 */
+    private boolean editorPreviewOnly;
+    private ProgressBar editorLoading;
+    private TextView editorNotice;
     /** 只读模式（v670）：打开即只读（睁眼），点眼睛切换编辑（笔）；文件不可写时恒只读。 */
     private boolean editorReadonly = true;
     private boolean editorFileWritable = true;
@@ -244,6 +248,8 @@ public class FileManagerActivity extends BaseActivity {
         editorText = findViewById(R.id.fm_editor_text);
         editorReadonlyToggle = findViewById(R.id.fm_editor_readonly);
         editorScrollBar = findViewById(R.id.fm_editor_scrollbar);
+        editorLoading = findViewById(R.id.fm_editor_loading);
+        editorNotice = findViewById(R.id.fm_editor_notice);
         audioPanel = findViewById(R.id.fm_audio_panel);
         audioPlayPause = findViewById(R.id.fm_audio_play_pause);
         audioName = findViewById(R.id.fm_audio_name);
@@ -858,6 +864,16 @@ public class FileManagerActivity extends BaseActivity {
         editorName.setText(ui.getPath().getFileName() != null
                 ? ui.getPath().getFileName().toString() : ui.getPath().toString());
 
+        // v0.4.142：加载中显示转圈（大文件读取+排版期间有明确反馈）
+        editorLoading.setVisibility(ui.getState() instanceof EditorState.Loading
+                ? View.VISIBLE : View.GONE);
+
+        // v0.4.142：大文件截断只读预览——隐藏只读开关与保存按钮，强制只读
+        editorPreviewOnly = ui.getPreviewOnly();
+        editorReadonlyToggle.setVisibility(editorPreviewOnly ? View.GONE : View.VISIBLE);
+        editorSave.setVisibility(editorPreviewOnly ? View.GONE : View.VISIBLE);
+        editorNotice.setVisibility(editorPreviewOnly ? View.VISIBLE : View.GONE);
+
         // 内容：加载完成后且用户尚未编辑才写入（避免重置光标/覆盖输入）
         if (ui.getState() instanceof EditorState.Success && !editorUserEdited) {
             String content = ((EditorState.Success) ui.getState()).getContent();
@@ -865,12 +881,13 @@ public class FileManagerActivity extends BaseActivity {
                 applyingHighlight = true;
                 editorText.setText(content);
                 applyingHighlight = false;
-                scheduleHighlight();
+                // 预览模式跳过语法高亮（省主线程正则开销）
+                if (!editorPreviewOnly) scheduleHighlight();
             }
         }
-        editorFileWritable = ui.getWritable();
+        editorFileWritable = ui.getWritable() && !editorPreviewOnly;
         if (!editorFileWritable) {
-            editorReadonly = true; // 文件不可写恒只读
+            editorReadonly = true; // 文件不可写/预览模式恒只读
         }
         applyEditorReadonly();
         editorDirty.setVisibility(ui.getDirty() ? View.VISIBLE : View.GONE);
@@ -971,6 +988,11 @@ public class FileManagerActivity extends BaseActivity {
         lastEditorPath = null;
         editorReadonly = true;
         editorFileWritable = true;
+        editorPreviewOnly = false;
+        editorLoading.setVisibility(View.GONE);
+        editorNotice.setVisibility(View.GONE);
+        editorReadonlyToggle.setVisibility(View.VISIBLE);
+        editorSave.setVisibility(View.VISIBLE);
         // guard：清空文本不触发 watcher（否则 editorUserEdited 被置回 true + dirty 被污染）
         applyingHighlight = true;
         editorText.setText("");
@@ -988,6 +1010,7 @@ public class FileManagerActivity extends BaseActivity {
     }
 
     private void runHighlight() {
+        if (editorPreviewOnly) return; // v0.4.142：预览模式跳过高亮
         String name = editorName.getText().toString();
         Spannable sp = FmHighlighter.apply(editorText.getText().toString(), name, isDarkTheme());
         int scrollY = editorText.getScrollY();
