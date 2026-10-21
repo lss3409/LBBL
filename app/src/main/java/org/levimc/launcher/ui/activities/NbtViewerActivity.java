@@ -1598,29 +1598,38 @@ public class NbtViewerActivity extends BaseActivity {
         });
     }
 
-    /** 世界目录烘焙缓存白名单删除（不碰世界数据 db/level.dat 与实体结构数据）。 */
-    private static int clearWorldBakeCaches(java.io.File worldDir) {
+    /** 烘焙缓存删除：实际缓存位置（v7 起）= Download/LeviLauncher/Cache/
+     *  map_cache/<世界名>/（v0.4.149 只删世界目录=「点了没反应」根因），
+     *  另兜底删除世界目录遗留旧缓存（v7 前）。 */
+    private int clearWorldBakeCaches(java.io.File worldDir) {
         int removed = 0;
+        // 实际缓存目录：<bakedCacheDir>/<世界名>/ 树内全部 .bin
+        java.io.File baked = org.levimc.launcher.util.LauncherStorage
+                .getBakedMapCacheDir(this);
+        java.io.File bakedWorld = new java.io.File(baked, worldDir.getName());
+        removed += deleteBinsRecursive(bakedWorld);
+        // 世界目录遗留旧缓存（v7 前白名单）
         String wn = worldDir.getName();
         java.io.File[] entries = worldDir.listFiles();
-        if (entries == null) {
-            return 0;
-        }
-        for (java.io.File f : entries) {
-            String n = f.getName();
-            if (f.isDirectory()) {
-                if (n.equals("map_cache") || n.equals("overworld")
-                        || n.equals("nether") || n.equals("end")) {
-                    removed += deleteBinsRecursive(f);
-                }
-            } else if (n.endsWith(".bin")
-                    && (n.startsWith("map_cache_")
-                    || n.startsWith("map_small_")
-                    || n.startsWith("map_ore_")
-                    || n.startsWith(wn + "_map_")
-                    || n.startsWith("world_map_cache_"))) {
-                if (f.delete()) {
-                    removed++;
+        if (entries != null) {
+            for (java.io.File f : entries) {
+                String n = f.getName();
+                if (f.isDirectory()) {
+                    if (n.equals("map_cache") || n.equals("overworld")
+                            || n.equals("nether") || n.equals("end")) {
+                        removed += deleteBinsRecursive(f);
+                    }
+                } else if (n.endsWith(".bin")
+                        && (n.startsWith("map_cache_")
+                        || n.startsWith("map_small_")
+                        || n.startsWith("map_ore_")
+                        || n.startsWith("full_")
+                        || n.startsWith("chunks_")
+                        || n.startsWith(wn + "_map_")
+                        || n.startsWith("world_map_cache_"))) {
+                    if (f.delete()) {
+                        removed++;
+                    }
                 }
             }
         }
