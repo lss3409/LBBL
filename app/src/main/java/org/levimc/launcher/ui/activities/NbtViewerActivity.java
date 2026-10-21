@@ -905,121 +905,21 @@ public class NbtViewerActivity extends BaseActivity {
     /** v0.4.95：LOD 金字塔渲染设置（HTML 瓦片 mip 同款）——开关/最大
      *  降采样级数/切换阈值，参数持久化（nbt_viewer prefs）。 */
     private void setupLodSettings() {
-        // v0.4.96：布局变体（竖屏/横屏）id 必须齐全，缺失直接跳过
-        // （否则平板横屏 binding.swLod=null NPE——v0.4.95 崩溃根因）
-        if (binding.swLod == null || binding.lodLevelInput == null
-                || binding.lodThresholdSeek == null
-                || binding.lodComposeInput == null) {
+        // v0.4.107：设置精简——LOD 开关/级数/纹理尺寸/阈值四个参数
+        // 全部移除（自适应 LOD 自动处理流畅度，参数走内部默认值），
+        // 只保留「帧率自适应 LOD」开关
+        if (binding.swLodAdaptive == null) {
             return;
         }
         android.content.SharedPreferences prefs =
                 getSharedPreferences("nbt_viewer", MODE_PRIVATE);
-        boolean enabled = prefs.getBoolean("lod_enabled", true);
-        int maxLevel = prefs.getInt("lod_max_level", 16);
-        float threshold = prefs.getFloat("lod_threshold", 0.75f);
-        binding.swLod.setChecked(enabled);
-        binding.worldMapImage.setLodEnabled(enabled);
-        binding.worldMapImage.setLodMaxLevel(maxLevel);
-        binding.worldMapImage.setLodThreshold(threshold);
-        // v0.4.98：输入框恒为空，「当前生效值」走 hint（v0.4.23 定版模式）
-        binding.lodLevelInput.setHint(String.valueOf(maxLevel));
-        binding.lodComposeInput.setHint(String.valueOf(composeMaxDim()));
-        // v0.4.97：阈值范围 0.05~0.95（步长 0.05，SeekBar 18 格）
-        int seek = Math.round((threshold - 0.05f) / 0.05f);
-        binding.lodThresholdSeek.setProgress(Math.max(0, Math.min(18, seek)));
-        binding.lodThresholdValue.setText(String.format(java.util.Locale.US,
-                "%.2f", threshold));
-
-        binding.swLod.setOnCheckedChangeListener((btn, checked) -> {
-            binding.worldMapImage.setLodEnabled(checked);
-            prefs.edit().putBoolean("lod_enabled", checked).apply();
+        boolean adaptive = prefs.getBoolean("lod_adaptive", true);
+        binding.swLodAdaptive.setChecked(adaptive);
+        binding.worldMapImage.setLodAdaptive(adaptive);
+        binding.swLodAdaptive.setOnCheckedChangeListener((btn, checked) -> {
+            binding.worldMapImage.setLodAdaptive(checked);
+            prefs.edit().putBoolean("lod_adaptive", checked).apply();
         });
-        // v0.4.106：帧率自适应 LOD（低帧率自动降清晰度保流畅）
-        if (binding.swLodAdaptive != null) {
-            boolean adaptive = prefs.getBoolean("lod_adaptive", true);
-            binding.swLodAdaptive.setChecked(adaptive);
-            binding.worldMapImage.setLodAdaptive(adaptive);
-            binding.swLodAdaptive.setOnCheckedChangeListener((btn, checked) -> {
-                binding.worldMapImage.setLodAdaptive(checked);
-                prefs.edit().putBoolean("lod_adaptive", checked).apply();
-            });
-        }
-        // 级数自定义输入：2-256 任意值，应用时取 2 的幂
-        binding.lodLevelApply.setOnClickListener(v -> applyLodLevelInput());
-        DynamicAnim.applyPressScale(binding.lodLevelApply);
-        // 全图纹理尺寸上限自定义输入：256-16384，应用后重烘焙
-        binding.lodComposeApply.setOnClickListener(v -> applyComposeDimInput());
-        DynamicAnim.applyPressScale(binding.lodComposeApply);
-        binding.lodThresholdSeek.setOnSeekBarChangeListener(
-                new android.widget.SeekBar.OnSeekBarChangeListener() {
-                    @Override
-                    public void onProgressChanged(android.widget.SeekBar sb,
-                                                  int progress, boolean fromUser) {
-                        float t = 0.05f + progress * 0.05f;
-                        binding.lodThresholdValue.setText(String.format(
-                                java.util.Locale.US, "%.2f", t));
-                        if (fromUser) {
-                            binding.worldMapImage.setLodThreshold(t);
-                        }
-                    }
-
-                    @Override
-                    public void onStartTrackingTouch(android.widget.SeekBar sb) {}
-
-                    @Override
-                    public void onStopTrackingTouch(android.widget.SeekBar sb) {
-                        float t = 0.05f + sb.getProgress() * 0.05f;
-                        prefs.edit().putFloat("lod_threshold", t).apply();
-                    }
-                });
-    }
-
-    /** v0.4.98：应用级数自定义输入（空输入忽略；非法输入回退当前值）。 */
-    private void applyLodLevelInput() {
-        String s = binding.lodLevelInput.getText().toString().trim();
-        if (s.isEmpty()) {
-            return;
-        }
-        int lv;
-        try {
-            lv = Math.max(2, Math.min(256, Integer.parseInt(s)));
-        } catch (NumberFormatException ignored) {
-            binding.lodLevelInput.setText("");
-            return;
-        }
-        int effective = Integer.highestOneBit(lv);
-        binding.worldMapImage.setLodMaxLevel(effective);
-        getSharedPreferences("nbt_viewer", MODE_PRIVATE).edit()
-                .putInt("lod_max_level", effective).apply();
-        binding.lodLevelInput.setText("");
-        binding.lodLevelInput.setHint(String.valueOf(effective));
-    }
-
-    /** v0.4.98：应用全图纹理尺寸上限输入并重烘焙当前维度。 */
-    private void applyComposeDimInput() {
-        String s = binding.lodComposeInput.getText().toString().trim();
-        if (s.isEmpty()) {
-            return;
-        }
-        int dim;
-        try {
-            dim = Math.max(128, Math.min(16384, Integer.parseInt(s)));
-        } catch (NumberFormatException ignored) {
-            binding.lodComposeInput.setText("");
-            return;
-        }
-        getSharedPreferences("nbt_viewer", MODE_PRIVATE).edit()
-                .putInt("compose_max_dim", dim).apply();
-        binding.lodComposeInput.setText("");
-        binding.lodComposeInput.setHint(String.valueOf(dim));
-        // 重烘焙：全图尺寸变了必须重新 compose（RLE 缓存不受影响）
-        if (currentWorldDir != null && mapDimension != null) {
-            if (currentMap != null) {
-                composeFullMapAsync(currentMap);
-            } else {
-                loadMapForDimension(mapDimension);
-            }
-        }
     }
 
     /** 应用下界 y 范围并刷新分段高亮（个性化主题色贯通）。 */

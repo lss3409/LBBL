@@ -1324,11 +1324,11 @@ public class WorldMapView extends View {
     }
 
     /** 画块范围；miss 块收集后按距屏幕中心排序请求（中心先出）。
-     *  v0.4.103：兜底断链——miss 逐级降 span/2（缓存大概率就绪），
-     *  最底级（span=4）仍 miss 就跳过画背景（渐进填充，像网页地图
-     *  瓦片加载）——绝不再兜底逐 chunk（bs=128 世界视口 8 万张
-     *  drawBitmap=300ms/帧=卡死根因）。collectMiss=true 才收集请求
-     *  （兜底递归不请求，只请求目标 span 级）。 */
+     *  v0.4.107：**删递归兜底**——miss 块统一画背景（渐进填充，
+     *  网页地图瓦片同款），绝不混绘不同 span 的块（"左边半扇和
+     *  右边半扇画面不一样"根因：兜底 span/2 块像素大 2 倍=视觉像
+     *  另一缩放比例）。全屏只出现「目标 span 块 + 背景格」两种状态，
+     *  生成完 invalidate 填充，左右永远一致。 */
     private void drawChunkLodRange(android.graphics.Canvas canvas, int span,
                                    int firstBx, int firstBz, int lastBx, int lastBz,
                                    boolean collectMiss) {
@@ -1344,20 +1344,7 @@ public class WorldMapView extends View {
                     if (missList != null) {
                         missList.add(new long[]{key, bx, bz});
                     }
-                    if (span > 4) {
-                        // 兜底半级（span/2 块若缓存就绪则画它）
-                        int subSpan = span / 2;
-                        drawChunkLodRange(canvas, subSpan,
-                                bx * 2, bz * 2,
-                                Math.min(Math.floorDiv(Math.floorDiv(
-                                        map.minBlockX + map.width - 1, 16), subSpan),
-                                        bx * 2 + 1),
-                                Math.min(Math.floorDiv(Math.floorDiv(
-                                        map.minBlockZ + map.height - 1, 16), subSpan),
-                                        bz * 2 + 1),
-                                false);
-                    }
-                    // span=4 仍 miss：跳过（背景渐进填充，生成完 invalidate 补上）
+                    // miss：背景渐进填充（不画任何兜底——分辨率一致性第一）
                     continue;
                 }
                 dst.set(worldToScreenX(bx * span * 16f),
