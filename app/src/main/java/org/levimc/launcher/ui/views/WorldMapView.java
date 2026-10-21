@@ -45,7 +45,7 @@ import java.util.Map;
 public class WorldMapView extends View {
 
     /** 每 block 的最大屏幕像素（BTR 1.0x 缩放级 = 16px/block） */
-    private static final float MAX_PIXELS_PER_BLOCK = 24f;
+    private static final float MAX_PIXELS_PER_BLOCK = 1000000f; // v0.4.109：用户要求无限缩放（原 24 倍上限解锁）
     /** 每 block 的最小屏幕像素（避免整数运算下采样失真） */
     private static final float MIN_PIXELS_PER_BLOCK = 0.05f;
 
@@ -881,6 +881,37 @@ public class WorldMapView extends View {
     private String lastDrawPath = "-";
     private int dbgFrame;
 
+    /** v0.4.109：HUD 静止刷新——Choreographer 帧循环，每 500ms
+     *  invalidate 一次让 FPS HUD 持续更新（静止不操作时也跳动）。 */
+    private final android.view.Choreographer.FrameCallback hudRefreshCallback =
+            new android.view.Choreographer.FrameCallback() {
+                @Override
+                public void doFrame(long frameTimeNanos) {
+                    if (hudLastInvalidate == 0
+                            || frameTimeNanos - hudLastInvalidate > 500_000_000L) {
+                        hudLastInvalidate = frameTimeNanos;
+                        invalidate();
+                    }
+                    android.view.Choreographer.getInstance()
+                            .postFrameCallback(this);
+                }
+            };
+    private long hudLastInvalidate = 0;
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        android.view.Choreographer.getInstance()
+                .postFrameCallback(hudRefreshCallback);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        android.view.Choreographer.getInstance()
+                .removeFrameCallback(hudRefreshCallback);
+        super.onDetachedFromWindow();
+    }
+
     // ---- v0.4.106：帧率自适应 LOD（3A 游戏同款）——帧率低自动
     //      加大「N 方块=1 像素」（span 提升=块更粗=更流畅），恢复后
     //      回落用户设定值；右上角 FPS HUD 实时显示。 ----
@@ -1161,9 +1192,9 @@ public class WorldMapView extends View {
         // v0.4.97：捏合缩放动画期间只画底图+玩家标记——大地图缩小时
         // 视口覆盖全图，矿石标点/结构/实体几千条每帧重绘才是缩放卡的
         // 主因（LOD 只优化了底图那一下）；onScaleEnd 全量补画
-        // v0.4.99：拖拽同样跳过（拖大地图时视口内几万标点每帧全画
-        // 同样是卡源），松手补画
-        if (!scaling && !panning) {
+        // v0.4.109：拖拽恢复叠加层（用户反馈滑动不松手时实体/矿石/
+        // 史莱姆/网格不显示——拖拽视口大小不变，标点数不变，可画）
+        if (!scaling) {
             drawGrid(canvas);
             drawSlimeChunks(canvas);
             drawLinks(canvas);
@@ -1171,9 +1202,9 @@ public class WorldMapView extends View {
             drawOreMarkers(canvas); // v413：矿石标点（色块菱形）
             drawEntities(canvas);
             drawStructures(canvas);
-            drawTapMarker(canvas);
             drawVoxelSelection(canvas); // 3D 区域选择矩形（最上层）
         }
+        drawTapMarker(canvas); // v0.4.109：十字标记移出跳过块（缩放中不消失）
         drawMarkers(canvas); // 玩家/出生点标记画在最上层（不被实体贴图遮挡）
         drawFpsHud(canvas); // v0.4.106：右上角帧率 HUD（最上层）
         // v0.4.99：节流诊断日志（32 帧一次≈0.27s@120Hz）——验证 LOD
@@ -1426,8 +1457,10 @@ public class WorldMapView extends View {
             // v0.4.103：请求限流——动画中每帧最多 300、队列有界（缩放
             // 快速移动时视口外的过期块不抢占生成线程）
             int budget = scaling ? 300 : missList.size();
+            // v0.4.109：队列满时清空重排（视口块永远优先，旧过期块
+            // 不再阻塞生成——右侧大片背景不填充根因）
             if (chunkLodPending.size() > 3000) {
-                budget = 0;
+                chunkLodPending.clear();
             }
             for (long[] m : missList) {
                 if (budget-- <= 0) {
