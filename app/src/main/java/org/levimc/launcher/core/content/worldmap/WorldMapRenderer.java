@@ -6412,6 +6412,9 @@ public class WorldMapRenderer {
                         + dimension + ")");
                 int batch = 0;
                 int any = 0;
+                int failHmap = 0;
+                int failBiome = 0;
+                int failBound = 0;
                 for (LevelDBEntry e : entries) {
                     if (Thread.currentThread().isInterrupted()) {
                         return;
@@ -6422,6 +6425,7 @@ public class WorldMapRenderer {
                     }
                     int[] hmap = extractData2d(e.getValue());
                     if (hmap == null) {
+                        failHmap++;
                         continue;
                     }
                     byte[] raw = e.getKey().getRawKey();
@@ -6430,11 +6434,13 @@ public class WorldMapRenderer {
                             ? extractBiomes2d(e.getValue())
                             : extractBiomes3d(e.getValue(), hmap);
                     if (bm == null) {
+                        failBiome++;
                         continue;
                     }
                     int lx = ck[0] - cx0;
                     int lz = ck[1] - cz0;
                     if (lx < 0 || lz < 0 || lx >= cw || lz >= ch) {
+                        failBound++;
                         continue;
                     }
                     // 每 chunk 1 像素：16 个采样点（每 4 方块）RGB 平均
@@ -6464,13 +6470,16 @@ public class WorldMapRenderer {
                                 cw, ch, cx0, cz0});
                     }
                 }
+                Log.i(TAG, "biome 扫描完成: any=" + any + " failHmap=" + failHmap
+                        + " failBiome=" + failBiome + " failBound=" + failBound);
                 if (any > 0) {
                     onBatch.accept(new Object[]{bmp, px.clone(), cw,
                             cw, ch, cx0, cz0});
                 } else {
                     bmp.recycle();
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable err) {
+                Log.w(TAG, "biome 扫描失败", err);
             }
         }, "biome-scan");
         t.setPriority(Thread.MIN_PRIORITY);
