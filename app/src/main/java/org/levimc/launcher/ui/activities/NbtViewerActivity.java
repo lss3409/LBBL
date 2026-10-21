@@ -1688,6 +1688,19 @@ public class NbtViewerActivity extends BaseActivity {
         }
     }
 
+    /** v0.4.132：进图后延迟 2 秒预启动 biome 扫描——用户开群系
+     *  图层时数据已就绪立即显示（"首次打开要等几秒再慢慢出现"
+     *  修复；扫描 4 秒 IO 期间用户通常还在浏览地图）。 */
+    private void scheduleBiomePrescan(WorldMapRenderer.WorldMap target) {
+        flushHandler.postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed() && currentMap == target
+                    && target.chunkBiomeColors == null
+                    && target.biomeColors == null) {
+                refreshBiomeMask();
+            }
+        }, 2000);
+    }
+
     /** v0.4.122：生成/刷新 biome 遮罩位图（后台线程；烘焙增量
      *  节流刷新由 onBakeBatch 调）。 */
     private long lastBiomeMaskRefresh = 0;
@@ -1885,12 +1898,7 @@ public class NbtViewerActivity extends BaseActivity {
                                 binding.worldMapImage.setWorldMap(fQuick);
                                 // v0.4.113：RLE 秒开路径同样恢复视图记忆
                                 restoreMapViewMemory();
-                                // v0.4.124：biome 开关持久化开着时进图
-                                // 补生成遮罩（监听器只在切换时触发，
-                                // 初始勾选状态不会调 refresh）
-                                if (binding.layerBiome.isChecked()) {
-                                    refreshBiomeMask();
-                                }
+                                scheduleBiomePrescan(fQuick);
                             });
                         }
                     }
@@ -2237,10 +2245,7 @@ public class NbtViewerActivity extends BaseActivity {
                     if (!(fKeepView || skeletonShown)) {
                         restoreMapViewMemory();
                     }
-                    // v0.4.124：biome 补生成（同 fQuick 路径）
-                    if (binding.layerBiome.isChecked()) {
-                        refreshBiomeMask();
-                    }
+                    scheduleBiomePrescan(fMap);
                     // v0.4.52：后台拼全图纹理（HTML 同款渲染——拼完自动
                     // 切全图模式，拖动/缩放 GPU 化；未拼完前走原 chunk 路径）
                     composeFullMapAsync(fMap);
@@ -3101,10 +3106,7 @@ public class NbtViewerActivity extends BaseActivity {
             if (!skeletonShown) {
                 restoreMapViewMemory();
             }
-            // v0.4.124：biome 补生成（onDataLoaded 路径同款）
-            if (binding.layerBiome.isChecked()) {
-                refreshBiomeMask();
-            }
+            scheduleBiomePrescan(worldMap);
             // v0.4.55：主世界首开/缓存加载完成后拼全图+史莱姆遮罩
             // （此前漏接——遮罩永远不生成，开史莱姆回退逐块绘制卡死）
             composeFullMapAsync(worldMap);

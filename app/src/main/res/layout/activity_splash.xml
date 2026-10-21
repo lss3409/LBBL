@@ -50,31 +50,22 @@
         app:layout_constraintStart_toStartOf="@id/logoGlow"
         app:layout_constraintTop_toTopOf="@id/logoGlow" />
 
-    <TextView
+    <!-- v0.4.132：LBBL 手写艺术字（苹果风描边手写动画） -->
+    <org.levimc.launcher.ui.views.HandwritingTextView
         android:id="@+id/tvAppName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:includeFontPadding="false"
-        android:letterSpacing="0.05"
-        android:text="@string/app_name"
-        android:textColor="@color/on_background"
-        android:textSize="34sp"
-        android:textStyle="bold"
+        android:layout_width="220dp"
+        android:layout_height="64dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/logoGlow" />
 
-    <ProgressBar
+    <!-- v0.4.132：谷歌风波浪加载进度条（个性化 accent） -->
+    <org.levimc.launcher.ui.views.WaveProgressView
         android:id="@+id/loadingBar"
-        style="@android:style/Widget.ProgressBar.Horizontal"
-        android:layout_width="160dp"
-        android:layout_height="3dp"
-        android:layout_marginTop="28dp"
-        android:indeterminate="false"
-        android:max="100"
-        android:progress="0"
-        android:progressDrawable="@drawable/bg_loading_progress"
+        android:layout_width="200dp"
+        android:layout_height="18dp"
+        android:layout_marginTop="20dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvAppName" />
