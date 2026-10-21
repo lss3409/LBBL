@@ -3014,7 +3014,9 @@ public class WorldMapRenderer {
         if ((long) cw * ch > 2_000_000L) {
             return null; // 超限回退不叠加（与 slimeMask 同款保护）
         }
-        final int S = 4; // 每 chunk 采样 4×4（16 方块→1 像素）
+        // v0.4.127：每 chunk 1 像素（16 采样点平均）——大 bounds
+        // 世界 4px/chunk 遮罩位图 64MB OOM；1px=4MB
+        final int S = 1;
         android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
                 cw * S, ch * S, android.graphics.Bitmap.Config.ARGB_8888);
         int[] px = new int[cw * S * ch * S];
@@ -3043,16 +3045,25 @@ public class WorldMapRenderer {
                 if (!any) {
                     continue;
                 }
-                int baseX = lx * S;
-                int baseY = lz * S;
-                for (int sy = 0; sy < S; sy++) {
-                    for (int sx = 0; sx < S; sx++) {
-                        // 16×16 → 4×4：取 4×4 方块块的左上角代表色
+                // 每 chunk 1 像素：16 个采样点（每 4 方块）RGB 平均
+                int rs = 0;
+                int gs = 0;
+                int bs = 0;
+                int n = 0;
+                for (int sy = 0; sy < 4; sy++) {
+                    for (int sx = 0; sx < 4; sx++) {
                         int v = bc[(sy * 4) * 16 + (sx * 4)];
                         if (v != 0) {
-                            px[(baseY + sy) * stride + baseX + sx] = v;
+                            rs += (v >> 16) & 0xFF;
+                            gs += (v >> 8) & 0xFF;
+                            bs += v & 0xFF;
+                            n++;
                         }
                     }
+                }
+                if (n > 0) {
+                    px[lz * stride + lx] = (0xFF << 24)
+                            | ((rs / n) << 16) | ((gs / n) << 8) | (bs / n);
                 }
             }
         } else {
@@ -3061,23 +3072,32 @@ public class WorldMapRenderer {
                 int bz0 = (cz0 + cz) * 16 - map.minBlockZ;
                 for (int cx = 0; cx < cw; cx++) {
                     int bx0 = (cx0 + cx) * 16 - map.minBlockX;
-                    int baseX = cx * S;
-                    int baseY = cz * S;
-                    for (int sy = 0; sy < S; sy++) {
+                    int rs = 0;
+                    int gs = 0;
+                    int bs = 0;
+                    int n = 0;
+                    for (int sy = 0; sy < 4; sy++) {
                         int bz = bz0 + sy * 4;
                         if (bz < 0 || bz >= map.height) {
                             continue;
                         }
-                        for (int sx = 0; sx < S; sx++) {
+                        for (int sx = 0; sx < 4; sx++) {
                             int bx = bx0 + sx * 4;
                             if (bx < 0 || bx >= bw) {
                                 continue;
                             }
                             int v = colorsArr[bz * bw + bx];
                             if (v != 0) {
-                                px[(baseY + sy) * stride + baseX + sx] = v;
+                                rs += (v >> 16) & 0xFF;
+                                gs += (v >> 8) & 0xFF;
+                                bs += v & 0xFF;
+                                n++;
                             }
                         }
+                    }
+                    if (n > 0) {
+                        px[cz * stride + cx] = (0xFF << 24)
+                                | ((rs / n) << 16) | ((gs / n) << 8) | (bs / n);
                     }
                 }
             }
@@ -6363,8 +6383,10 @@ public class WorldMapRenderer {
     /** v0.4.126：biome-only 独立扫描——主世界大图无烘焙、缓存无
      *  biome（chunkBiomeColors/biomeColors 全 null，"开生物群系不
      *  显示"根治）时，直接从 LevelDB Data3D/Data2D 提取群系拼遮罩
-     *  位图。每 512 chunk 一批回调 {bmp, px快照, stride, w, h, cx0,
-     *  cz0}（UI 线程 setPixels 渐进铺开）。MIN_PRIORITY 不抢 UI。 */
+     *  位图。v0.4.127：每 chunk 1 像素（16 采样点平均）——TK 大
+     *  bounds 14 万方块宽，4px/chunk 遮罩=64MB 位图 OOM；1px=4MB。
+     *  每 1024 chunk 一批回调 {bmp, px快照, stride, w, h, cx0, cz0}
+     *  （UI 线程 setPixels 渐进铺开）。MIN_PRIORITY 不抢 UI。 */
     public static Thread scanBiomeMaskAsync(final File dbDir, final int dimension,
             final WorldMap map,
             final java.util.function.Consumer<Object[]> onBatch) {
@@ -6377,11 +6399,9 @@ public class WorldMapRenderer {
                 if ((long) cw * ch > 2_000_000L) {
                     return;
                 }
-                final int S = 4;
                 android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
-                        cw * S, ch * S, android.graphics.Bitmap.Config.ARGB_8888);
-                int[] px = new int[cw * S * ch * S];
-                int stride = cw * S;
+                        cw, ch, android.graphics.Bitmap.Config.ARGB_8888);
+                int[] px = new int[cw * ch];
                 LevelDBReader reader = new LevelDBReader(dbDir);
                 java.util.List<LevelDBEntry> entries = reader.readEntries(k -> {
                     int[] ck = parseChunkKey(k);
@@ -6417,24 +6437,36 @@ public class WorldMapRenderer {
                     if (lx < 0 || lz < 0 || lx >= cw || lz >= ch) {
                         continue;
                     }
-                    for (int sy = 0; sy < S; sy++) {
-                        for (int sx = 0; sx < S; sx++) {
+                    // 每 chunk 1 像素：16 个采样点（每 4 方块）RGB 平均
+                    int rs = 0;
+                    int gs = 0;
+                    int bs = 0;
+                    int n = 0;
+                    for (int sy = 0; sy < 4; sy++) {
+                        for (int sx = 0; sx < 4; sx++) {
                             int col = biomeGrassColor(bm[(sy * 4) * 16 + (sx * 4)] & 0xFF);
                             if (col != 0) {
-                                px[(lz * S + sy) * stride + lx * S + sx] = col;
+                                rs += (col >> 16) & 0xFF;
+                                gs += (col >> 8) & 0xFF;
+                                bs += col & 0xFF;
+                                n++;
                             }
                         }
                     }
-                    any++;
-                    if (++batch >= 512) {
+                    if (n > 0) {
+                        px[lz * cw + lx] = (0xFF << 24)
+                                | ((rs / n) << 16) | ((gs / n) << 8) | (bs / n);
+                        any++;
+                    }
+                    if (++batch >= 1024) {
                         batch = 0;
-                        onBatch.accept(new Object[]{bmp, px.clone(), stride,
-                                cw * S, ch * S, cx0, cz0});
+                        onBatch.accept(new Object[]{bmp, px.clone(), cw,
+                                cw, ch, cx0, cz0});
                     }
                 }
                 if (any > 0) {
-                    onBatch.accept(new Object[]{bmp, px.clone(), stride,
-                            cw * S, ch * S, cx0, cz0});
+                    onBatch.accept(new Object[]{bmp, px.clone(), cw,
+                            cw, ch, cx0, cz0});
                 } else {
                     bmp.recycle();
                 }

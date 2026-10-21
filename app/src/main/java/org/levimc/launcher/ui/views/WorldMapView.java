@@ -1834,8 +1834,8 @@ public class WorldMapView extends View {
             }
             return;
         }
-        // 每遮罩像素 = 4 方块；世界坐标 = chunk 原点 + 像素×4
-        float scale = 4f * pixelsPerBlock;
+        // v0.4.127：每遮罩像素 = 1 chunk = 16 方块
+        float scale = 16f * pixelsPerBlock;
         float leftX = offsetX + (biomeMaskCx0 * 16L - map.minBlockX)
                 * pixelsPerBlock;
         float topY = offsetY + (biomeMaskCz0 * 16L - map.minBlockZ)
