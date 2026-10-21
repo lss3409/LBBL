@@ -92,6 +92,11 @@ public class WorldMapView extends View {
     // v0.4.138：十字标记屏幕锚定坐标（显示层；tapBlock 为读取层）
     private float tapScreenX = -1f;
     private float tapScreenY = -1f;
+    // v0.4.139：指针显示模式（HUD 勾选开关）
+    private boolean tapPinEnabled = true;    // 指针始终显示（锚定屏幕）
+    private boolean tapCenterEnabled = false; // 指针固定地图查看器中心点
+    private final android.graphics.RectF pinRowRect = new android.graphics.RectF();
+    private final android.graphics.RectF centerRowRect = new android.graphics.RectF();
     /** 连线模式 / 测距模式：高亮待选起点 */
     private boolean linkPickMode = false;
     private long highlightPointId = -1;
@@ -1162,16 +1167,25 @@ public class WorldMapView extends View {
             lines.add(gestureName);
         }
         if (map != null && getWidth() > 0 && getHeight() > 0) {
-            int biomeId = biomeIdAt(getWidth() / 2f, getHeight() / 2f);
+            // v0.4.139：群系名用「指针指向位置」（十字标记锚点/中心
+            // 准星），无指针时用屏幕中心
+            float bx = tapCenterEnabled ? getWidth() / 2f
+                    : tapScreenX >= 0 ? tapScreenX : getWidth() / 2f;
+            float by = tapCenterEnabled ? getHeight() / 2f
+                    : tapScreenY >= 0 ? tapScreenY : getHeight() / 2f;
+            int biomeId = biomeIdAt(bx, by);
             if (biomeId > 0) {
                 String en = org.levimc.launcher.core.content.worldmap.WorldMapRenderer
                         .biomeName(biomeId);
                 if (en != null) {
-                    lines.add("群系 " + org.levimc.launcher.core.content.worldmap.BiomeNames
+                    lines.add("指针群系 " + org.levimc.launcher.core.content.worldmap.BiomeNames
                             .displayName(en));
                 }
             }
         }
+        // v0.4.139：指针显示模式勾选（HUD 内点击切换）
+        lines.add((tapPinEnabled ? "☑" : "☐") + " 指针始终显示");
+        lines.add((tapCenterEnabled ? "☑" : "☐") + " 指针固定中心");
         // v0.4.137：本帧实际绘制标点数（抽稀后的真实数量，直观看到
         // 哪个图层在吃性能）
         lines.add("标点 实体" + drawnEntities + " 矿石" + drawnOres
@@ -1204,8 +1218,16 @@ public class WorldMapView extends View {
         canvas.drawRoundRect(fpsBgRect, 10 * density, 10 * density, fpsBgPaint);
         fpsTextPaint.setColor(0xFFCCCCCC);
         float ty = fpsBgRect.top + pad + lineH * 0.6f;
+        // v0.4.139：记录勾选开关行的命中区域（HUD 内点击切换）
+        pinRowRect.setEmpty();
+        centerRowRect.setEmpty();
         for (String s : lines) {
             canvas.drawText(s, fpsBgRect.left + pad, ty, fpsTextPaint);
+            if (s.startsWith("☑") || s.startsWith("☐")) {
+                android.graphics.RectF row = s.contains("始终显示")
+                        ? pinRowRect : centerRowRect;
+                row.set(fpsBgRect.left, ty - lineH + 2f, fpsBgRect.right, ty + 2f);
+            }
             ty += lineH;
         }
         // 事件气泡（HUD 下方）
@@ -2793,13 +2815,27 @@ public class WorldMapView extends View {
     private boolean entitiesLogged = false;
 
     private void drawTapMarker(Canvas canvas) {
-        if (tapScreenX < 0 || tapScreenY < 0 || map == null) {
+        if (map == null) {
             return;
         }
-        // v0.4.138：十字锚定屏幕坐标（缩放/拖动不消失）；坐标标签
-        // 实时从屏幕位置换算世界坐标（读取层）——显示与读取分离
-        float sx = tapScreenX;
-        float sy = tapScreenY;
+        float sx;
+        float sy;
+        if (tapCenterEnabled) {
+            // v0.4.139：中心准星模式——固定屏幕中心（读取层实时
+            // 换算中心世界坐标）
+            sx = getWidth() / 2f;
+            sy = getHeight() / 2f;
+        } else if (tapPinEnabled && tapScreenX >= 0) {
+            // v0.4.138：锚定屏幕坐标（缩放/拖动不消失）
+            sx = tapScreenX;
+            sy = tapScreenY;
+        } else if (tapBlockX >= 0 && tapBlockZ >= 0) {
+            // 跟随世界坐标（指针不固定模式）
+            sx = worldToScreenX(tapBlockX + 0.5f);
+            sy = worldToScreenY(tapBlockZ + 0.5f);
+        } else {
+            return;
+        }
         int[] live = screenToBlock(sx, sy);
         Paint line = new Paint();
         line.setAntiAlias(true);
@@ -3137,6 +3173,17 @@ public class WorldMapView extends View {
                     entityClickListener.onEntityClick(near);
                     return true;
                 }
+            }
+            // v0.4.139：点击落在 HUD 勾选行上 → 切换指针模式
+            if (pinRowRect.contains(e.getX(), e.getY())) {
+                tapPinEnabled = !tapPinEnabled;
+                invalidate();
+                return true;
+            }
+            if (centerRowRect.contains(e.getX(), e.getY())) {
+                tapCenterEnabled = !tapCenterEnabled;
+                invalidate();
+                return true;
             }
             // 单击空地 → 显示该处坐标（十字标记 + 标签，HTML 原型行为）
             // v0.4.138：显示/读取分离——十字锚定屏幕坐标（缩放时

@@ -2009,7 +2009,7 @@ Invite code: P/%1$s
     <string name="lod_threshold_hint">Higher = smoother, lower = sharper</string>
     <string name="lod_apply">Apply</string>
     <string name="lod_adaptive">Adaptive LOD (FPS-based)</string>
-    <string name="precache_on_enter">Precache on map open (biome/entities/structures read ahead)</string>
+    <string name="precache_on_enter">Precache on map open</string>
     <string name="reading_biome_data">Reading biome data…</string>
     <string name="lod_max_zoom">Max zoom</string>
     <string name="lod_adaptive_hint">Low frame rate automatically lowers detail to keep zooming smooth (like AAA games); recovers when FPS is back</string>

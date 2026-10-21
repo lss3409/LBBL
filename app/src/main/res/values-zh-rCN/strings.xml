@@ -1846,7 +1846,7 @@
     <string name="lod_threshold_hint">阈值越高越流畅，越低越清晰</string>
     <string name="lod_apply">应用</string>
     <string name="lod_adaptive">帧率自适应 LOD</string>
-    <string name="precache_on_enter">进图预缓存（群系/实体/结构预读取）</string>
+    <string name="precache_on_enter">进图预缓存</string>
     <string name="reading_biome_data">正在读取群系数据…</string>
     <string name="lod_max_zoom">最大缩放倍率</string>
     <string name="lod_adaptive_hint">帧率低时自动降低清晰度保证缩放流畅（3A 游戏同款机制），帧率恢复后自动回到设定值</string>
