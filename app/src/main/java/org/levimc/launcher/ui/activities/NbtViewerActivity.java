@@ -1542,6 +1542,40 @@ public class NbtViewerActivity extends BaseActivity {
         loadMapForDimension(dim, false);
     }
 
+    // v0.4.113：地图视图记忆——按世界+维度记住缩放与位置，
+    // 退出保存、重进恢复（用户要求）。
+    private void saveMapViewMemory() {
+        if (currentWorldDir == null || mapDimension == null || currentMap == null) return;
+        WorldMapView wv = binding.worldMapImage;
+        String v = wv.getPixelsPerBlock() + ";" + wv.getOffsetX() + ";" + wv.getOffsetY();
+        getSharedPreferences("nbt_viewer", MODE_PRIVATE).edit()
+                .putString("map_mem_" + currentWorldDir.getName() + "_" + mapDimension, v)
+                .apply();
+    }
+
+    private void restoreMapViewMemory() {
+        if (currentWorldDir == null || mapDimension == null) return;
+        String v = getSharedPreferences("nbt_viewer", MODE_PRIVATE)
+                .getString("map_mem_" + currentWorldDir.getName() + "_" + mapDimension, null);
+        if (v == null) return;
+        try {
+            String[] parts = v.split(";");
+            if (parts.length >= 3) {
+                binding.worldMapImage.restoreView(
+                        Float.parseFloat(parts[0]),
+                        Float.parseFloat(parts[1]),
+                        Float.parseFloat(parts[2]));
+            }
+        } catch (NumberFormatException ignored) {
+        }
+    }
+
+    
+    protected void onPause() {
+        super.onPause();
+        saveMapViewMemory();
+    }
+
     /** keepView=true 时重载后保留当前视角（y 轴偏移等原地刷新场景）。 */
     private void loadMapForDimension(String dim, boolean keepView) {
         binding.nbtLoading.setVisibility(View.VISIBLE);
@@ -1630,6 +1664,8 @@ public class NbtViewerActivity extends BaseActivity {
                                 binding.worldMapImage.initialFitAll = false;
                                 currentMap = fQuick;
                                 binding.worldMapImage.setWorldMap(fQuick);
+                                // v0.4.113：RLE 秒开路径同样恢复视图记忆
+                                restoreMapViewMemory();
                             });
                         }
                     }
@@ -1961,6 +1997,11 @@ public class NbtViewerActivity extends BaseActivity {
                     binding.worldMapImage.initialFitAll =
                             "overworld".equals(mapDimension);
                     binding.worldMapImage.setWorldMap(fMap, fKeepView || skeletonShown);
+                    // v0.4.113：视图记忆恢复（keepView 刷新不恢复；
+                    // 覆盖 initialFitAll 的 fit/默认起步）
+                    if (!(fKeepView || skeletonShown)) {
+                        restoreMapViewMemory();
+                    }
                     // v0.4.52：后台拼全图纹理（HTML 同款渲染——拼完自动
                     // 切全图模式，拖动/缩放 GPU 化；未拼完前走原 chunk 路径）
                     composeFullMapAsync(fMap);
@@ -2808,6 +2849,11 @@ public class NbtViewerActivity extends BaseActivity {
             // v418：骨架已显示则保留视图（不跳不闪）
             binding.worldMapImage.initialFitAll = false;
             binding.worldMapImage.setWorldMap(worldMap, skeletonShown);
+            // v0.4.113：普通世界打开恢复视图记忆
+            // （骨架已显示则保持视角不跳）
+            if (!skeletonShown) {
+                restoreMapViewMemory();
+            }
             // v0.4.55：主世界首开/缓存加载完成后拼全图+史莱姆遮罩
             // （此前漏接——遮罩永远不生成，开史莱姆回退逐块绘制卡死）
             composeFullMapAsync(worldMap);

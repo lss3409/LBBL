@@ -774,7 +774,11 @@ public class WorldMapView extends View {
         // v416：大世界打开默认最大倍率（打开只渲染视口一两个区块，
         // 秒显示不黑屏）；v0.4.112：小世界（卫星图数组）打开 fit 全图
         // ——"小地图默认缩放比例太高"修复（此前小地图也走最大倍率起步）
-        if (map.colors != null) {
+        // v0.4.113：主世界大图也 fit 起步（用户"大地图默认最大倍率"
+        // 反馈；clod 渐进填充保证秒显）——下界/末地保持放大起步
+        // （v380 教训：fit 进 LOD 黑屏），由 initialFitAll 按维度区分；
+        // 有记忆时 restoreView 覆盖本方法
+        if (map.colors != null || initialFitAll) {
             setPpb(fit);
         } else {
             setPpb(maxPixelsPerBlock);
@@ -949,6 +953,27 @@ public class WorldMapView extends View {
     /** v0.4.110：最大缩放倍率（0=无限）。 */
     public void setMaxPixelsPerBlock(float maxPpb) {
         maxPixelsPerBlock = maxPpb <= 0 ? UNLIMITED_PPB : maxPpb;
+        invalidate();
+    }
+
+    /** v0.4.113：视图状态存取（记忆功能——退出记住缩放与位置）。 */
+    public float getPixelsPerBlock() {
+        return pixelsPerBlock;
+    }
+
+    public float getOffsetX() {
+        return offsetX;
+    }
+
+    public float getOffsetY() {
+        return offsetY;
+    }
+
+    public void restoreView(float ppb, float ox, float oy) {
+        setPpb(clampPixelsPerBlock(ppb));
+        offsetX = ox;
+        offsetY = oy;
+        clampTranslation();
         invalidate();
     }
 
@@ -1262,6 +1287,12 @@ public class WorldMapView extends View {
     private void drawOreMarkers(android.graphics.Canvas canvas) {
         if (!showOreLayer || map == null || map.oreMarkers == null
                 || map.oreMarkers.isEmpty()) {
+            return;
+        }
+        // v0.4.113：ppb<0.5 跳过——缩小到全图时 2 万矿石标点
+        // 密集超过屏幕分辨率（画了也是噪点糊屏），每帧 2 万个
+        // path+draw=主线程 150ms/帧（0.37 倍卡根因主犯）
+        if (pixelsPerBlock < 0.5f) {
             return;
         }
         float r = Math.max(3.5f, pixelsPerBlock * 0.9f);
@@ -2068,10 +2099,28 @@ public class WorldMapView extends View {
         float iconSize = Math.max(16f, pixelsPerBlock * 1.6f);
         Paint iconPaint = new Paint();
         iconPaint.setFilterBitmap(true);
+        // v0.4.113：缩小状态抽稀——视口内实体超 1200 时隔位绘制
+        // （ppb 0.5-1.5 区间视口覆盖大、几千实体每帧贴图=主线程
+        // 150ms/帧=0.9 倍卡根因之一）
+        int entStride = 1;
+        if (pixelsPerBlock < 1.5f) {
+            int inView = 0;
+            for (WorldMapRenderer.EntityPos e : entities) {
+                if (chunkRendered(Math.floorDiv((int) e.x, 16),
+                        Math.floorDiv((int) e.z, 16))) {
+                    inView++;
+                }
+            }
+            entStride = Math.max(1, inView / 1200);
+        }
+        int entCount = 0;
         for (WorldMapRenderer.EntityPos e : entities) {
             // 未渲染 chunk 上的实体不显示（视口按需渲染出来后才出现）
             if (!chunkRendered(Math.floorDiv((int) e.x, 16), Math.floorDiv((int) e.z, 16))) {
                 continue;
+            }
+            if ((entCount++ % entStride) != 0) {
+                continue; // v0.4.113：抽稀跳过
             }
             float sx = worldToScreenX(e.x + 0.5f);
             float sy = worldToScreenY(e.z + 0.5f);
