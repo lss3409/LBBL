@@ -410,9 +410,13 @@ public class FmDialogs {
         android.widget.LinearLayout root = new android.widget.LinearLayout(a);
         if (landscape) {
             root.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+            // v0.4.121：总高固定 62% 屏高——此前 MATCH_PARENT 弹窗
+            // 拉满屏高（"变得更长"）、图片按弹窗高度拉伸显示不全
+            int rowH = (int) (dm.heightPixels * 0.62f);
+            infoBox.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    0, rowH, 1f));
             root.addView(imageView, new android.widget.LinearLayout.LayoutParams(
-                    (int) (dm.widthPixels * 0.42f),
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+                    (int) (dm.widthPixels * 0.42f), rowH));
             root.addView(infoBox);
         } else {
             root.setOrientation(android.widget.LinearLayout.VERTICAL);

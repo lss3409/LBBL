@@ -454,11 +454,21 @@ public class NbtViewerActivity extends BaseActivity {
             }
         });
         binding.worldMapImage.setShowBiomeLayer(binding.layerBiome.isChecked());
-        binding.layerEntity.setOnCheckedChangeListener((b, checked) ->
-                binding.worldMapImage.setShowEntities(checked));
+        binding.layerEntity.setOnCheckedChangeListener((b, checked) -> {
+            binding.worldMapImage.setShowEntities(checked);
+            // v0.4.121：开图层才解析实体（此前无条件延迟解析）；
+            // 打开时若本维度还没解析过，立即后台解析补上
+            if (checked) {
+                maybeParseEntitiesStructures();
+            }
+        });
         binding.worldMapImage.setShowEntities(binding.layerEntity.isChecked());
-        binding.layerStructure.setOnCheckedChangeListener((b, checked) ->
-                binding.worldMapImage.setShowStructures(checked));
+        binding.layerStructure.setOnCheckedChangeListener((b, checked) -> {
+            binding.worldMapImage.setShowStructures(checked);
+            if (checked) {
+                maybeParseEntitiesStructures();
+            }
+        });
         binding.worldMapImage.setShowStructures(binding.layerStructure.isChecked());
         binding.layerSlime.setOnCheckedChangeListener((b, checked) ->
                 binding.worldMapImage.setShowSlimeChunks(checked));
@@ -1578,6 +1588,93 @@ public class NbtViewerActivity extends BaseActivity {
         }
     }
 
+    /** v0.4.121：实体/结构按需解析——只在图层开关打开时读 db
+     *  （此前无条件延迟解析，"不开实体显示也默认读"；用户怀疑
+     *  缩小卡顿与实体/结构信息太多有关）。按维度缓存命中直接用，
+     *  开关打开时补解析。 */
+    private void maybeParseEntitiesStructures() {
+        if (currentWorldDir == null || currentMap == null || renderPool == null) {
+            return;
+        }
+        final File dbDir = new File(currentWorldDir, "db");
+        final int dimId = "nether".equals(mapDimension) ? 1
+                : "end".equals(mapDimension) ? 2 : 0;
+        final WorldMapRenderer.WorldMap fMap = currentMap;
+        if (binding.layerEntity.isChecked()) {
+            synchronized (entityParseCache) {
+                java.util.List<WorldMapRenderer.EntityPos> cached =
+                        entityParseCache.get(dimId);
+                if (cached != null) {
+                    binding.worldMapImage.setEntityData(cached);
+                } else if (!entityParseCache.containsKey(dimId)) {
+                    entityParseCache.put(dimId, null); // 占位防重入
+                    renderPool.execute(() -> {
+                        java.util.List<WorldMapRenderer.EntityPos> ents =
+                                WorldMapRenderer.parseEntitiesStreaming(dbDir, dimId);
+                        synchronized (entityParseCache) {
+                            entityParseCache.put(dimId, ents);
+                        }
+                        runOnUiThread(() -> {
+                            if (!isFinishing() && !isDestroyed()
+                                    && currentMap == fMap) {
+                                binding.worldMapImage.setEntityData(ents);
+                            }
+                        });
+                    });
+                }
+            }
+        }
+        if (binding.layerStructure.isChecked()) {
+            synchronized (structureParseCache) {
+                java.util.List<WorldMapRenderer.StructureMarker> cached =
+                        structureParseCache.get(dimId);
+                if (cached != null) {
+                    synchronized (currentStructures) {
+                        currentStructures.clear();
+                        currentStructures.addAll(cached);
+                        if ("overworld".equals(mapDimension)) {
+                            synchronized (seedStructures) {
+                                currentStructures.addAll(seedStructures);
+                            }
+                        }
+                    }
+                    dedupeStructures();
+                    binding.worldMapImage.setStructureMarkers(
+                            new java.util.ArrayList<>(currentStructures));
+                } else if (!structureParseCache.containsKey(dimId)) {
+                    structureParseCache.put(dimId, null); // 占位防重入
+                    renderPool.execute(() -> {
+                        java.util.List<WorldMapRenderer.StructureMarker> strs =
+                                WorldMapRenderer.parseStructureMarkersStreaming(
+                                        dbDir, dimId);
+                        synchronized (structureParseCache) {
+                            structureParseCache.put(dimId, strs);
+                        }
+                        runOnUiThread(() -> {
+                            if (!isFinishing() && !isDestroyed()
+                                    && currentMap == fMap) {
+                                synchronized (currentStructures) {
+                                    currentStructures.clear();
+                                    currentStructures.addAll(strs);
+                                    if ("overworld".equals(mapDimension)) {
+                                        synchronized (seedStructures) {
+                                            currentStructures.addAll(seedStructures);
+                                        }
+                                    }
+                                }
+                                dedupeStructures();
+                                binding.worldMapImage.setStructureMarkers(
+                                        new java.util.ArrayList<>(currentStructures));
+                                renderLeftPointList(null);
+                                refreshDataPanelExtras(strs, null);
+                            }
+                        });
+                    });
+                }
+            }
+        }
+    }
+
     
     protected void onPause() {
         super.onPause();
@@ -1773,12 +1870,17 @@ public class NbtViewerActivity extends BaseActivity {
                     flushHandler.postDelayed(() -> {
                         renderPool.execute(() -> {
                             CpuScheduler.pinCurrentThreadToBigCores();
-                            ents[0] = WorldMapRenderer.parseEntitiesStreaming(dbDir, dimId);
+                            // v0.4.121：图层开关开才解析（同首开路径）
+                            if (binding.layerEntity.isChecked()) {
+                                ents[0] = WorldMapRenderer.parseEntitiesStreaming(dbDir, dimId);
+                            }
                             deliver.run();
                         });
                         renderPool.execute(() -> {
                             CpuScheduler.pinCurrentThreadToBigCores();
-                            strs[0] = WorldMapRenderer.parseStructureMarkersStreaming(dbDir, dimId);
+                            if (binding.layerStructure.isChecked()) {
+                                strs[0] = WorldMapRenderer.parseStructureMarkersStreaming(dbDir, dimId);
+                            }
                             deliver.run();
                         });
                     }, 6000);
@@ -1921,10 +2023,15 @@ public class NbtViewerActivity extends BaseActivity {
                                 }
                                 renderPool.execute(() -> {
                                     CpuScheduler.pinCurrentThreadToBigCores();
+                                    // v0.4.121：图层开关开才解析
                                     java.util.List<WorldMapRenderer.EntityPos> ents =
-                                            WorldMapRenderer.parseEntitiesStreaming(dbDir, fDimC);
+                                            binding.layerEntity.isChecked()
+                                                    ? WorldMapRenderer.parseEntitiesStreaming(dbDir, fDimC)
+                                                    : new java.util.ArrayList<>();
                                     java.util.List<WorldMapRenderer.StructureMarker> strs =
-                                            WorldMapRenderer.parseStructureMarkersStreaming(dbDir, fDimC);
+                                            binding.layerStructure.isChecked()
+                                                    ? WorldMapRenderer.parseStructureMarkersStreaming(dbDir, fDimC)
+                                                    : new java.util.ArrayList<>();
                                     synchronized (entityParseCache) {
                                         entityParseCache.put(fDimC, ents);
                                     }
@@ -2600,12 +2707,19 @@ public class NbtViewerActivity extends BaseActivity {
                     flushHandler.postDelayed(() -> {
                         renderPool.execute(() -> {
                             CpuScheduler.pinCurrentThreadToBigCores();
-                            ents[0] = WorldMapRenderer.parseEntitiesStreaming(dbDir, 0);
+                            // v0.4.121：图层开关开才解析（用户：不开实体
+                            // 显示也默认读 db；疑缩小卡顿与实体/结构
+                            // 信息太多有关）；开关开时 maybeParse 补解析
+                            if (binding.layerEntity.isChecked()) {
+                                ents[0] = WorldMapRenderer.parseEntitiesStreaming(dbDir, 0);
+                            }
                             deliver.run();
                         });
                         renderPool.execute(() -> {
                             CpuScheduler.pinCurrentThreadToBigCores();
-                            strs[0] = WorldMapRenderer.parseStructureMarkersStreaming(dbDir, 0);
+                            if (binding.layerStructure.isChecked()) {
+                                strs[0] = WorldMapRenderer.parseStructureMarkersStreaming(dbDir, 0);
+                            }
                             deliver.run();
                         });
                     }, 6000);
