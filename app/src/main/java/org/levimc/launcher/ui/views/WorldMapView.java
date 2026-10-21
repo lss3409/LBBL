@@ -1255,6 +1255,12 @@ public class WorldMapView extends View {
         while (span * 2 <= maxSpanF && span * 16f * ppb < 96f) {
             span *= 2;
         }
+        // v0.4.130：关自适应=保守档——固定 4 方块/像素（span 16，
+        // 块图 64px 覆盖 16×16 方块），清晰显示；开自适应动态
+        // span 可达 16 方块/像素（span 64，激进流畅）
+        if (!lodAdaptive && span > 16) {
+            span = 16;
+        }
         return span;
     }
     private float scaleFocusX;
@@ -1825,8 +1831,12 @@ public class WorldMapView extends View {
     private boolean biomeMaskLogged = false;
 
     private void drawBiomeMask(android.graphics.Canvas canvas) {
+        // v0.4.130：ppb≥1 不画遮罩——放大时 chunk tile 已直接显示
+        // 精细群系色（chunkBiomeColors），遮罩再叠=1px/chunk 色块
+        // 与方块级群系色两层冲突="斑点有深有浅漏底图"根因
         if (!showBiomeLayer || biomeMaskBitmap == null
-                || biomeMaskBitmap.isRecycled() || map == null) {
+                || biomeMaskBitmap.isRecycled() || map == null
+                || pixelsPerBlock >= 1f) {
             if (!biomeMaskLogged) {
                 biomeMaskLogged = true;
                 android.util.Log.i("WorldMap", "drawBiomeMask SKIP show="
