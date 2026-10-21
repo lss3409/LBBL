@@ -1009,6 +1009,10 @@ public class WorldMapView extends View {
     private int drawnStructures = 0;
     // v0.4.138：矿石抽稀步长记忆（手势动画中冻结防闪烁）
     private int lastOreStride = 1;
+    // v0.4.140：实体抽稀步长记忆（同款）
+    private int lastEntStride = 1;
+    // v0.4.140：实体抽稀步长记忆（同款）
+    private int lastEntStride = 1;
     // v0.4.133：读取状态（FPS HUD 附加行，读取完成置 null）
     private volatile String readStatus = null;
 
@@ -1502,16 +1506,8 @@ public class WorldMapView extends View {
                 // 计数每帧跳变=矿石点集合变化=闪烁根因；手势结束重算
                 oreStride = Math.max(1, lastOreStride);
             } else {
-                int oreInView = 0;
-                for (WorldMapRenderer.OreMarker m : map.oreMarkers) {
-                    float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
-                    float sy = offsetY + (m.blockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
-                    if (sx < -60 || sx > getWidth() + 60 || sy < -60 || sy > getHeight() + 60) {
-                        continue;
-                    }
-                    oreInView++;
-                }
-                oreStride = Math.max(1, oreInView / 1200);
+                // v0.4.140：总量近似（省 2 万次计数循环）
+                oreStride = Math.max(1, map.oreMarkers.size() / 1200);
                 lastOreStride = oreStride;
             }
         }
@@ -2391,16 +2387,16 @@ public class WorldMapView extends View {
         // v0.4.113：抽稀——视口内实体超 1200 时隔位绘制
         // v0.4.118：扩到全倍率（与矿石同款；点击检测走全量列表
         // 与绘制无关）
+        // v0.4.140：stride 用总量近似（省掉 2 万次计数循环——遍历
+        // 成本虽低但计数循环是纯浪费；手势中冻结已有 oreStride 同款）
         int entStride = 1;
         if (pixelsPerBlock < 16f && entities.size() > 1500) {
-            int inView = 0;
-            for (WorldMapRenderer.EntityPos e : entities) {
-                if (chunkRendered(Math.floorDiv((int) e.x, 16),
-                        Math.floorDiv((int) e.z, 16))) {
-                    inView++;
-                }
+            if (scaling || panning) {
+                entStride = Math.max(1, lastEntStride);
+            } else {
+                entStride = Math.max(1, entities.size() / 1200);
+                lastEntStride = entStride;
             }
-            entStride = Math.max(1, inView / 1200);
         }
         int entCount = 0;
         drawnEntities = 0;
@@ -2827,6 +2823,11 @@ public class WorldMapView extends View {
             sy = getHeight() / 2f;
         } else if (tapPinEnabled && tapScreenX >= 0) {
             // v0.4.138：锚定屏幕坐标（缩放/拖动不消失）
+            // v0.4.140：pin 关时手势中隐藏——用户澄清：取消勾选后
+            // 滑动/捏合时指针不显示，正常点击后显示
+            if (!tapPinEnabled && (scaling || panning)) {
+                return;
+            }
             sx = tapScreenX;
             sy = tapScreenY;
         } else if (tapBlockX >= 0 && tapBlockZ >= 0) {
