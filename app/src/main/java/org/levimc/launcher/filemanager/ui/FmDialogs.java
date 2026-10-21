@@ -384,15 +384,22 @@ public class FmDialogs {
     public static void showImagePreview(BaseActivity a, File file) {
         android.widget.ImageView imageView = new android.widget.ImageView(a);
         imageView.setAdjustViewBounds(true);
-        int imgMaxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.32f);
+        android.util.DisplayMetrics dm = a.getResources().getDisplayMetrics();
+        // v0.4.120：横屏两栏布局——图左（42% 宽）信息右（弹性），
+        // 窗口拉长一页显示减少上下翻动（用户要求，UI 参考 github
+        // 图片查看器）；竖屏保持上下堆叠
+        final boolean landscape = dm.widthPixels > dm.heightPixels;
+        int imgMaxH = (int) (dm.heightPixels * (landscape ? 0.6f : 0.32f));
         imageView.setMaxHeight(imgMaxH);
 
         // v0.4.106：信息直接显示——预览图 + 信息区合并同一弹窗
         // （无二级菜单）；信息后台解析完成后原地替换「分析中」占位
         android.widget.FrameLayout infoBox = new android.widget.FrameLayout(a);
-        int infoMaxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.38f);
+        int infoMaxH = (int) (dm.heightPixels * (landscape ? 0.62f : 0.38f));
         infoBox.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, infoMaxH));
+                landscape ? 0 : android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                landscape ? android.widget.LinearLayout.LayoutParams.MATCH_PARENT : infoMaxH,
+                landscape ? 1f : 0f));
         android.widget.TextView infoPlaceholder = new android.widget.TextView(a);
         infoPlaceholder.setText(a.getString(R.string.fm_img_info_loading));
         infoPlaceholder.setTextSize(12);
@@ -401,16 +408,26 @@ public class FmDialogs {
         infoPlaceholder.setGravity(android.view.Gravity.CENTER);
         infoBox.addView(infoPlaceholder);
         android.widget.LinearLayout root = new android.widget.LinearLayout(a);
-        root.setOrientation(android.widget.LinearLayout.VERTICAL);
-        root.addView(imageView);
-        root.addView(infoBox);
+        if (landscape) {
+            root.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+            root.addView(imageView, new android.widget.LinearLayout.LayoutParams(
+                    (int) (dm.widthPixels * 0.42f),
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT));
+            root.addView(infoBox);
+        } else {
+            root.setOrientation(android.widget.LinearLayout.VERTICAL);
+            root.addView(imageView);
+            root.addView(infoBox);
+        }
         ImageInfoPanel.analyzeAsync(a, file, infoView -> {
             if (infoView == null) {
                 return;
             }
             infoBox.removeAllViews();
             infoBox.addView(infoView, new android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT, infoMaxH));
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                    landscape ? android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+                            : infoMaxH));
         });
 
         // v0.4.104：OCR 用——预览解码完成后填入（识别按钮防重入）
@@ -474,15 +491,43 @@ public class FmDialogs {
             trackShowOver(empty);
             return;
         }
-        android.widget.TextView tv = new android.widget.TextView(a);
-        tv.setTextIsSelectable(true);
-        tv.setText(text);
-        tv.setTextSize(13);
-        tv.setTextColor(a.getResources().getColor(org.levimc.launcher.R.color.on_surface, a.getTheme()));
-        int pad = (int) (12 * a.getResources().getDisplayMetrics().density);
-        tv.setPadding(pad, pad, pad, pad);
+        // v0.4.120：按行渲染可点击条目——点一行复制该行
+        // （Windows 式"点击文字复制"；中文无空格分词，行粒度最
+        // 自然，长按仍可划选任意片段）
+        android.widget.LinearLayout list = new android.widget.LinearLayout(a);
+        list.setOrientation(android.widget.LinearLayout.VERTICAL);
+        String[] lines = text.split("\r?\n");
+        int pad = (int) (10 * a.getResources().getDisplayMetrics().density);
+        for (String line : lines) {
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            android.widget.TextView row = new android.widget.TextView(a);
+            row.setText(line);
+            row.setTextIsSelectable(true);
+            row.setTextSize(13);
+            row.setTextColor(a.getResources().getColor(
+                    org.levimc.launcher.R.color.on_surface, a.getTheme()));
+            row.setPadding(pad, pad, pad, pad);
+            row.setBackgroundResource(
+                    android.R.drawable.list_selector_background);
+            row.setOnClickListener(v -> {
+                android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                        a.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                if (cm != null) {
+                    cm.setPrimaryClip(android.content.ClipData.newPlainText(
+                            "ocr", line));
+                }
+                android.widget.Toast.makeText(a,
+                        a.getString(org.levimc.launcher.R.string.fm_ocr_copied),
+                        android.widget.Toast.LENGTH_SHORT).show();
+            });
+            list.addView(row, new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
         android.widget.ScrollView sv = new android.widget.ScrollView(a);
-        sv.addView(tv);
+        sv.addView(list);
         // ScrollView 无 setMaxHeight：外层固定高度容器限高（长文可滚动）
         int maxSvH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.5f);
         android.widget.FrameLayout fl = new android.widget.FrameLayout(a);
