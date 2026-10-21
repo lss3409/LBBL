@@ -1002,6 +1002,14 @@ public class WorldMapView extends View {
         readStatus = status;
         invalidate();
     }
+
+    // v0.4.135：烘焙进度状态（FPS HUD 附加行，与底部烘焙提示同步）
+    private volatile String bakeStatus = null;
+
+    public void setBakeStatus(String status) {
+        bakeStatus = status;
+        invalidate();
+    }
     private long lastFrameNanos = 0;
     private long fpsWindowStart = 0;
     private int fpsWindowFrames = 0;
@@ -1128,15 +1136,21 @@ public class WorldMapView extends View {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
-        // 多行内容：帧率 / 缩放（px·方块）/ 读取状态 / 中心群系
+        // 多行内容：帧率 / 缩放（px·方块）/ 手势+中心坐标 / 群系 /
+        // 读取状态 / 烘焙进度
         java.util.List<String> lines = new java.util.ArrayList<>();
         lines.add(String.format(java.util.Locale.US, "FPS %.0f  ·  缩放 %.3f px",
                 lastFpsShown, pixelsPerBlock));
         lines.add(String.format(java.util.Locale.US, "%.2f 方块/像素",
                 1f / Math.max(0.001f, pixelsPerBlock)));
-        // v0.4.133：读取状态行（"正在读取群系数据…"等，读取完成清空）
-        if (readStatus != null && !readStatus.isEmpty()) {
-            lines.add(readStatus);
+        // v0.4.135：玩家操作状态 + 屏幕中心世界坐标（实时）
+        String gestureName = scaling ? "捏合缩放" : panning ? "滑动" : "静止";
+        if (map != null && getWidth() > 0 && getHeight() > 0) {
+            double cx = (getWidth() / 2.0 - offsetX) / pixelsPerBlock + map.minBlockX;
+            double cz = (getHeight() / 2.0 - offsetY) / pixelsPerBlock + map.minBlockZ;
+            lines.add(gestureName + " · 中心 " + (long) cx + ", " + (long) cz);
+        } else {
+            lines.add(gestureName);
         }
         if (map != null && getWidth() > 0 && getHeight() > 0) {
             int biomeId = biomeIdAt(getWidth() / 2f, getHeight() / 2f);
@@ -1148,6 +1162,14 @@ public class WorldMapView extends View {
                             .displayName(en));
                 }
             }
+        }
+        // v0.4.133：读取状态行（"正在读取群系数据…"等，读取完成清空）
+        if (readStatus != null && !readStatus.isEmpty()) {
+            lines.add(readStatus);
+        }
+        // v0.4.135：烘焙进度行（与底部烘焙提示同步）
+        if (bakeStatus != null && !bakeStatus.isEmpty()) {
+            lines.add(bakeStatus);
         }
         fpsTextPaint.setTextSize(11 * density);
         float pad = 6 * density;

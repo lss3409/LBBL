@@ -695,6 +695,8 @@ public class NbtViewerActivity extends BaseActivity {
         bakeTotalCount = -1;
         if (!isFinishing() && !isDestroyed()) {
             binding.bakeProgress.setVisibility(View.GONE);
+            // v0.4.135：清 FPS HUD 烘焙行
+            binding.worldMapImage.setBakeStatus(null);
         }
     }
 
@@ -717,16 +719,22 @@ public class NbtViewerActivity extends BaseActivity {
             // v0.4.119：扫描中显示准备态
             binding.bakeProgress.setVisibility(View.VISIBLE);
             binding.bakeProgress.setText("烘焙准备中…");
+            // v0.4.135：同步到右上角 FPS HUD
+            binding.worldMapImage.setBakeStatus("烘焙准备中…");
             return;
         }
         if (total == 0) {
             // v0.4.119：无缺失区块——清掉准备态 HUD
             binding.bakeProgress.setVisibility(View.GONE);
+            binding.worldMapImage.setBakeStatus(null);
             return;
         }
         binding.bakeProgress.setVisibility(View.VISIBLE);
-        binding.bakeProgress.setText("烘焙中 " + done + "/" + total + " 区块"
-                + (done >= total ? " · 落盘中…" : ""));
+        String status = "烘焙中 " + done + "/" + total + " 区块"
+                + (done >= total ? " · 落盘中…" : "");
+        binding.bakeProgress.setText(status);
+        // v0.4.135：同步到右上角 FPS HUD（烘焙进行中实时刷新）
+        binding.worldMapImage.setBakeStatus(status);
         // 心跳：1.5 秒后检查烘焙线程存活（有 batch 时会重置）
         binding.bakeProgress.removeCallbacks(bakeHudCheck);
         binding.bakeProgress.postDelayed(bakeHudCheck, 1500);
