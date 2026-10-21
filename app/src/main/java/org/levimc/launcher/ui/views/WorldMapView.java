@@ -956,11 +956,8 @@ public class WorldMapView extends View {
         invalidate();
     }
 
-    /** v0.4.113：视图状态存取（记忆功能——退出记住缩放与位置）。 */
-    public float getPixelsPerBlock() {
-        return pixelsPerBlock;
-    }
-
+    /** v0.4.113：视图状态存取（记忆功能——退出记住缩放与位置）。
+     *  getPixelsPerBlock 已存在于下方，这里只补偏移 getter 与恢复。 */
     public float getOffsetX() {
         return offsetX;
     }
