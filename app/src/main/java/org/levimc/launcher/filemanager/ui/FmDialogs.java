@@ -71,6 +71,14 @@ public class FmDialogs {
         dialog.show();
     }
 
+    /** v0.4.107：叠加显示（不关上一个——OCR 结果盖在图片预览上，
+     *  关结果回预览，不再「卡退到上一级」）。防重入由调用方保证。 */
+    public static void trackShowOver(CustomAlertDialog dialog) {
+        lastDialog = dialog;
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
+    }
+
     /** 关闭当前文件管理器对话框（若无则不动）。 */
     public static void dismissLast() {
         if (lastDialog != null) {
@@ -416,6 +424,11 @@ public class FmDialogs {
                         return; // 还没解码完
                     }
                     v.setEnabled(false);
+                    if (v instanceof android.widget.TextView) {
+                        // v0.4.107：识别中提示（模型加载需数秒）
+                        ((android.widget.TextView) v).setText(
+                                a.getString(R.string.fm_ocr_recognizing));
+                    }
                     ImageOcrHelper.recognize(a, bmp, text -> showOcrResult(a, text));
                 })
                 .setNegativeButton(a.getString(R.string.close), v -> dismissLast())
@@ -450,7 +463,7 @@ public class FmDialogs {
                     .setTitleText(a.getString(R.string.fm_ocr_title))
                     .setMessage(a.getString(R.string.fm_ocr_failed))
                     .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
-            trackShow(failed);
+            trackShowOver(failed);
             return;
         }
         if (text.isEmpty()) {
@@ -458,7 +471,7 @@ public class FmDialogs {
                     .setTitleText(a.getString(R.string.fm_ocr_title))
                     .setMessage(a.getString(R.string.fm_ocr_empty))
                     .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
-            trackShow(empty);
+            trackShowOver(empty);
             return;
         }
         android.widget.TextView tv = new android.widget.TextView(a);
@@ -488,7 +501,7 @@ public class FmDialogs {
                             android.widget.Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
-        trackShow(result);
+        trackShowOver(result);
     }
 
     /** v0.4.75：低像素图整数倍最近邻预放大（长边到 ≤2048），

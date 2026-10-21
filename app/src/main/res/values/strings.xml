@@ -2027,6 +2027,7 @@ Invite code: P/%1$s
     <string name="fm_double_back_exit">Press back again to exit</string>
     <!-- v0.4.104：图片 OCR -->
     <string name="fm_ocr_button">Recognize text</string>
+    <string name="fm_ocr_recognizing">Recognizing…</string>
     <string name="fm_ocr_title">Text Recognition</string>
     <string name="fm_ocr_empty">No text found</string>
     <string name="fm_ocr_failed">Recognition failed</string>

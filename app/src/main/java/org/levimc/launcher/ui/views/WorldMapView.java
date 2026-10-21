@@ -932,27 +932,85 @@ public class WorldMapView extends View {
         }
     }
 
-    /** v0.4.106：右上角 FPS HUD（帧率 + 当前方块/像素比例）。 */
+    /** v0.4.107：右上角状态 HUD（galaxy 玻璃拟态风格）——多行：
+     *  帧率/缩放等级/方块px/屏幕中心群系；下移至顶栏下方不再被遮挡。
+     *  v0.4.107：hudToast 短暂气泡（导出成功等事件提示，2.5s 淡出）。 */
+    private String hudToastText;
+    private long hudToastUntil = 0;
+
+    /** 事件提示气泡（右上角 HUD 下方，短暂显示后淡出）。 */
+    public void showHudToast(String text) {
+        hudToastText = text;
+        hudToastUntil = System.currentTimeMillis() + 2500;
+        invalidate();
+    }
+
     private void drawFpsHud(android.graphics.Canvas canvas) {
         if (lastFpsShown < 0) {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
-        String text = String.format(java.util.Locale.US, "FPS %.0f · %.1f方块/px",
-                lastFpsShown, 1f / Math.max(0.001f, pixelsPerBlock));
+        // 多行内容：帧率 / 缩放（px·方块）/ 中心群系
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        lines.add(String.format(java.util.Locale.US, "FPS %.0f  ·  缩放 %.3f px",
+                lastFpsShown, pixelsPerBlock));
+        lines.add(String.format(java.util.Locale.US, "%.2f 方块/像素",
+                1f / Math.max(0.001f, pixelsPerBlock)));
+        if (map != null && getWidth() > 0 && getHeight() > 0) {
+            int biomeId = biomeIdAt(getWidth() / 2f, getHeight() / 2f);
+            if (biomeId > 0) {
+                String en = org.levimc.launcher.core.content.worldmap.WorldMapRenderer
+                        .biomeName(biomeId);
+                if (en != null) {
+                    lines.add("群系 " + org.levimc.launcher.core.content.worldmap.BiomeNames
+                            .displayName(en));
+                }
+            }
+        }
         fpsTextPaint.setTextSize(11 * density);
-        fpsTextPaint.setColor(0xFFCCCCCC);
-        fpsTextPaint.getTextBounds(text, 0, text.length(), fpsTextBounds);
         float pad = 6 * density;
-        fpsBgRect.set(getWidth() - fpsTextBounds.width() - pad * 2 - 8 * density,
-                8 * density,
-                getWidth() - 8 * density,
-                8 * density + fpsTextBounds.height() + pad * 2);
-        fpsBgPaint.setColor(0x99000000);
+        float lineH = 15 * density;
+        float bgW = 0;
+        for (String s : lines) {
+            fpsTextPaint.getTextBounds(s, 0, s.length(), fpsTextBounds);
+            bgW = Math.max(bgW, fpsTextBounds.width());
+        }
+        float bgH = lineH * lines.size() + pad * 2;
+        // v0.4.107：下移到顶栏下方（顶栏收起 ~48dp+边距，104dp 安全）
+        fpsBgRect.set(getWidth() - bgW - pad * 2 - 12 * density,
+                104 * density,
+                getWidth() - 12 * density,
+                104 * density + bgH);
+        fpsBgPaint.setColor(0x66000000);
         fpsBgPaint.setStyle(android.graphics.Paint.Style.FILL);
-        canvas.drawRoundRect(fpsBgRect, 8 * density, 8 * density, fpsBgPaint);
-        canvas.drawText(text, fpsBgRect.left + pad,
-                fpsBgRect.top + pad - fpsTextBounds.top, fpsTextPaint);
+        canvas.drawRoundRect(fpsBgRect, 10 * density, 10 * density, fpsBgPaint);
+        fpsTextPaint.setColor(0xFFCCCCCC);
+        float ty = fpsBgRect.top + pad + lineH * 0.6f;
+        for (String s : lines) {
+            canvas.drawText(s, fpsBgRect.left + pad, ty, fpsTextPaint);
+            ty += lineH;
+        }
+        // 事件气泡（HUD 下方）
+        if (hudToastText != null && System.currentTimeMillis() < hudToastUntil) {
+            fpsTextPaint.getTextBounds(hudToastText, 0, hudToastText.length(), fpsTextBounds);
+            float tw = fpsTextBounds.width() + pad * 2;
+            android.graphics.RectF toastRect = new android.graphics.RectF(
+                    getWidth() - tw - 12 * density,
+                    fpsBgRect.bottom + 6 * density,
+                    getWidth() - 12 * density,
+                    fpsBgRect.bottom + 6 * density + lineH + pad * 2);
+            // 淡出：最后 600ms 线性降透明度
+            long remain = hudToastUntil - System.currentTimeMillis();
+            int alpha = (int) Math.max(0, Math.min(255, remain * 255 / 600));
+            fpsBgPaint.setColor((alpha << 24) | 0x000000);
+            canvas.drawRoundRect(toastRect, 10 * density, 10 * density, fpsBgPaint);
+            fpsTextPaint.setColor(0xCCFFFFFF & (alpha << 24) | 0x00FFFFFF);
+            canvas.drawText(hudToastText, toastRect.left + pad,
+                    toastRect.top + pad + lineH * 0.6f, fpsTextPaint);
+            invalidate(); // 淡出动画帧
+        } else {
+            hudToastText = null;
+        }
     }
 
     // ---- v0.4.101：chunk LOD 动态梯度超级块——bs>1 世界缩小（ppb<3）
