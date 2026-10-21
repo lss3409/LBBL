@@ -394,8 +394,10 @@ public class WorldMapView extends View {
         }
         // 选级：level×scalePx ≥ 阈值的最大 2 的幂（level=1 即原图，
         // 缩到阈值以下就换 1/2、1/4…——HTML mip 同款区间）
+        // v0.4.111：阈值×帧率自适应系数——小地图全图路径也吃自适应
+        // （低帧率更早切级=糊换流畅，覆盖 chunk 路径之外的小地图）
         int level = 1;
-        while (scalePx * level < lodThreshold && level < lodMaxLevel) {
+        while (scalePx * level < lodThreshold * adaptEma && level < lodMaxLevel) {
             level *= 2;
         }
         Bitmap lodBmp = lodLevels[Integer.numberOfTrailingZeros(level)];
@@ -1481,7 +1483,12 @@ public class WorldMapView extends View {
 
     /** 缓存 key：span（2 的幂 4-64）+ 块坐标。 */
     private static long lodKey(int span, int bx, int bz) {
-        return ((long) span << 56) | packChunk(bx, bz);
+        // v0.4.111：修位碰撞——旧实现 (span<<56)|packChunk 的 span 位
+        // （56-62）被负 X 块坐标的符号扩展位（32-63 全 1）掩掉 →
+        // 负 X 区域（地图左半边）不同 span 块 key 相同 → 缩放换挡后
+        // 拿到旧 span 块图 =「左边残留一张别的比例的图片」根因。
+        // 修复：先掩掉 packChunk 的符号扩展位，再放 span
+        return ((long) span << 56) | (packChunk(bx, bz) & 0x00FFFFFFFFFFFFFFL);
     }
 
     /** v0.4.101：请求后台生成超级块（幂等；代次防跨图污染）。 */
