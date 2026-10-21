@@ -900,6 +900,11 @@ public class FileManagerActivity extends BaseActivity {
             exitConfirmShown = false;
         }
         if (ui.getError() != null && !ui.getError().isEmpty()) {
+            // v0.4.145：错误显示在编辑器内容区（此前仅 Toast——打开失败
+            // 显示空白，用户看不到原因）
+            applyingHighlight = true;
+            editorText.setText("⚠ " + ui.getError());
+            applyingHighlight = false;
             Toast.makeText(this, ui.getError(), Toast.LENGTH_SHORT).show();
         }
     }
@@ -980,7 +985,6 @@ public class FileManagerActivity extends BaseActivity {
         selectionBar.setVisibility(View.GONE);
         editorRoot.setVisibility(View.VISIBLE);
     }
-
     private void hideEditor() {
         if (editorRoot.getVisibility() != View.VISIBLE) return;
         editorRoot.setVisibility(View.GONE);

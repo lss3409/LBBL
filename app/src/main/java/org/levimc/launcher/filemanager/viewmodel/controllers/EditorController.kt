@@ -45,7 +45,8 @@ import java.nio.file.Path
 class EditorController(
     private val store: FmStateStore,
     private val browse: BrowseController,
-    private val coroutineScope: CoroutineScope
+    private val coroutineScope: CoroutineScope,
+    private val context: android.content.Context
 ) {
     /** 当前文件使用的编码，保存时按原编码写回 */
     private var charset: Charset = StandardCharsets.UTF_8
@@ -165,7 +166,10 @@ class EditorController(
         // v0.4.142：大文件（>2MB）只读前 2MB 字节；解码后超 512K 字符截断为只读预览——
         // EditText 主线程排版超大文本会卡数秒，截断到 512K 字符约 100-300ms
         val readLimit = if (size > PREVIEW_SIZE_BYTES) PREVIEW_READ_BYTES else size
-        val bytes = readUpTo(path, readLimit)
+        // v0.4.145：File API 读失败（共享目录 Permission denied 实测）回退
+        // MediaStore——列表经 MediaStore 可见但 File 读被拒的目录（Android 16
+        // 分区存储），JSON 首次打开空白根因
+        val bytes = readUpToWithFallback(path, readLimit)
         var text = decodePrefix(bytes)
         var previewOnly = false
         if (text.length > PREVIEW_CHARS) {
@@ -173,6 +177,64 @@ class EditorController(
             previewOnly = true
         }
         return LoadResult(text, previewOnly)
+    }
+
+    /** File API 读 + MediaStore 回退（v0.4.145）。 */
+    private fun readUpToWithFallback(path: Path, limit: Long): ByteArray {
+        try {
+            return readUpTo(path, limit)
+        } catch (e: java.nio.file.AccessDeniedException) {
+            FmLog.warn(TAG, "File API 读取被拒，回退 MediaStore: $path")
+        } catch (e: java.io.FileNotFoundException) {
+            FmLog.warn(TAG, "File API 文件不可见，回退 MediaStore: $path")
+        }
+        readViaMediaStore(path)?.let { return it }
+        return readUpTo(path, limit) // 回退失败抛出原异常
+    }
+
+    /** 经 MediaStore 读取（列表可见但 File API 读被拒的目录）。 */
+    private fun readViaMediaStore(path: Path): ByteArray? {
+        val emu = android.os.Environment.getExternalStorageDirectory().absolutePath
+        val full = path.toAbsolutePath().toString()
+        if (!full.startsWith(emu)) {
+            return null
+        }
+        val rel = full.substring(emu.length).trimStart('/')
+        val name = rel.substringAfterLast('/')
+        val dir = rel.substringBeforeLast('/', "")
+        val collection = android.provider.MediaStore.Files.getContentUri("external")
+        val proj = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+        // RELATIVE_PATH 尾斜杠双候选（MediaStore 存储值带尾斜杠——铁律）
+        val sels = if (dir.isEmpty()) arrayOf("") else arrayOf("$dir/", dir)
+        for (dirSel in sels) {
+            try {
+                val sel = "${android.provider.MediaStore.MediaColumns.RELATIVE_PATH}=? AND " +
+                        "${android.provider.MediaStore.MediaColumns.DISPLAY_NAME}=?"
+                context.contentResolver.query(collection, proj, sel,
+                        arrayOf(dirSel, name), null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        val id = c.getLong(0)
+                        val itemUri = android.content.ContentUris.withAppendedId(collection, id)
+                        context.contentResolver.openInputStream(itemUri)?.use { ins ->
+                            val out = java.io.ByteArrayOutputStream(
+                                    minOf(limit, 256L * 1024).toInt())
+                            val buf = ByteArray(64 * 1024)
+                            var remaining = limit
+                            while (remaining > 0) {
+                                val n = ins.read(buf, 0,
+                                        minOf(buf.size.toLong(), remaining).toInt())
+                                if (n <= 0) break
+                                out.write(buf, 0, n)
+                                remaining -= n
+                            }
+                            return out.toByteArray()
+                        }
+                    }
+                }
+            } catch (ignored: Exception) {
+            }
+        }
+        return null
     }
 
     /** 读取文件前 limit 字节（多读 4 字节给截断边界回退用）。 */

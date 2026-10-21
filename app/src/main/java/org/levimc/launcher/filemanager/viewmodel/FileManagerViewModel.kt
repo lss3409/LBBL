@@ -159,7 +159,7 @@ class FileManagerViewModel constructor(
         directoryScanCtr = DirectoryScanController(store, viewModelScope)
         entryCtr = EntryController(context, logic, store, browseCtr, viewModelScope)
         trashCtr = TrashController(logic, store, browseCtr, viewModelScope)
-        editorCtr = EditorController(store, browseCtr, viewModelScope)
+        editorCtr = EditorController(store, browseCtr, viewModelScope, context)
 
         store.history = NavHistory(logic.resolveInitialCurrent(currentPathStr?.let { Paths.get(it) }))
         store.updateState {
