@@ -1890,4 +1890,6 @@
     <string name="bake_preparing">烘焙准备中…</string>
     <string name="bake_progress">烘焙中 %1$d/%2$d 区块</string>
     <string name="bake_finalizing"> · 落盘中…</string>
+    <string name="rebake_map">重新烘焙地图</string>
+    <string name="rebake_map_done">烘焙缓存已清除</string>
 </resources>

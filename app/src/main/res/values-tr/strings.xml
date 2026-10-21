@@ -2014,4 +2014,6 @@ Davet kodu: P/%1$s
     <string name="bake_preparing">Pişirme hazırlanıyor…</string>
     <string name="bake_progress">Pişiriliyor %1$d/%2$d parça</string>
     <string name="bake_finalizing"> · Tamamlanıyor…</string>
+    <string name="rebake_map">Haritayı Yeniden Pişir</string>
+    <string name="rebake_map_done">Pişirme önbelleği temizlendi</string>
 </resources>

@@ -96,6 +96,7 @@ public class SettingsActivity extends BaseActivity {
 
         setupNavBar();
         setupUpdateCheck();
+        setupRebakeMap();
 
         personalizationManager = new PersonalizationManager(this);
 
@@ -176,6 +177,105 @@ public class SettingsActivity extends BaseActivity {
         if (tabScroll != null) {
             tabScroll.post(() -> tabScroll.scrollTo(0, 0));
         }
+    }
+
+    /** v0.4.148：重新烘焙地图——清除所有实例世界的烘焙缓存
+     *  （chunks/small/ore/map_cache *.bin），下次打开地图自动重新烘焙。
+     *  修复平板/手机「闪烁+绿色色块」缓存损坏（删数据重烘实测有效）。 */
+    private void setupRebakeMap() {
+        View btn = findViewById(R.id.rebake_map_button);
+        if (btn == null) {
+            return;
+        }
+        org.levimc.launcher.util.AccentStyler.stylePrimary(this, btn);
+        btn.setOnClickListener(v -> new Thread(() -> {
+            final int removed = clearBakeCaches();
+            runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed()) {
+                    Toast.makeText(this,
+                            getString(R.string.rebake_map_done, removed),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }, "rebake-map").start());
+    }
+
+    /** 遍历 <minecraftRoot>/<实例>/<internal|external>/games/com.mojang/
+     *  minecraftWorlds/<世界>/，删除烘焙缓存（白名单文件名，不碰世界数据）。 */
+    private int clearBakeCaches() {
+        int removed = 0;
+        File mcRoot = org.levimc.launcher.util.LauncherStorage.getMinecraftRoot(this);
+        File[] instances = mcRoot != null ? mcRoot.listFiles() : null;
+        if (instances == null) {
+            return 0;
+        }
+        for (File inst : instances) {
+            if (!inst.isDirectory()) {
+                continue;
+            }
+            for (String stor : new String[]{"internal", "external"}) {
+                File worlds = new File(inst,
+                        stor + "/games/com.mojang/minecraftWorlds");
+                removed += clearWorldBakeCaches(worlds);
+            }
+        }
+        return removed;
+    }
+
+    private static int clearWorldBakeCaches(File worldsDir) {
+        int removed = 0;
+        File[] worlds = worldsDir.listFiles();
+        if (worlds == null) {
+            return 0;
+        }
+        for (File world : worlds) {
+            if (!world.isDirectory()) {
+                continue;
+            }
+            String wn = world.getName();
+            File[] entries = world.listFiles();
+            if (entries == null) {
+                continue;
+            }
+            for (File f : entries) {
+                String n = f.getName();
+                if (f.isDirectory()) {
+                    // map_cache/ 树与维度目录（overworld/nether/end）内全部 .bin
+                    if (n.equals("map_cache") || n.equals("overworld")
+                            || n.equals("nether") || n.equals("end")) {
+                        removed += deleteBinsRecursive(f);
+                    }
+                } else if (n.endsWith(".bin")
+                        && (n.startsWith("map_cache_")
+                        || n.startsWith("map_small_")
+                        || n.startsWith("map_ore_")
+                        || n.startsWith(wn + "_map_")
+                        || n.startsWith("world_map_cache_"))) {
+                    if (f.delete()) {
+                        removed++;
+                    }
+                }
+            }
+        }
+        return removed;
+    }
+
+    private static int deleteBinsRecursive(File dir) {
+        int removed = 0;
+        File[] fs = dir.listFiles();
+        if (fs == null) {
+            return 0;
+        }
+        for (File f : fs) {
+            if (f.isDirectory()) {
+                removed += deleteBinsRecursive(f);
+            } else if (f.getName().endsWith(".bin")) {
+                if (f.delete()) {
+                    removed++;
+                }
+            }
+        }
+        return removed;
     }
 
     /** v711：检查更新卡片（关于 tab）——版本显示 + 手动检查按钮。 */

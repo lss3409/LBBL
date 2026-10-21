@@ -1988,4 +1988,6 @@ Code d\'invitation : P/%1$s
     <string name="bake_preparing">Préparation de la cuisson…</string>
     <string name="bake_progress">Cuisson %1$d/%2$d chunks</string>
     <string name="bake_finalizing"> · Finalisation…</string>
+    <string name="rebake_map">Re-rendu de la carte</string>
+    <string name="rebake_map_done">Cache de rendu effacée</string>
 </resources>

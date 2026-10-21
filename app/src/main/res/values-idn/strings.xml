@@ -2011,4 +2011,6 @@ Kode undangan: P/%1$s
     <string name="bake_preparing">Menyiapkan panggang…</string>
     <string name="bake_progress">Memanggang %1$d/%2$d chunk</string>
     <string name="bake_finalizing"> · Menyelesaikan…</string>
+    <string name="rebake_map">Panggang Ulang Peta</string>
+    <string name="rebake_map_done">Cache panggang dibersihkan</string>
 </resources>

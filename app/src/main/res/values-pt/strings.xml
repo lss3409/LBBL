@@ -1988,4 +1988,6 @@ Código de convite: P/%1$s
     <string name="bake_preparing">Preparando cozimento…</string>
     <string name="bake_progress">Cozinhando %1$d/%2$d chunks</string>
     <string name="bake_finalizing"> · Finalizando…</string>
+    <string name="rebake_map">Re-renderizar mapa</string>
+    <string name="rebake_map_done">Cache de renderização limpo</string>
 </resources>

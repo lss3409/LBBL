@@ -2015,4 +2015,6 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="bake_preparing">बेक तैयार हो रहा है…</string>
     <string name="bake_progress">बेक हो रहा है %1$d/%2$d चंक</string>
     <string name="bake_finalizing"> · अंतिम रूप…</string>
+    <string name="rebake_map">मानचित्र फिर से बेक करें</string>
+    <string name="rebake_map_done">बेक कैश साफ़ हो गया</string>
 </resources>

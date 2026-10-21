@@ -1988,4 +1988,6 @@ Código de invitación: P/%1$s
     <string name="bake_preparing">Preparando horneado…</string>
     <string name="bake_progress">Horneando %1$d/%2$d chunks</string>
     <string name="bake_finalizing"> · Finalizando…</string>
+    <string name="rebake_map">Volver a renderizar el mapa</string>
+    <string name="rebake_map_done">Caché de renderizado borrada</string>
 </resources>

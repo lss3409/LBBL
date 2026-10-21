@@ -2018,4 +2018,6 @@
     <string name="bake_preparing">Подготовка запекания…</string>
     <string name="bake_progress">Запекание %1$d/%2$d чанков</string>
     <string name="bake_finalizing"> · Завершение…</string>
+    <string name="rebake_map">Перезапечь карту</string>
+    <string name="rebake_map_done">Кэш запекания очищен</string>
 </resources>

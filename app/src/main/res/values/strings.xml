@@ -2050,4 +2050,6 @@ Invite code: P/%1$s
     <string name="bake_preparing">Preparing bake…</string>
     <string name="bake_progress">Baking %1$d/%2$d chunks</string>
     <string name="bake_finalizing"> · Finalizing…</string>
+    <string name="rebake_map">Rebake Map</string>
+    <string name="rebake_map_done">Bake cache cleared</string>
 </resources>

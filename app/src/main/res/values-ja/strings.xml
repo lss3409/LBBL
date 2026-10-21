@@ -1985,4 +1985,6 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="bake_preparing">ベイク準備中…</string>
     <string name="bake_progress">ベイク中 %1$d/%2$d チャンク</string>
     <string name="bake_finalizing"> · 書き込み中…</string>
+    <string name="rebake_map">マップを再ベイク</string>
+    <string name="rebake_map_done">ベイクキャッシュを消去しました</string>
 </resources>
