@@ -1011,8 +1011,6 @@ public class WorldMapView extends View {
     private int lastOreStride = 1;
     // v0.4.140：实体抽稀步长记忆（同款）
     private int lastEntStride = 1;
-    // v0.4.140：实体抽稀步长记忆（同款）
-    private int lastEntStride = 1;
     // v0.4.133：读取状态（FPS HUD 附加行，读取完成置 null）
     private volatile String readStatus = null;
 
