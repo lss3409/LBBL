@@ -1267,17 +1267,20 @@ public class WorldMapView extends View {
     //      显示尺寸恒定 ~1-3px（阈值参数控制），块屏 ~100px 视口 ~950
     //      块——三级跳变已废弃（0.5 倍用 lod16=16 方块/px 放大 8 倍
     //      双线性="糊成狗屎"根因）。key=(span<<56)|packChunk。 ----
+    /** v0.4.152：LOD 块缓存容量动态=视口块数×2（512-3072 夹取）。
+     *  固定 cap（512/2048）在平板 0.78 倍率视口 ~1000 块时不够——
+     *  视口边缘块（离屏幕中心远、生成慢的「上方」区域）永远处于
+     *  淘汰→重新请求→生成→再淘汰 循环=持续闪烁。每帧按视口块数
+     *  更新，cap 恒 ≥2×视口 → 视口内块永不因容量被淘汰。 */
+    private volatile int lodCacheCap = 512;
     private final java.util.LinkedHashMap<Long, Bitmap> chunkLodCache =
             new java.util.LinkedHashMap<Long, Bitmap>(64, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(java.util.Map.Entry<Long, Bitmap> eldest) {
                     // v0.4.102：span=16 全图预生成 ≈1400 块（64²×4=16KB/块
                     // → 2048 块=32MB），太小会被预生成自己挤爆
-                    // v0.4.143：低内存设备（手机 536MB heap）上限 512
-                    // （32MB→8MB，手机 OOM tombstone 防护）
-                    int cap = Runtime.getRuntime().maxMemory() < 768L * 1024 * 1024
-                            ? 512 : 2048;
-                    if (size() > cap) {
+                    // v0.4.152：容量动态跟随视口（见 lodCacheCap 注释）
+                    if (size() > lodCacheCap) {
                         eldest.getValue().recycle();
                         return true;
                     }
@@ -1706,6 +1709,9 @@ public class WorldMapView extends View {
                 Math.floorDiv(Math.floorDiv((int) Math.ceil(rightWorld), 16), span));
         int lastBz = Math.min(maxBz,
                 Math.floorDiv(Math.floorDiv((int) Math.ceil(bottomWorld), 16), span));
+        // v0.4.152：容量动态跟随视口块数（闪烁根除，见 lodCacheCap 注释）
+        int viewBlocks = (lastBx - firstBx + 1) * (lastBz - firstBz + 1);
+        lodCacheCap = Math.max(512, Math.min(3072, viewBlocks * 2));
         drawChunkLodRange(canvas, span, firstBx, firstBz, lastBx, lastBz, true);
     }
 
