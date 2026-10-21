@@ -2005,4 +2005,17 @@
     <string name="reading_biome_data">Чтение данных биомов…</string>
     <string name="fm_double_back_exit">Нажмите «назад» ещё раз для выхода</string>
     <string name="fm_ui_subfolders">Подпапки</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  Масштаб %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f блоков/px</string>
+    <string name="hud_gesture_scale">Щипок</string>
+    <string name="hud_gesture_pan">Сдвиг</string>
+    <string name="hud_gesture_idle">Покой</string>
+    <string name="hud_center"> · Центр </string>
+    <string name="hud_pointer_biome">Биом указателя %1$s</string>
+    <string name="hud_pin_always">Указатель всегда виден</string>
+    <string name="hud_pin_center">Указатель закреплён в центре</string>
+    <string name="hud_marker_count">Маркеры Э%1$d Р%2$d С%3$d</string>
+    <string name="bake_preparing">Подготовка запекания…</string>
+    <string name="bake_progress">Запекание %1$d/%2$d чанков</string>
+    <string name="bake_finalizing"> · Завершение…</string>
 </resources>

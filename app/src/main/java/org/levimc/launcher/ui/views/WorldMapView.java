@@ -1152,19 +1152,23 @@ public class WorldMapView extends View {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
+        android.content.Context ctx = getContext();
         // 多行内容：帧率 / 缩放（px·方块）/ 手势+中心坐标 / 群系 /
-        // 读取状态 / 烘焙进度
+        // 读取状态 / 烘焙进度（v0.4.144：全部走字符串资源 11 语言）
         java.util.List<String> lines = new java.util.ArrayList<>();
-        lines.add(String.format(java.util.Locale.US, "FPS %.0f  ·  缩放 %.3f px",
-                lastFpsShown, pixelsPerBlock));
-        lines.add(String.format(java.util.Locale.US, "%.2f 方块/像素",
+        lines.add(String.format(java.util.Locale.US,
+                ctx.getString(R.string.hud_fps_zoom), lastFpsShown, pixelsPerBlock));
+        lines.add(String.format(java.util.Locale.US,
+                ctx.getString(R.string.hud_blocks_per_pixel),
                 1f / Math.max(0.001f, pixelsPerBlock)));
         // v0.4.135：玩家操作状态 + 屏幕中心世界坐标（实时）
-        String gestureName = scaling ? "捏合缩放" : panning ? "滑动" : "静止";
+        String gestureName = ctx.getString(scaling ? R.string.hud_gesture_scale
+                : panning ? R.string.hud_gesture_pan : R.string.hud_gesture_idle);
         if (map != null && getWidth() > 0 && getHeight() > 0) {
             double cx = (getWidth() / 2.0 - offsetX) / pixelsPerBlock + map.minBlockX;
             double cz = (getHeight() / 2.0 - offsetY) / pixelsPerBlock + map.minBlockZ;
-            lines.add(gestureName + " · 中心 " + (long) cx + ", " + (long) cz);
+            lines.add(gestureName + ctx.getString(R.string.hud_center)
+                    + (long) cx + ", " + (long) cz);
         } else {
             lines.add(gestureName);
         }
@@ -1180,18 +1184,21 @@ public class WorldMapView extends View {
                 String en = org.levimc.launcher.core.content.worldmap.WorldMapRenderer
                         .biomeName(biomeId);
                 if (en != null) {
-                    lines.add("指针群系 " + org.levimc.launcher.core.content.worldmap.BiomeNames
-                            .displayName(en));
+                    lines.add(ctx.getString(R.string.hud_pointer_biome,
+                            org.levimc.launcher.core.content.worldmap.BiomeNames
+                                    .displayName(en)));
                 }
             }
         }
         // v0.4.139：指针显示模式勾选（HUD 内点击切换）
-        lines.add((tapPinEnabled ? "☑" : "☐") + " 指针始终显示");
-        lines.add((tapCenterEnabled ? "☑" : "☐") + " 指针固定中心");
+        lines.add((tapPinEnabled ? "☑" : "☐") + " "
+                + ctx.getString(R.string.hud_pin_always));
+        lines.add((tapCenterEnabled ? "☑" : "☐") + " "
+                + ctx.getString(R.string.hud_pin_center));
         // v0.4.137：本帧实际绘制标点数（抽稀后的真实数量，直观看到
         // 哪个图层在吃性能）
-        lines.add("标点 实体" + drawnEntities + " 矿石" + drawnOres
-                + " 结构" + drawnStructures);
+        lines.add(ctx.getString(R.string.hud_marker_count,
+                drawnEntities, drawnOres, drawnStructures));
         // v0.4.133：读取状态行（"正在读取群系数据…"等，读取完成清空）
         if (readStatus != null && !readStatus.isEmpty()) {
             lines.add(readStatus);
@@ -1221,14 +1228,17 @@ public class WorldMapView extends View {
         fpsTextPaint.setColor(0xFFCCCCCC);
         float ty = fpsBgRect.top + pad + lineH * 0.6f;
         // v0.4.139：记录勾选开关行的命中区域（HUD 内点击切换）
+        // v0.4.144：按勾选行序计数（此前 contains("始终显示") 硬编码
+        // 中文，多语言后失效）
         pinRowRect.setEmpty();
         centerRowRect.setEmpty();
+        int checkRow = 0;
         for (String s : lines) {
             canvas.drawText(s, fpsBgRect.left + pad, ty, fpsTextPaint);
             if (s.startsWith("☑") || s.startsWith("☐")) {
-                android.graphics.RectF row = s.contains("始终显示")
-                        ? pinRowRect : centerRowRect;
+                android.graphics.RectF row = checkRow == 0 ? pinRowRect : centerRowRect;
                 row.set(fpsBgRect.left, ty - lineH + 2f, fpsBgRect.right, ty + 2f);
+                checkRow++;
             }
             ty += lineH;
         }
@@ -2823,17 +2833,25 @@ public class WorldMapView extends View {
             // 换算中心世界坐标）
             sx = getWidth() / 2f;
             sy = getHeight() / 2f;
-        } else if (tapPinEnabled && tapScreenX >= 0) {
-            // v0.4.138：锚定屏幕坐标（缩放/拖动不消失）
-            // v0.4.140：pin 关时手势中隐藏——用户澄清：取消勾选后
-            // 滑动/捏合时指针不显示，正常点击后显示
-            if (!tapPinEnabled && (scaling || panning)) {
-                return;
+        } else if (tapPinEnabled) {
+            // v0.4.144：指针始终显示——锚定屏幕坐标（缩放/拖动/
+            // 捏合中都不消失）；从未点击过地图时锚定屏幕中心
+            // （勾选即立即可见，此前 tapScreenX<0 不显示="点击才
+            // 显示"根因）
+            if (tapScreenX >= 0) {
+                sx = tapScreenX;
+                sy = tapScreenY;
+            } else {
+                sx = getWidth() / 2f;
+                sy = getHeight() / 2f;
             }
-            sx = tapScreenX;
-            sy = tapScreenY;
         } else if (tapBlockX >= 0 && tapBlockZ >= 0) {
             // 跟随世界坐标（指针不固定模式）
+            // v0.4.140 用户澄清：取消勾选后滑动/捏合中不显示，
+            // 正常点击后显示（此前该守卫误放 pin 分支=死代码）
+            if (scaling || panning) {
+                return;
+            }
             sx = worldToScreenX(tapBlockX + 0.5f);
             sy = worldToScreenY(tapBlockZ + 0.5f);
         } else {
@@ -3130,10 +3148,9 @@ public class WorldMapView extends View {
         @Override
         public void onLongPress(@NonNull MotionEvent e) {
             // 长按 → 地图坐标回调（添加标点）
-            tapBlockX = -1;
-            tapBlockZ = -1;
-            tapScreenX = -1f;
-            tapScreenY = -1f;
+            // v0.4.144：不再清空指针——捏合/慢速滑动时 GestureDetector
+            // 可能误触发 onLongPress，此前清空导致「指针始终显示勾选后
+            // 手势中指针消失」（用户实测）
             if (listener != null && map != null) {
                 int[] b = screenToBlock(e.getX(), e.getY());
                 listener.onLongPress(b[0], b[1]);

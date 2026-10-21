@@ -1975,4 +1975,17 @@ Código de convite: P/%1$s
     <string name="reading_biome_data">Lendo dados de biomas…</string>
     <string name="fm_double_back_exit">Pressione voltar novamente para sair</string>
     <string name="fm_ui_subfolders">Subpastas</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  Zoom %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f blocos/px</string>
+    <string name="hud_gesture_scale">Pinça</string>
+    <string name="hud_gesture_pan">Arrastar</string>
+    <string name="hud_gesture_idle">Parado</string>
+    <string name="hud_center"> · Centro </string>
+    <string name="hud_pointer_biome">Bioma do ponteiro %1$s</string>
+    <string name="hud_pin_always">Ponteiro sempre visível</string>
+    <string name="hud_pin_center">Ponteiro fixo ao centro</string>
+    <string name="hud_marker_count">Marcadores E%1$d O%2$d S%3$d</string>
+    <string name="bake_preparing">Preparando cozimento…</string>
+    <string name="bake_progress">Cozinhando %1$d/%2$d chunks</string>
+    <string name="bake_finalizing"> · Finalizando…</string>
 </resources>

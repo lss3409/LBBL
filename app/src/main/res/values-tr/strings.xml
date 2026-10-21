@@ -2001,4 +2001,17 @@ Davet kodu: P/%1$s
     <string name="reading_biome_data">Biyom verileri okunuyor…</string>
     <string name="fm_double_back_exit">Çıkmak için tekrar geri basın</string>
     <string name="fm_ui_subfolders">Alt klasörler</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  Yakınlaştırma %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f blok/px</string>
+    <string name="hud_gesture_scale">Kıstırma</string>
+    <string name="hud_gesture_pan">Kaydırma</string>
+    <string name="hud_gesture_idle">Durağan</string>
+    <string name="hud_center"> · Merkez </string>
+    <string name="hud_pointer_biome">İşaretçi biyomu %1$s</string>
+    <string name="hud_pin_always">İşaretçi her zaman görünür</string>
+    <string name="hud_pin_center">İşaretçi merkeze sabit</string>
+    <string name="hud_marker_count">İşaretler V%1$d C%2$d Y%3$d</string>
+    <string name="bake_preparing">Pişirme hazırlanıyor…</string>
+    <string name="bake_progress">Pişiriliyor %1$d/%2$d parça</string>
+    <string name="bake_finalizing"> · Tamamlanıyor…</string>
 </resources>

@@ -2037,4 +2037,17 @@ Invite code: P/%1$s
     <!-- v0.4.105：图片信息面板 -->
     <!-- v0.4.89：跳转弹窗子文件夹标题 -->
     <string name="fm_ui_subfolders">Subfolders</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  Zoom %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f blocks/px</string>
+    <string name="hud_gesture_scale">Pinch zoom</string>
+    <string name="hud_gesture_pan">Panning</string>
+    <string name="hud_gesture_idle">Idle</string>
+    <string name="hud_center"> · Center </string>
+    <string name="hud_pointer_biome">Pointer biome %1$s</string>
+    <string name="hud_pin_always">Pointer always on</string>
+    <string name="hud_pin_center">Pointer fixed to center</string>
+    <string name="hud_marker_count">Markers E%1$d O%2$d S%3$d</string>
+    <string name="bake_preparing">Preparing bake…</string>
+    <string name="bake_progress">Baking %1$d/%2$d chunks</string>
+    <string name="bake_finalizing"> · Finalizing…</string>
 </resources>

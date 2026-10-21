@@ -1972,4 +1972,17 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="reading_biome_data">バイオームデータを読み込み中…</string>
     <string name="fm_double_back_exit">もう一度戻るを押すと終了します</string>
     <string name="fm_ui_subfolders">サブフォルダー</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  ズーム %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f ブロック/px</string>
+    <string name="hud_gesture_scale">ピンチズーム</string>
+    <string name="hud_gesture_pan">スライド</string>
+    <string name="hud_gesture_idle">静止</string>
+    <string name="hud_center"> · 中心 </string>
+    <string name="hud_pointer_biome">ポインターのバイオーム %1$s</string>
+    <string name="hud_pin_always">ポインターを常に表示</string>
+    <string name="hud_pin_center">ポインターを中心に固定</string>
+    <string name="hud_marker_count">マーカー 実体%1$d 鉱石%2$d 構造%3$d</string>
+    <string name="bake_preparing">ベイク準備中…</string>
+    <string name="bake_progress">ベイク中 %1$d/%2$d チャンク</string>
+    <string name="bake_finalizing"> · 書き込み中…</string>
 </resources>

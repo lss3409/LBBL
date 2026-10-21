@@ -2004,4 +2004,17 @@ Mã mời: P/%1$s
     <string name="reading_biome_data">Đang đọc dữ liệu quần xã…</string>
     <string name="fm_double_back_exit">Nhấn quay lại lần nữa để thoát</string>
     <string name="fm_ui_subfolders">Thư mục con</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  Thu phóng %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f khối/px</string>
+    <string name="hud_gesture_scale">Chụm thu phóng</string>
+    <string name="hud_gesture_pan">Trượt</string>
+    <string name="hud_gesture_idle">Đứng yên</string>
+    <string name="hud_center"> · Tâm </string>
+    <string name="hud_pointer_biome">Quần xã tại con trỏ %1$s</string>
+    <string name="hud_pin_always">Con trỏ luôn hiển thị</string>
+    <string name="hud_pin_center">Con trỏ cố định tâm</string>
+    <string name="hud_marker_count">Đánh dấu E%1$d O%2$d S%3$d</string>
+    <string name="bake_preparing">Chuẩn bị nướng…</string>
+    <string name="bake_progress">Đang nướng %1$d/%2$d chunk</string>
+    <string name="bake_finalizing"> · Hoàn tất…</string>
 </resources>

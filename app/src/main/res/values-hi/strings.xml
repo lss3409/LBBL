@@ -2002,4 +2002,17 @@ LBBL खोलें → ऑनलाइन → जुड़ें, फिर �
     <string name="reading_biome_data">बायोम डेटा पढ़ा जा रहा है…</string>
     <string name="fm_double_back_exit">बाहर निकलने के लिए फिर से वापस दबाएँ</string>
     <string name="fm_ui_subfolders">सबफ़ोल्डर</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  ज़ूम %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f ब्लॉक/px</string>
+    <string name="hud_gesture_scale">पिंच ज़ूम</string>
+    <string name="hud_gesture_pan">पैन</string>
+    <string name="hud_gesture_idle">स्थिर</string>
+    <string name="hud_center"> · केंद्र </string>
+    <string name="hud_pointer_biome">पॉइंटर बायोम %1$s</string>
+    <string name="hud_pin_always">पॉइंटर हमेशा दिखाएँ</string>
+    <string name="hud_pin_center">पॉइंटर केंद्र पर स्थिर</string>
+    <string name="hud_marker_count">मार्कर E%1$d O%2$d S%3$d</string>
+    <string name="bake_preparing">बेक तैयार हो रहा है…</string>
+    <string name="bake_progress">बेक हो रहा है %1$d/%2$d चंक</string>
+    <string name="bake_finalizing"> · अंतिम रूप…</string>
 </resources>

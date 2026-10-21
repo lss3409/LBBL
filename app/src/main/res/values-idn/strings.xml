@@ -1998,4 +1998,17 @@ Kode undangan: P/%1$s
     <string name="reading_biome_data">Membaca data bioma…</string>
     <string name="fm_double_back_exit">Tekan kembali lagi untuk keluar</string>
     <string name="fm_ui_subfolders">Subfolder</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  Zoom %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f blok/px</string>
+    <string name="hud_gesture_scale">Cubit zoom</string>
+    <string name="hud_gesture_pan">Geser</string>
+    <string name="hud_gesture_idle">Diam</string>
+    <string name="hud_center"> · Pusat </string>
+    <string name="hud_pointer_biome">Bioma penunjuk %1$s</string>
+    <string name="hud_pin_always">Penunjuk selalu tampil</string>
+    <string name="hud_pin_center">Penunjuk tetap di tengah</string>
+    <string name="hud_marker_count">Penanda E%1$d O%2$d S%3$d</string>
+    <string name="bake_preparing">Menyiapkan panggang…</string>
+    <string name="bake_progress">Memanggang %1$d/%2$d chunk</string>
+    <string name="bake_finalizing"> · Menyelesaikan…</string>
 </resources>

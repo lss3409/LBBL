@@ -722,9 +722,9 @@ public class NbtViewerActivity extends BaseActivity {
         if (total < 0) {
             // v0.4.119：扫描中显示准备态
             binding.bakeProgress.setVisibility(View.VISIBLE);
-            binding.bakeProgress.setText("烘焙准备中…");
+            binding.bakeProgress.setText(R.string.bake_preparing);
             // v0.4.135：同步到右上角 FPS HUD
-            binding.worldMapImage.setBakeStatus("烘焙准备中…");
+            binding.worldMapImage.setBakeStatus(getString(R.string.bake_preparing));
             return;
         }
         if (total == 0) {
@@ -734,8 +734,9 @@ public class NbtViewerActivity extends BaseActivity {
             return;
         }
         binding.bakeProgress.setVisibility(View.VISIBLE);
-        String status = "烘焙中 " + done + "/" + total + " 区块"
-                + (done >= total ? " · 落盘中…" : "");
+        // v0.4.144：烘焙状态走字符串资源（11 语言）
+        String status = getString(R.string.bake_progress, done, total)
+                + (done >= total ? getString(R.string.bake_finalizing) : "");
         binding.bakeProgress.setText(status);
         // v0.4.135：同步到右上角 FPS HUD（烘焙进行中实时刷新）
         binding.worldMapImage.setBakeStatus(status);

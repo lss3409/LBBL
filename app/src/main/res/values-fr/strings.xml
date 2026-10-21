@@ -1975,4 +1975,17 @@ Code d\'invitation : P/%1$s
     <string name="reading_biome_data">Lecture des données de biomes…</string>
     <string name="fm_double_back_exit">Appuyez à nouveau sur retour pour quitter</string>
     <string name="fm_ui_subfolders">Sous-dossiers</string>
+    <string name="hud_fps_zoom">FPS %1$.0f  ·  Zoom %2$.3f px</string>
+    <string name="hud_blocks_per_pixel">%1$.2f blocs/px</string>
+    <string name="hud_gesture_scale">Pincer</string>
+    <string name="hud_gesture_pan">Glisser</string>
+    <string name="hud_gesture_idle">Repos</string>
+    <string name="hud_center"> · Centre </string>
+    <string name="hud_pointer_biome">Biome du pointeur %1$s</string>
+    <string name="hud_pin_always">Pointeur toujours visible</string>
+    <string name="hud_pin_center">Pointeur fixé au centre</string>
+    <string name="hud_marker_count">Marqueurs E%1$d O%2$d S%3$d</string>
+    <string name="bake_preparing">Préparation de la cuisson…</string>
+    <string name="bake_progress">Cuisson %1$d/%2$d chunks</string>
+    <string name="bake_finalizing"> · Finalisation…</string>
 </resources>
