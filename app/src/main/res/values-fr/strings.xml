@@ -1990,4 +1990,7 @@ Code d\'invitation : P/%1$s
     <string name="bake_finalizing"> · Finalisation…</string>
     <string name="rebake_map">Re-rendu de la carte</string>
     <string name="rebake_map_done">Cache de rendu effacée</string>
+    <string name="bake_health_checking">Vérification du rendu…</string>
+    <string name="bake_health_ok">Rendu OK</string>
+    <string name="bake_health_warn">%1$d/%2$d tronçons anormaux détectés, refaire la cuisson recommandé</string>
 </resources>

@@ -1990,4 +1990,7 @@ Código de invitación: P/%1$s
     <string name="bake_finalizing"> · Finalizando…</string>
     <string name="rebake_map">Volver a renderizar el mapa</string>
     <string name="rebake_map_done">Caché de renderizado borrada</string>
+    <string name="bake_health_checking">Comprobando renderizado…</string>
+    <string name="bake_health_ok">Renderizado correcto</string>
+    <string name="bake_health_warn">%1$d/%2$d chunks anómalos detectados, se recomienda volver a hornear</string>
 </resources>

@@ -2020,4 +2020,7 @@
     <string name="bake_finalizing"> · Завершение…</string>
     <string name="rebake_map">Перезапечь карту</string>
     <string name="rebake_map_done">Кэш запекания очищен</string>
+    <string name="bake_health_checking">Проверка рендера…</string>
+    <string name="bake_health_ok">Рендер в норме</string>
+    <string name="bake_health_warn">Обнаружено %1$d/%2$d аномальных чанков, рекомендуется перезапечь</string>
 </resources>

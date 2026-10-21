@@ -2052,4 +2052,7 @@ Invite code: P/%1$s
     <string name="bake_finalizing"> · Finalizing…</string>
     <string name="rebake_map">Rebake Map</string>
     <string name="rebake_map_done">Bake cache cleared</string>
+    <string name="bake_health_checking">Checking render…</string>
+    <string name="bake_health_ok">Render OK</string>
+    <string name="bake_health_warn">%1$d/%2$d abnormal chunks detected, rebake recommended</string>
 </resources>

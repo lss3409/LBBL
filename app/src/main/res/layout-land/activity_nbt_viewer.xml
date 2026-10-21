@@ -580,6 +580,17 @@
                                 android:textColor="@color/on_primary"
                                 android:textSize="12sp" />
                         </LinearLayout>
+                        <!-- v0.4.151：烘焙健康检测状态行（渲染校正） -->
+                        <TextView
+                            android:id="@+id/tv_bake_health"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/misans"
+                            android:paddingHorizontal="4dp"
+                            android:paddingVertical="2dp"
+                            android:text="@string/bake_health_checking"
+                            android:textColor="@android:color/darker_gray"
+                            android:textSize="12sp" />
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"

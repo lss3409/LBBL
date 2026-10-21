@@ -1892,4 +1892,7 @@
     <string name="bake_finalizing"> · 落盘中…</string>
     <string name="rebake_map">重新烘焙地图</string>
     <string name="rebake_map_done">烘焙缓存已清除</string>
+    <string name="bake_health_checking">正在检测渲染…</string>
+    <string name="bake_health_ok">渲染正常</string>
+    <string name="bake_health_warn">检测到 %1$d/%2$d 个异常区块，建议重新烘焙</string>
 </resources>

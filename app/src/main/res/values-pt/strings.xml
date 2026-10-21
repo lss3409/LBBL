@@ -1990,4 +1990,7 @@ Código de convite: P/%1$s
     <string name="bake_finalizing"> · Finalizando…</string>
     <string name="rebake_map">Re-renderizar mapa</string>
     <string name="rebake_map_done">Cache de renderização limpo</string>
+    <string name="bake_health_checking">Verificando renderização…</string>
+    <string name="bake_health_ok">Renderização OK</string>
+    <string name="bake_health_warn">%1$d/%2$d chunks anormais detectados, recomenda-se reassar</string>
 </resources>

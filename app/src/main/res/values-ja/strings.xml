@@ -1987,4 +1987,7 @@ LBBL を開く → オンライン → 参加、コードを貼り付け</string
     <string name="bake_finalizing"> · 書き込み中…</string>
     <string name="rebake_map">マップを再ベイク</string>
     <string name="rebake_map_done">ベイクキャッシュを消去しました</string>
+    <string name="bake_health_checking">レンダリングを確認中…</string>
+    <string name="bake_health_ok">レンダリング正常</string>
+    <string name="bake_health_warn">%1$d/%2$d 個の異常チャンクを検出、再ベイク推奨</string>
 </resources>

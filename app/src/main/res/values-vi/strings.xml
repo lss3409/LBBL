@@ -2019,4 +2019,7 @@ Mã mời: P/%1$s
     <string name="bake_finalizing"> · Hoàn tất…</string>
     <string name="rebake_map">Nướng lại bản đồ</string>
     <string name="rebake_map_done">Đã xóa bộ nhớ đệm nướng</string>
+    <string name="bake_health_checking">Đang kiểm tra kết xuất…</string>
+    <string name="bake_health_ok">Kết xuất bình thường</string>
+    <string name="bake_health_warn">Phát hiện %1$d/%2$d chunk bất thường, nên nướng lại</string>
 </resources>

@@ -1578,6 +1578,7 @@ public class NbtViewerActivity extends BaseActivity {
             return;
         }
         org.levimc.launcher.util.AccentStyler.stylePrimary(this, btn);
+        tvBakeHealth = findViewById(R.id.tv_bake_health);
         btn.setOnClickListener(v -> {
             if (currentWorldDir == null) {
                 return;
@@ -1590,11 +1591,85 @@ public class NbtViewerActivity extends BaseActivity {
                         Toast.makeText(this,
                                 getString(R.string.rebake_map_done, removed),
                                 Toast.LENGTH_SHORT).show();
+                        // v0.4.151：先清内存旧图——否则 reload 开头的缓存
+                        // 保存会把坏图回灌磁盘（「删 bin 重烘焙不顶用」根因：
+                        // loadMapForDimension 开头 saveChunkCache 保存 currentMap，
+                        // 删除的 bin 被内存坏数据原样写回）
+                        currentMap = null;
+                        binding.worldMapImage.setWorldMap(null);
+                        if (biomeScanThread != null) {
+                            biomeScanThread.interrupt();
+                            biomeScanThread = null;
+                        }
+                        if (tvBakeHealth != null) {
+                            tvBakeHealth.setText(R.string.bake_health_checking);
+                            tvBakeHealth.setTextColor(
+                                    getResources().getColor(
+                                            android.R.color.darker_gray, null));
+                        }
                         // 重载触发重新烘焙（保留视图位置）
                         reloadMapForCurrentDimension();
                     }
                 });
             }, "rebake-map").start();
+        });
+    }
+
+    /** v0.4.151：烘焙健康状态行（设置栏，重新烘焙按钮下）。 */
+    private android.widget.TextView tvBakeHealth;
+
+    /** v0.4.151：烘焙健康检测——统计「大面积纯色」chunk 占比。
+     *  正常地形 chunk 有高度渐变/阴影，几乎不可能 ≥95% 同色；
+     *  大面积纯色块 = 坏缓存/坏烘焙的通用特征（粉紫色块、绿色块等
+     *  异常渲染都是纯色块）。占比 ≥30% 判定渲染异常，提示校正。 */
+    private void scheduleBakeHealthCheck(WorldMapRenderer.WorldMap map) {
+        if (map == null || map.chunkColors == null || map.chunkColors.isEmpty()) {
+            return;
+        }
+        final WorldMapRenderer.WorldMap fMap = map;
+        final int[] hist = new int[4096];
+        renderPool.execute(() -> {
+            int solid = 0;
+            int total = 0;
+            for (java.util.Map.Entry<Long, int[]> e
+                    : fMap.chunkColors.entrySet()) {
+                int[] px = e.getValue();
+                if (px == null || px.length == 0) {
+                    continue;
+                }
+                java.util.Arrays.fill(hist, 0);
+                int n = Math.min(256, px.length);
+                for (int i = 0; i < n; i++) {
+                    // RGB 量化到 12 位近似同色
+                    hist[(px[i] >>> 4) & 4095]++;
+                }
+                if (n < 64) {
+                    continue;
+                }
+                total++;
+                for (int h : hist) {
+                    if (h * 100 >= n * 95) {
+                        solid++;
+                        break;
+                    }
+                }
+            }
+            final int fSolid = solid;
+            final int fTotal = total;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed() || tvBakeHealth == null) {
+                    return;
+                }
+                boolean bad = fTotal > 0 && fSolid * 100 >= fTotal * 30;
+                tvBakeHealth.setText(bad
+                        ? getString(R.string.bake_health_warn, fSolid, fTotal)
+                        : getString(R.string.bake_health_ok));
+                tvBakeHealth.setTextColor(bad
+                        ? getResources().getColor(
+                                android.R.color.holo_red_dark, null)
+                        : getResources().getColor(
+                                android.R.color.darker_gray, null));
+            });
         });
     }
 
@@ -2387,6 +2462,8 @@ public class NbtViewerActivity extends BaseActivity {
                         restoreMapViewMemory();
                     }
                     scheduleBiomePrescan(fMap);
+                    // v0.4.151：烘焙健康检测（渲染校正——纯色块占比）
+                    scheduleBakeHealthCheck(fMap);
                     // v0.4.52：后台拼全图纹理（HTML 同款渲染——拼完自动
                     // 切全图模式，拖动/缩放 GPU 化；未拼完前走原 chunk 路径）
                     composeFullMapAsync(fMap);
@@ -3282,6 +3359,8 @@ public class NbtViewerActivity extends BaseActivity {
                 restoreMapViewMemory();
             }
             scheduleBiomePrescan(worldMap);
+            // v0.4.151：烘焙健康检测（渲染校正——纯色块占比）
+            scheduleBakeHealthCheck(worldMap);
             // v0.4.55：主世界首开/缓存加载完成后拼全图+史莱姆遮罩
             // （此前漏接——遮罩永远不生成，开史莱姆回退逐块绘制卡死）
             composeFullMapAsync(worldMap);

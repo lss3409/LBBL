@@ -2016,4 +2016,7 @@ Davet kodu: P/%1$s
     <string name="bake_finalizing"> · Tamamlanıyor…</string>
     <string name="rebake_map">Haritayı Yeniden Pişir</string>
     <string name="rebake_map_done">Pişirme önbelleği temizlendi</string>
+    <string name="bake_health_checking">İşleme kontrol ediliyor…</string>
+    <string name="bake_health_ok">İşleme normal</string>
+    <string name="bake_health_warn">%1$d/%2$d anormal yığın algılandı, yeniden pişirme önerilir</string>
 </resources>

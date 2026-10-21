@@ -2013,4 +2013,7 @@ Kode undangan: P/%1$s
     <string name="bake_finalizing"> · Menyelesaikan…</string>
     <string name="rebake_map">Panggang Ulang Peta</string>
     <string name="rebake_map_done">Cache panggang dibersihkan</string>
+    <string name="bake_health_checking">Memeriksa render…</string>
+    <string name="bake_health_ok">Render normal</string>
+    <string name="bake_health_warn">%1$d/%2$d chunk abnormal terdeteksi, disarankan rebake</string>
 </resources>
