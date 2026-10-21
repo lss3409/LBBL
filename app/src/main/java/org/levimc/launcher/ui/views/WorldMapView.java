@@ -397,9 +397,8 @@ public class WorldMapView extends View {
         // v0.4.111：阈值×帧率自适应系数——小地图全图路径也吃自适应
         // （低帧率更早切级=糊换流畅，覆盖 chunk 路径之外的小地图）
         int level = 1;
-        // v0.4.116：静止不吃帧率自适应（与 chunk 路径一致）
-        float adapt = scaling ? adaptEma : 1f;
-        while (scalePx * level < lodThreshold * adapt && level < lodMaxLevel) {
+        // v0.4.118：全程实时自适应（与 chunk 路径一致）
+        while (scalePx * level < lodThreshold * adaptEma && level < lodMaxLevel) {
             level *= 2;
         }
         Bitmap lodBmp = lodLevels[Integer.numberOfTrailingZeros(level)];
@@ -900,6 +899,10 @@ public class WorldMapView extends View {
     private boolean panning;
     /** v0.4.99：诊断字段——本帧绘制路径（节流日志用）。 */
     private String lastDrawPath = "-";
+    // v0.4.118：tile 绘制 Paint/RectF 字段复用（每帧 700 张 tile 不新建对象）
+    private final android.graphics.Paint tilePaint = new android.graphics.Paint();
+    private final android.graphics.RectF tileDst = new android.graphics.RectF();
+
     private int dbgFrame;
 
     /** v0.4.109：HUD 静止刷新——Choreographer 帧循环，每 500ms
@@ -1028,12 +1031,17 @@ public class WorldMapView extends View {
         long now = System.nanoTime();
         if (lastFrameNanos > 0) {
             float fps = 1e9f / Math.max(1, now - lastFrameNanos);
-            // 帧率 EMA（alpha 0.08）
-            fpsEma = fpsEma + (fps - fpsEma) * 0.08f;
+            // v0.4.118：帧率 EMA 加快（0.08→0.2）——掉帧即时反映
+            fpsEma = fpsEma + (fps - fpsEma) * 0.2f;
             // 自适应系数：60fps→1.0，30fps→2.0，15fps→4.0（线性钳制）
             if (lodAdaptive) {
-                float target = Math.max(1.2f, Math.min(5f, 80f / Math.max(6f, fpsEma))); // v0.4.112：低帧率更激进（骁龙8e 0.5x区间仍20fps）
-                adaptEma = adaptEma + (target - adaptEma) * 0.05f;
+                float target = Math.max(1.2f, Math.min(5f, 80f / Math.max(6f, fpsEma)));
+                // v0.4.118：不对称响应——掉帧快速降质（alpha 0.3，
+                // 约 3 帧见效），恢复慢升（0.06）避免质量震荡；
+                // 全程实时（用户要求：帧率波动时就生效，不只在
+                // 缩放动画——不同设备性能不同，掉帧即降质）
+                float alpha = target > adaptEma ? 0.3f : 0.06f;
+                adaptEma = adaptEma + (target - adaptEma) * alpha;
             }
         }
         lastFrameNanos = now;
@@ -1177,12 +1185,11 @@ public class WorldMapView extends View {
      *  低阈值=清晰块多）。v0.4.103：动画与静止同一目标（span 稳定=
      *  缓存命中率高，杜绝 v0.4.102 的 span 抖动引发整链 miss）。
      *  v0.4.106：× 帧率自适应系数（低帧率自动放大目标=糊换流畅）。
-     *  v0.4.116：自适应只在缩放动画中生效——静止时回 1（高质量
-     *  级）；此前静止也吃激进系数，下界等低帧率场景停手后块图
-     *  一直糊（3A LOD 惯例：运动降质、静止全质）。 */
+     *  v0.4.118：全程实时自适应（回退 v0.4.116 的静止回 1——
+     *  用户要求掉帧即降质不区分手势；下界糊的另一半根因是 biome
+     *  叠加层已在 v0.4.116 修复）。 */
     private float lodBlockPx() {
-        return (1f + (lodThreshold - 0.05f) / 0.9f * 2f)
-                * (scaling ? adaptEma : 1f);
+        return (1f + (lodThreshold - 0.05f) / 0.9f * 2f) * adaptEma;
     }
 
     /** v0.4.101：按 ppb 选 span——块像素 ≤ 目标 且 块屏 ≥96px（块数
@@ -1355,12 +1362,11 @@ public class WorldMapView extends View {
         if (pixelsPerBlock < 0.5f) {
             return;
         }
-        // v0.4.114：0.5-1.5 区间抽稀（用户实测 0.9 倍仍二三十帧——
-        // 0.9 倍视口覆盖全图、2 万标点仍全画；实体结构都没开，
-        // 矿石就是主犯）。视口内超过 1200 个按比例跳画，与实体
-        // 抽稀同款（低倍率下稀疏后仍均匀分布）
+        // v0.4.118：抽稀不限倍率——5.5 倍时小世界视口内仍有
+        // 4000+ 矿石点每帧全画（"5.5倍也开始卡"）；点击检测走
+        // 全量列表与绘制无关。视口内超过 1200 个按比例跳画
         int oreStride = 1;
-        if (pixelsPerBlock < 1.5f) {
+        if (pixelsPerBlock < 16f && map.oreMarkers.size() > 1500) {
             int oreInView = 0;
             for (WorldMapRenderer.OreMarker m : map.oreMarkers) {
                 float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
@@ -1506,9 +1512,9 @@ public class WorldMapView extends View {
     private void drawChunkRange(android.graphics.Canvas canvas,
                                 int firstCx, int firstCz, int lastCx, int lastCz) {
         float ppb = pixelsPerBlock;
-        Paint tilePaint = new Paint();
+        // v0.4.118：Paint/RectF 字段复用（5.5 倍 700 张 tile 每帧
+        // 新建对象加剧 GC 压力）
         tilePaint.setFilterBitmap(false); // 最近邻放大，保持块状像素风
-        android.graphics.RectF dst = new android.graphics.RectF();
         for (int cz = firstCz; cz <= lastCz; cz++) {
             float top = worldToScreenY(cz * 16f);
             for (int cx = firstCx; cx <= lastCx; cx++) {
@@ -1522,9 +1528,9 @@ public class WorldMapView extends View {
                         continue;
                     }
                 }
-                dst.set(worldToScreenX(cx * 16f), top,
+                tileDst.set(worldToScreenX(cx * 16f), top,
                         worldToScreenX(cx * 16f + 16f), top + 16f * ppb);
-                canvas.drawBitmap(tile, null, dst, tilePaint);
+                canvas.drawBitmap(tile, null, tileDst, tilePaint);
             }
         }
     }
@@ -2340,11 +2346,11 @@ public class WorldMapView extends View {
         float iconSize = Math.max(16f, pixelsPerBlock * 1.6f);
         Paint iconPaint = new Paint();
         iconPaint.setFilterBitmap(true);
-        // v0.4.113：缩小状态抽稀——视口内实体超 1200 时隔位绘制
-        // （ppb 0.5-1.5 区间视口覆盖大、几千实体每帧贴图=主线程
-        // 150ms/帧=0.9 倍卡根因之一）
+        // v0.4.113：抽稀——视口内实体超 1200 时隔位绘制
+        // v0.4.118：扩到全倍率（与矿石同款；点击检测走全量列表
+        // 与绘制无关）
         int entStride = 1;
-        if (pixelsPerBlock < 1.5f) {
+        if (pixelsPerBlock < 16f && entities.size() > 1500) {
             int inView = 0;
             for (WorldMapRenderer.EntityPos e : entities) {
                 if (chunkRendered(Math.floorDiv((int) e.x, 16),
