@@ -1860,6 +1860,13 @@
     <string name="ore_label_ancient_debris">远古残骸</string>
     <!-- v0.4.89：文件管理器双击退出提示 -->
     <string name="fm_double_back_exit">再按一次退出文件管理</string>
+    <!-- v0.4.104：图片 OCR -->
+    <string name="fm_ocr_button">识别文字</string>
+    <string name="fm_ocr_title">文字识别结果</string>
+    <string name="fm_ocr_empty">未识别到文字</string>
+    <string name="fm_ocr_failed">识别失败</string>
+    <string name="fm_ocr_copy">复制</string>
+    <string name="fm_ocr_copied">已复制</string>
     <!-- v0.4.89：跳转弹窗子文件夹标题 -->
     <string name="fm_ui_subfolders">子文件夹</string>
 </resources>

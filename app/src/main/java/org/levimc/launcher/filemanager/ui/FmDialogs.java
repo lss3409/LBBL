@@ -378,9 +378,19 @@ public class FmDialogs {
         int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.55f);
         imageView.setMaxHeight(maxH);
 
+        // v0.4.104：OCR 用——预览解码完成后填入（识别按钮防重入）
+        final android.graphics.Bitmap[] previewBmp = new android.graphics.Bitmap[1];
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(file.getName())
                 .setCustomView(imageView)
+                .setPositiveButton(a.getString(R.string.fm_ocr_button), v -> {
+                    android.graphics.Bitmap bmp = previewBmp[0];
+                    if (bmp == null || bmp.isRecycled()) {
+                        return; // 还没解码完
+                    }
+                    v.setEnabled(false);
+                    ImageOcrHelper.recognize(a, bmp, text -> showOcrResult(a, text));
+                })
                 .setNegativeButton(a.getString(R.string.close), v -> dismissLast())
                 ;
         trackShow(dialog);
@@ -398,9 +408,57 @@ public class FmDialogs {
             // ImageView 默认双线性放大把像素图糊成单色块
             android.graphics.Bitmap finalBitmap = upscaleNearest(bitmap);
             a.runOnUiThread(() -> {
-                if (finalBitmap != null) imageView.setImageBitmap(finalBitmap);
+                if (finalBitmap != null) {
+                    previewBmp[0] = finalBitmap;
+                    imageView.setImageBitmap(finalBitmap);
+                }
             });
         }).start();
+    }
+
+    /** v0.4.104：OCR 结果弹窗（文本可选中滚动 + 复制）。 */
+    private static void showOcrResult(BaseActivity a, String text) {
+        if (text == null) {
+            CustomAlertDialog failed = new CustomAlertDialog(a)
+                    .setTitleText(a.getString(R.string.fm_ocr_title))
+                    .setMessage(a.getString(R.string.fm_ocr_failed))
+                    .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
+            trackShow(failed);
+            return;
+        }
+        if (text.isEmpty()) {
+            CustomAlertDialog empty = new CustomAlertDialog(a)
+                    .setTitleText(a.getString(R.string.fm_ocr_title))
+                    .setMessage(a.getString(R.string.fm_ocr_empty))
+                    .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
+            trackShow(empty);
+            return;
+        }
+        android.widget.TextView tv = new android.widget.TextView(a);
+        tv.setTextIsSelectable(true);
+        tv.setText(text);
+        tv.setTextSize(13);
+        tv.setTextColor(a.getResources().getColor(org.levimc.launcher.R.color.on_surface, a.getTheme()));
+        int pad = (int) (12 * a.getResources().getDisplayMetrics().density);
+        tv.setPadding(pad, pad, pad, pad);
+        android.widget.ScrollView sv = new android.widget.ScrollView(a);
+        int maxSvH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.5f);
+        sv.setMaxHeight(maxSvH);
+        sv.addView(tv);
+        CustomAlertDialog result = new CustomAlertDialog(a)
+                .setTitleText(a.getString(R.string.fm_ocr_title))
+                .setCustomView(sv)
+                .setPositiveButton(a.getString(R.string.fm_ocr_copy), v -> {
+                    android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                            a.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                    if (cm != null) {
+                        cm.setPrimaryClip(android.content.ClipData.newPlainText("ocr", text));
+                    }
+                    android.widget.Toast.makeText(a, a.getString(R.string.fm_ocr_copied),
+                            android.widget.Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
+        trackShow(result);
     }
 
     /** v0.4.75：低像素图整数倍最近邻预放大（长边到 ≤2048），

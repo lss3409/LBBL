@@ -1129,6 +1129,8 @@ public class FileManagerActivity extends BaseActivity {
         super.onDestroy();
         highlightHandler.removeCallbacksAndMessages(null);
         releaseAudio();
+        // v0.4.104：释放 OCR 模型（驻留内存较大）
+        org.levimc.launcher.filemanager.ui.ImageOcrHelper.release();
     }
 
     @Override
