@@ -900,6 +900,53 @@ public class WorldMapView extends View {
     private final android.graphics.Paint tilePaint = new android.graphics.Paint();
     private final android.graphics.RectF tileDst = new android.graphics.RectF();
 
+    // v0.4.123：标点/叠加层绘制 Paint/RectF/Path 字段复用——此前
+    // 实体/结构/标点循环内每帧新建 Paint/RectF（几千标点 = 每帧几千
+    // 个小对象 = GC 抖动掉帧，AI 诊断属实）
+    private final android.graphics.Paint entFillPaint = new android.graphics.Paint();
+    private final android.graphics.Paint entLabelPaint = new android.graphics.Paint();
+    private final android.graphics.Paint entIconPaint = new android.graphics.Paint();
+    private final android.graphics.Paint entBgPaint = new android.graphics.Paint();
+    private final android.graphics.RectF entIconDst = new android.graphics.RectF();
+    private final android.graphics.Paint structPaint = new android.graphics.Paint();
+    private final android.graphics.Paint structStrokePaint = new android.graphics.Paint();
+    private final android.graphics.Paint structLabelPaint = new android.graphics.Paint();
+    private final android.graphics.Paint structIconPaint = new android.graphics.Paint();
+    private final android.graphics.Paint structBgPaint = new android.graphics.Paint();
+    private final android.graphics.RectF structIconDst = new android.graphics.RectF();
+    private final android.graphics.Paint oreTexPaint =
+            new android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG);
+    private final android.graphics.Path orePath = new android.graphics.Path();
+    private final android.graphics.RectF oreIconDst = new android.graphics.RectF();
+    private final android.graphics.Paint pointLabelPaint = new android.graphics.Paint();
+    private final android.graphics.Paint pointHlPaint = new android.graphics.Paint();
+    {
+        entFillPaint.setAntiAlias(true);
+        entLabelPaint.setAntiAlias(true);
+        entLabelPaint.setTextSize(10f);
+        entLabelPaint.setTypeface(android.graphics.Typeface.create(
+                "sans-serif-condensed", android.graphics.Typeface.BOLD));
+        entLabelPaint.setColor(0xFFFFFFFF);
+        entIconPaint.setFilterBitmap(true);
+        structPaint.setAntiAlias(true);
+        structStrokePaint.setAntiAlias(true);
+        structStrokePaint.setStyle(android.graphics.Paint.Style.STROKE);
+        structLabelPaint.setAntiAlias(true);
+        structLabelPaint.setTextSize(10f);
+        structLabelPaint.setTypeface(android.graphics.Typeface.create(
+                "sans-serif-condensed", android.graphics.Typeface.BOLD));
+        structLabelPaint.setColor(0xFFFFFFFF);
+        structIconPaint.setFilterBitmap(true);
+        structBgPaint.setAntiAlias(true);
+        structBgPaint.setColor(0xD9FFFFFF);
+        pointLabelPaint.setAntiAlias(true);
+        pointLabelPaint.setTypeface(android.graphics.Typeface.create(
+                "sans-serif-condensed", android.graphics.Typeface.BOLD));
+        pointHlPaint.setAntiAlias(true);
+        pointHlPaint.setStyle(android.graphics.Paint.Style.STROKE);
+        pointHlPaint.setColor(0xFFFFFFFF);
+    }
+
     private int dbgFrame;
 
     /** v0.4.109：HUD 静止刷新——Choreographer 帧循环，每 500ms
@@ -1377,9 +1424,10 @@ public class WorldMapView extends View {
         }
         int oreCount = 0;
         float r = Math.max(3.5f, pixelsPerBlock * 0.9f);
-        android.graphics.Path p = new android.graphics.Path();
-        android.graphics.Paint texPaint = new android.graphics.Paint(
-                android.graphics.Paint.FILTER_BITMAP_FLAG);
+        // v0.4.123：Path/Paint/RectF 字段复用（每帧新建=GC 抖动）
+        android.graphics.Path p = orePath;
+        p.reset();
+        android.graphics.Paint texPaint = oreTexPaint;
         for (WorldMapRenderer.OreMarker m : map.oreMarkers) {
             float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
             float sy = offsetY + (m.blockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
@@ -1392,9 +1440,9 @@ public class WorldMapView extends View {
             android.graphics.Bitmap tex = oreTexture(m.name);
             if (tex != null) {
                 float ts = Math.max(r * 2.2f, pixelsPerBlock * 1.5f);
-                canvas.drawBitmap(tex, null,
-                        new android.graphics.RectF(sx - ts / 2f, sy - ts / 2f,
-                                sx + ts / 2f, sy + ts / 2f), texPaint);
+                oreIconDst.set(sx - ts / 2f, sy - ts / 2f,
+                        sx + ts / 2f, sy + ts / 2f);
+                canvas.drawBitmap(tex, null, oreIconDst, texPaint);
                 continue;
             }
             p.reset();
@@ -2087,17 +2135,13 @@ public class WorldMapView extends View {
         if (points.isEmpty()) {
             return;
         }
-        Paint fill = new Paint();
-        fill.setAntiAlias(true);
-        Paint stroke = new Paint();
-        stroke.setAntiAlias(true);
-        stroke.setStyle(Paint.Style.STROKE);
+        // v0.4.123：Paint 字段复用（此前每帧/每点新建）
+        Paint fill = entFillPaint;
+        Paint stroke = structStrokePaint;
         stroke.setColor(0xCC000000);
         stroke.setStrokeWidth(Math.max(1f, pixelsPerBlock * 0.1f));
-        Paint labelPaint = new Paint();
-        labelPaint.setAntiAlias(true);
+        Paint labelPaint = pointLabelPaint;
         labelPaint.setTextSize(Math.max(10f, pixelsPerBlock * 0.85f));
-        labelPaint.setTypeface(android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD));
 
         for (BlueprintDb.Point p : points) {
             if (!p.dimension.equals(dimension)) {
@@ -2113,20 +2157,15 @@ public class WorldMapView extends View {
             canvas.drawCircle(s[0], s[1], r, fill);
             canvas.drawCircle(s[0], s[1], r, stroke);
             if (p.id == highlightPointId) {
-                Paint hl = new Paint();
-                hl.setAntiAlias(true);
-                hl.setStyle(Paint.Style.STROKE);
-                hl.setColor(0xFFFFFFFF);
-                hl.setStrokeWidth(Math.max(2f, pixelsPerBlock * 0.15f));
-                canvas.drawCircle(s[0], s[1], r + 4f, hl);
+                pointHlPaint.setStrokeWidth(Math.max(2f, pixelsPerBlock * 0.15f));
+                canvas.drawCircle(s[0], s[1], r + 4f, pointHlPaint);
             }
             // 名称标签
             String name = p.name;
             float tw = labelPaint.measureText(name);
-            Paint bgPaint = new Paint();
-            bgPaint.setColor(0x99000000);
+            entBgPaint.setColor(0x99000000);
             canvas.drawRoundRect(s[0] - tw / 2f - 4f, s[1] + r + 3f, s[0] + tw / 2f + 4f,
-                    s[1] + r + 3f + labelPaint.getTextSize() + 6f, 5f, 5f, bgPaint);
+                    s[1] + r + 3f + labelPaint.getTextSize() + 6f, 5f, 5f, entBgPaint);
             labelPaint.setColor(0xFFFFFFFF);
             canvas.drawText(name, s[0] - tw / 2f, s[1] + r + 3f + labelPaint.getTextSize(), labelPaint);
         }
@@ -2210,22 +2249,15 @@ public class WorldMapView extends View {
                     + " ppb=" + pixelsPerBlock + " 首个实体=" + entities.get(0).name
                     + " at(" + entities.get(0).x + "," + entities.get(0).z + ")");
         }
-        Paint fill = new Paint();
-        fill.setAntiAlias(true);
-        Paint labelPaint = null;
-        if (pixelsPerBlock >= 2f) {
-            labelPaint = new Paint();
-            labelPaint.setAntiAlias(true);
-            labelPaint.setTextSize(10f);
-            labelPaint.setTypeface(android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD));
-            labelPaint.setColor(0xFFFFFFFF);
-        }
+        // v0.4.123：Paint 字段复用（此前每帧新建——几千实体每帧
+        // new Paint/RectF = GC 抖动掉帧）
+        Paint fill = entFillPaint;
+        Paint labelPaint = pixelsPerBlock >= 2f ? entLabelPaint : null;
         float r = Math.max(2.5f, pixelsPerBlock * 0.35f);
         // 贴图：放大到 0.8px/block 以上才用（缩太小时图标重叠糊屏）
         boolean useIcons = pixelsPerBlock >= 0.8f;
         float iconSize = Math.max(16f, pixelsPerBlock * 1.6f);
-        Paint iconPaint = new Paint();
-        iconPaint.setFilterBitmap(true);
+        Paint iconPaint = entIconPaint;
         // v0.4.113：抽稀——视口内实体超 1200 时隔位绘制
         // v0.4.118：扩到全倍率（与矿石同款；点击检测走全量列表
         // 与绘制无关）
@@ -2256,9 +2288,10 @@ public class WorldMapView extends View {
             }
             Bitmap icon = useIcons ? iconBitmap(e.name) : null;
             if (icon != null) {
-                canvas.drawBitmap(icon, null,
-                        new android.graphics.RectF(sx - iconSize / 2f, sy - iconSize / 2f,
-                                sx + iconSize / 2f, sy + iconSize / 2f), iconPaint);
+                // v0.4.123：RectF 字段复用（此前每实体 new 一个）
+                entIconDst.set(sx - iconSize / 2f, sy - iconSize / 2f,
+                        sx + iconSize / 2f, sy + iconSize / 2f);
+                canvas.drawBitmap(icon, null, entIconDst, iconPaint);
                 r = iconSize / 2f;
             } else {
                 fill.setColor(entityColor(e.name));
@@ -2267,10 +2300,9 @@ public class WorldMapView extends View {
             if (labelPaint != null) {
                 String label = entityLabel(e.name);
                 float tw = labelPaint.measureText(label);
-                Paint bgPaint = new Paint();
-                bgPaint.setColor(0x99000000);
+                entBgPaint.setColor(0x99000000);
                 canvas.drawRoundRect(sx - tw / 2f - 3f, sy + r + 2f, sx + tw / 2f + 3f,
-                        sy + r + 2f + labelPaint.getTextSize() + 4f, 4f, 4f, bgPaint);
+                        sy + r + 2f + labelPaint.getTextSize() + 4f, 4f, 4f, entBgPaint);
                 canvas.drawText(label, sx - tw / 2f, sy + r + 2f + labelPaint.getTextSize(), labelPaint);
             }
         }
@@ -2413,23 +2445,13 @@ public class WorldMapView extends View {
         if (!showStructures || structures.isEmpty() || pixelsPerBlock < 0.5f) {
             return;
         }
-        Paint p = new Paint();
-        p.setAntiAlias(true);
-        Paint stroke = new Paint();
-        stroke.setAntiAlias(true);
-        stroke.setStyle(Paint.Style.STROKE);
+        // v0.4.123：Paint 字段复用（此前每帧/每结构新建）
+        Paint p = structPaint;
+        Paint stroke = structStrokePaint;
         stroke.setStrokeWidth(Math.max(1.5f, pixelsPerBlock * 0.12f));
         stroke.setColor(0xCC000000);
-        Paint labelPaint = null;
-        if (pixelsPerBlock >= 0.9f) {
-            labelPaint = new Paint();
-            labelPaint.setAntiAlias(true);
-            labelPaint.setTextSize(10f);
-            labelPaint.setTypeface(android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD));
-            labelPaint.setColor(0xFFFFFFFF);
-        }
-        Paint iconPaint = new Paint();
-        iconPaint.setFilterBitmap(true);
+        Paint labelPaint = pixelsPerBlock >= 0.9f ? structLabelPaint : null;
+        Paint iconPaint = structIconPaint;
         for (WorldMapRenderer.StructureMarker m : structures) {
             // 未渲染 chunk 上的结构不显示（与史莱姆区块同语义——
             // v0.4.61：预测标记也不再豁免）
@@ -2449,16 +2471,13 @@ public class WorldMapView extends View {
                 // v0.4.61：有贴图时不画白底圆——旧标点样式与贴图
                 // 重叠难看（"新贴图叠在旧白色标点上"的根因）
                 float isz = r * 1.7f;
-                canvas.drawBitmap(icon, null,
-                        new android.graphics.RectF(sx - isz / 2f, sy - isz / 2f,
-                                sx + isz / 2f, sy + isz / 2f), iconPaint);
+                structIconDst.set(sx - isz / 2f, sy - isz / 2f,
+                        sx + isz / 2f, sy + isz / 2f);
+                canvas.drawBitmap(icon, null, structIconDst, iconPaint);
                 r = isz / 2f;
             } else {
                 // 白底圆（深色地形上保持醒目，无贴图类型回退样式）
-                Paint bgCircle = new Paint();
-                bgCircle.setAntiAlias(true);
-                bgCircle.setColor(0xD9FFFFFF);
-                canvas.drawCircle(sx, sy, r, bgCircle);
+                canvas.drawCircle(sx, sy, r, structBgPaint);
                 stroke.setColor(0x80000000);
                 stroke.setStrokeWidth(1.5f);
                 canvas.drawCircle(sx, sy, r, stroke);
@@ -2468,10 +2487,9 @@ public class WorldMapView extends View {
             if (labelPaint != null) {
                 String label = structureLabel(getContext(), m.type);
                 float tw = labelPaint.measureText(label);
-                Paint bgPaint = new Paint();
-                bgPaint.setColor(0x99000000);
+                entBgPaint.setColor(0x99000000);
                 canvas.drawRoundRect(sx - tw / 2f - 3f, sy + r + 2f, sx + tw / 2f + 3f,
-                        sy + r + 2f + labelPaint.getTextSize() + 4f, 4f, 4f, bgPaint);
+                        sy + r + 2f + labelPaint.getTextSize() + 4f, 4f, 4f, entBgPaint);
                 canvas.drawText(label, sx - tw / 2f, sy + r + 2f + labelPaint.getTextSize(), labelPaint);
             }
         }
