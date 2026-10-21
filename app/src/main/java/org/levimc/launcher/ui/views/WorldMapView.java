@@ -771,9 +771,14 @@ public class WorldMapView extends View {
             return;
         }
 
-        // v416：无论大小地图，打开默认最大倍率 24（用户要求——打开
-        // 只渲染视口一两个区块，秒显示不黑屏）
-        setPpb(maxPixelsPerBlock);
+        // v416：大世界打开默认最大倍率（打开只渲染视口一两个区块，
+        // 秒显示不黑屏）；v0.4.112：小世界（卫星图数组）打开 fit 全图
+        // ——"小地图默认缩放比例太高"修复（此前小地图也走最大倍率起步）
+        if (map.colors != null) {
+            setPpb(fit);
+        } else {
+            setPpb(maxPixelsPerBlock);
+        }
         // 目标点：出生点 > 玩家（打开地图停在出生点，用户要求）；
         // 若该处未生成（透明），螺旋找最近的有数据位置
         int targetX = map.spawnBlockX >= 0 ? map.spawnBlockX
@@ -891,9 +896,15 @@ public class WorldMapView extends View {
             new android.view.Choreographer.FrameCallback() {
                 @Override
                 public void doFrame(long frameTimeNanos) {
-                    if (hudLastInvalidate == 0
-                            || frameTimeNanos - hudLastInvalidate > 500_000_000L) {
-                        hudLastInvalidate = frameTimeNanos;
+                    // v0.4.112：每帧局部 invalidate HUD 区域——静止时
+                    // 帧率数字持续跳动（游戏式实时 FPS）；地图主体
+                    // 因 clip 跳过不重绘（零浪费）
+                    if (hudRect.width() > 0) {
+                        invalidate((int) hudRect.left - 16,
+                                (int) hudRect.top - 16,
+                                (int) hudRect.right + 16,
+                                (int) hudRect.bottom + 48);
+                    } else {
                         invalidate();
                     }
                     android.view.Choreographer.getInstance()
@@ -901,6 +912,7 @@ public class WorldMapView extends View {
                 }
             };
     private long hudLastInvalidate = 0;
+    private final android.graphics.RectF hudRect = new android.graphics.RectF();
 
     @Override
     protected void onAttachedToWindow() {
@@ -957,7 +969,7 @@ public class WorldMapView extends View {
             fpsEma = fpsEma + (fps - fpsEma) * 0.08f;
             // 自适应系数：60fps→1.0，30fps→2.0，15fps→4.0（线性钳制）
             if (lodAdaptive) {
-                float target = Math.max(1f, Math.min(4f, 60f / Math.max(8f, fpsEma)));
+                float target = Math.max(1.2f, Math.min(5f, 80f / Math.max(6f, fpsEma))); // v0.4.112：低帧率更激进（骁龙8e 0.5x区间仍20fps）
                 adaptEma = adaptEma + (target - adaptEma) * 0.05f;
             }
         }
@@ -1022,6 +1034,7 @@ public class WorldMapView extends View {
                 104 * density,
                 getWidth() - 12 * density,
                 104 * density + bgH);
+        hudRect.set(fpsBgRect); // v0.4.112：保存 HUD 区域（局部刷新用）
         fpsBgPaint.setColor(0x66000000);
         fpsBgPaint.setStyle(android.graphics.Paint.Style.FILL);
         canvas.drawRoundRect(fpsBgRect, 10 * density, 10 * density, fpsBgPaint);
@@ -1106,6 +1119,16 @@ public class WorldMapView extends View {
     protected void onDraw(android.graphics.Canvas canvas) {
         super.onDraw(canvas);
         measureFps();
+        // v0.4.112：HUD 局部刷新帧——canvas 被 clip 到 HUD 区域时
+        // 只画 HUD（静止时帧率持续跳动，地图主体零重绘）
+        if (hudRect.width() > 0) {
+            android.graphics.Rect cb = canvas.getClipBounds();
+            if (cb != null && cb.width() < getWidth() / 2
+                    && cb.bottom < getHeight() / 2) {
+                drawFpsHud(canvas);
+                return;
+            }
+        }
         // 大世界 bounds-only 地图只有 chunkColors（colors==null），
         // 必须放行 chunk 路径——否则首屏空白且视口按需渲染永不触发
         if (map == null || (map.colors == null && map.chunkColors == null)) {
@@ -1986,7 +2009,7 @@ public class WorldMapView extends View {
         if (map.spawnBlockX >= 0) {
             float sx = offsetX + (map.spawnBlockX - map.minBlockX + 0.5f) * pixelsPerBlock;
             float sz = offsetY + (map.spawnBlockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
-            float size = Math.max(16f, pixelsPerBlock * 2.0f);
+            float size = Math.max(32f, pixelsPerBlock * 3.0f); // v0.4.112：缩小状态标记加大可见
             android.graphics.drawable.Drawable house =
                     androidx.core.content.ContextCompat.getDrawable(
                             getContext(), org.levimc.launcher.R.drawable.ic_house);
@@ -2001,7 +2024,7 @@ public class WorldMapView extends View {
             float pz = offsetY + (map.playerBlockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
             android.graphics.Bitmap bmp = playerMarkerBitmap();
             if (bmp != null) {
-                float size = Math.max(18f, pixelsPerBlock * 2.2f);
+                float size = Math.max(34f, pixelsPerBlock * 3.2f); // v0.4.112：缩小状态标记加大可见
                 android.graphics.Paint p = new android.graphics.Paint(
                         android.graphics.Paint.ANTI_ALIAS_FLAG
                                 | android.graphics.Paint.FILTER_BITMAP_FLAG);
