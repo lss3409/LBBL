@@ -92,8 +92,15 @@ public final class ImageOcrHelper {
         return null;
     }
 
-    /** 释放引擎（文件管理器退出时调用）。 */
+    /** 释放引擎（文件管理器退出时调用）。
+     *  v0.4.119：识别中不释放——api.end() 与识别线程的 setImage/
+     *  getUTF8Text 并发 = native 崩溃（"点了识别文字卡退"根因：
+     *  点 OCR 后模型加载数秒，期间退出/关弹窗触发 release）。
+     *  识别中跳过释放，识别完成后下次 release 再回收。 */
     public static void release() {
+        if (busy) {
+            return;
+        }
         busy = false;
         if (api != null) {
             try {

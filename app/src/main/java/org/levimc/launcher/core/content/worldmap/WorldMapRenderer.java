@@ -3865,6 +3865,12 @@ public class WorldMapRenderer {
                 }, "world-bake-scan");
                 scanThread.setPriority(silent ? Thread.MIN_PRIORITY
                         : Thread.NORM_PRIORITY);
+                // v0.4.119：扫描前先通知（total=-1=准备中）——进度 HUD
+                // 立即出现；此前 onStart 在 key 全扫完成（5-10 秒）后
+                // 才回调 = 下界切维度"进度条延迟 7-8 秒出现"根因
+                if (progress != null) {
+                    progress.onStart(-1);
+                }
                 scanThread.start();
                 // 多线程并行烘焙：原子索引交错取 chunk（保持距离序），
                 // 每线程独立 reader（LevelDBReader 无状态线程安全）

@@ -650,11 +650,10 @@ public class NbtViewerActivity extends BaseActivity {
             new java.util.concurrent.atomic.AtomicInteger();
     private volatile int bakeTotalCount = -1;
 
-    /** 烘焙开始：记录总数并显示进度 HUD。 */
+    /** 烘焙开始：记录总数并显示进度 HUD（-1=扫描中准备态）。 */
     private void showBakeProgress(int total) {
-        if (total <= 0) {
-            return;
-        }
+        // v0.4.119：total<=0 也接收（-1=扫描中）——进度 HUD 在
+        // key 扫描阶段就显示，不再等扫描完成
         bakeTotalCount = total;
         bakeDoneCount.set(0);
         updateBakeProgressHud();
@@ -691,7 +690,15 @@ public class NbtViewerActivity extends BaseActivity {
         }
         int done = bakeDoneCount.get();
         int total = bakeTotalCount;
-        if (total <= 0) {
+        if (total < 0) {
+            // v0.4.119：扫描中显示准备态
+            binding.bakeProgress.setVisibility(View.VISIBLE);
+            binding.bakeProgress.setText("烘焙准备中…");
+            return;
+        }
+        if (total == 0) {
+            // v0.4.119：无缺失区块——清掉准备态 HUD
+            binding.bakeProgress.setVisibility(View.GONE);
             return;
         }
         binding.bakeProgress.setVisibility(View.VISIBLE);

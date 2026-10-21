@@ -397,8 +397,10 @@ public class WorldMapView extends View {
         // v0.4.111：阈值×帧率自适应系数——小地图全图路径也吃自适应
         // （低帧率更早切级=糊换流畅，覆盖 chunk 路径之外的小地图）
         int level = 1;
-        // v0.4.118：全程实时自适应（与 chunk 路径一致）
-        while (scalePx * level < lodThreshold * adaptEma && level < lodMaxLevel) {
+        // v0.4.118：全程实时自适应；v0.4.119 ppb≤1 更激进
+        // （与 chunk 路径共用 effectiveAdapt）
+        while (scalePx * level < lodThreshold * effectiveAdapt()
+                && level < lodMaxLevel) {
             level *= 2;
         }
         Bitmap lodBmp = lodLevels[Integer.numberOfTrailingZeros(level)];
@@ -1187,9 +1189,16 @@ public class WorldMapView extends View {
      *  v0.4.106：× 帧率自适应系数（低帧率自动放大目标=糊换流畅）。
      *  v0.4.118：全程实时自适应（回退 v0.4.116 的静止回 1——
      *  用户要求掉帧即降质不区分手势；下界糊的另一半根因是 biome
-     *  叠加层已在 v0.4.116 修复）。 */
+     *  叠加层已在 v0.4.116 修复）。
+     *  v0.4.119：ppb≤1 区间更激进——用户实测平板静止 120 帧、
+     *  缩到 1.0 及以下暴跌 70-80 帧；低倍率即使帧率高也预先
+     *  降质（effectiveAdapt floor 1.6），掉帧时照常跟随。 */
+    private float effectiveAdapt() {
+        return Math.max(adaptEma, pixelsPerBlock <= 1f ? 1.6f : 1f);
+    }
+
     private float lodBlockPx() {
-        return (1f + (lodThreshold - 0.05f) / 0.9f * 2f) * adaptEma;
+        return (1f + (lodThreshold - 0.05f) / 0.9f * 2f) * effectiveAdapt();
     }
 
     /** v0.4.101：按 ppb 选 span——块像素 ≤ 目标 且 块屏 ≥96px（块数
@@ -1245,7 +1254,13 @@ public class WorldMapView extends View {
         if (map != null) {
             canvas.drawColor(launcherBackgroundColor());
         }
+        // v0.4.119：小世界（colors 数组路径）开 biome 时不走全图纹理
+        // ——小世界群系数据在 map.biomeColors（整图数组），叠加层
+        // 只认 chunkBiomeColors，全图纹理模式开 biome 不显示；退
+        // cachedBmp 路径（resampleRegion 混合 biome）。大图
+        // （chunkColors）继续全图纹理+biome 叠加层（性能好）
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
+                && !(showBiomeLayer && map.colors != null)
                 && (fullMapBlockScale <= 1
                         ? (pixelsPerBlock < 3f || map.chunkColors == null)
                         : (pixelsPerBlock <= 2f / Math.max(1f, fullMapBlockScale)
