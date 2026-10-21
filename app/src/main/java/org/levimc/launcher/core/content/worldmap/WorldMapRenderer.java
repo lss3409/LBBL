@@ -3876,13 +3876,17 @@ public class WorldMapRenderer {
                 // 直接按核数上限建；SILENT 按核数 2-3 线程——v412
                 // "静默快一点"：设备核多给 3 线程）
                 int cpus = Runtime.getRuntime().availableProcessors();
+                // v0.4.117：非静默烘焙降载——此前 8 线程 MAX_PRIORITY
+                // 绑大核把 CPU 吃满，末地切维度烘焙期间地图全场景卡、
+                // 退出后线程不停整个启动器卡（用户实测）；改为 4 线程
+                // 普通优先级不绑大核，UI 与烘焙共存
                 final int bakeThreads = silent ? (cpus >= 8 ? 3 : 2)
-                        : Math.min(8, Math.max(6, cpus));
+                        : Math.min(4, Math.max(2, cpus / 2));
                 poolRef[0] =
                         java.util.concurrent.Executors.newFixedThreadPool(bakeThreads, r -> {
                             Thread bt = new Thread(r, "world-bake-w");
                             bt.setPriority(silent ? Thread.MIN_PRIORITY
-                                    : Thread.MAX_PRIORITY);
+                                    : Thread.NORM_PRIORITY);
                             return bt;
                         });
                 // force 模式全部重烘：视口队列与 ordered 可能重叠
@@ -3896,8 +3900,9 @@ public class WorldMapRenderer {
                     // ACTIVE：只给前 bigCoreCount 个 worker 绑大核，其余
                     // 由系统调度到小核——8 线程全绑 4 个大核互相挤兑
                     // （大小核全部用上，v293 教训）
-                    final boolean bindBig = !silent
-                            && wi < org.levimc.launcher.core.CpuScheduler.bigCoreCount;
+                    // v0.4.117：烘焙不绑大核（大核留给 UI/交互；
+                    // 8 线程全绑大核互相挤兑+抢 UI = 全场景卡根因）
+                    final boolean bindBig = false;
                     poolRef[0].execute(() -> {
                         if (bindBig) {
                             // CpuScheduler 反射 sched_setaffinity，失败静默

@@ -1584,6 +1584,21 @@ public class NbtViewerActivity extends BaseActivity {
         if (binding != null) {
             binding.worldMapImage.release();
         }
+        // v0.4.117：停掉全部后台任务——烘焙线程/解析池在退出后
+        // 继续跑（切维度只中断不销毁），MAX 优先级抢 CPU =
+        // "退出来之后整个启动器都卡"根因
+        if (bakeThread != null) {
+            bakeThread.interrupt();
+            bakeThread = null;
+        }
+        ExecutorService pool = renderPool;
+        renderPool = null;
+        if (pool != null) {
+            pool.shutdownNow();
+        }
+        if (executor != null) {
+            executor.shutdownNow();
+        }
     }
 
     /** keepView=true 时重载后保留当前视角（y 轴偏移等原地刷新场景）。 */
