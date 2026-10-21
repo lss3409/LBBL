@@ -3934,9 +3934,9 @@ public class NbtViewerActivity extends BaseActivity {
                     showExportNotification(100, fOut.getName());
                     Toast.makeText(this, "已导出: " + fOut.getAbsolutePath(),
                             Toast.LENGTH_LONG).show();
-                })
                     // v0.4.107：右上角 HUD 气泡提示（galaxy 玻璃风）
-                    binding.worldMapImage.showHudToast("HTML 导出完成 ✓");;
+                    binding.worldMapImage.showHudToast("HTML 导出完成 ✓");
+                });
             } catch (Throwable e) {
                 Log.w(TAG, "导出 HTML 失败", e);
                 runOnUiThread(() -> {
@@ -3944,8 +3944,8 @@ public class NbtViewerActivity extends BaseActivity {
                     binding.nbtLoading.setVisibility(View.GONE);
                     showExportNotification(-1, String.valueOf(e.getMessage()));
                     Toast.makeText(this, "导出失败: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                })
-                    binding.worldMapImage.showHudToast("HTML 导出失败");;
+                    binding.worldMapImage.showHudToast("HTML 导出失败");
+                });
             }
         });
     }
