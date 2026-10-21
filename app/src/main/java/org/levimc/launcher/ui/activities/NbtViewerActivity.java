@@ -1691,14 +1691,48 @@ public class NbtViewerActivity extends BaseActivity {
     /** v0.4.122：生成/刷新 biome 遮罩位图（后台线程；烘焙增量
      *  节流刷新由 onBakeBatch 调）。 */
     private long lastBiomeMaskRefresh = 0;
+    // v0.4.126：biome 独立扫描线程（进行中则跳过重复启动）
+    private volatile Thread biomeScanThread = null;
 
     private void refreshBiomeMask() {
         if (currentMap == null || renderPool == null) {
+            android.util.Log.i("NbtViewer", "refreshBiomeMask SKIP map="
+                    + (currentMap != null) + " pool=" + (renderPool != null));
             return;
         }
         final WorldMapRenderer.WorldMap fMap = currentMap;
+        android.util.Log.i("NbtViewer", "refreshBiomeMask GO chunkBiome="
+                + (fMap.chunkBiomeColors != null ? fMap.chunkBiomeColors.size() : -1)
+                + " colorsArr=" + (fMap.biomeColors != null ? fMap.biomeColors.length : -1)
+                + " cacheHasBiome=" + fMap.cacheHasBiome);
+        // v0.4.126：数据全无时启动 biome 独立扫描（主世界大图无烘焙、
+        // 缓存无群系=adb 实测 TK 根因 chunkBiome=-1 colorsArr=-1）——
+        // 直接从 LevelDB 提取群系渐进铺遮罩
+        if (fMap.chunkBiomeColors == null && fMap.biomeColors == null) {
+            if (biomeScanThread != null && biomeScanThread.isAlive()) {
+                return; // 扫描进行中
+            }
+            final int scanDim = "nether".equals(mapDimension) ? 1
+                    : "end".equals(mapDimension) ? 2 : 0;
+            final File scanDb = new File(currentWorldDir, "db");
+            final NbtViewerActivity self = this;
+            biomeScanThread = WorldMapRenderer.scanBiomeMaskAsync(
+                    scanDb, scanDim, fMap, batch -> self.runOnUiThread(() -> {
+                        if (!self.isFinishing() && !self.isDestroyed()
+                                && self.currentMap == fMap
+                                && self.binding.layerBiome.isChecked()) {
+                            self.binding.worldMapImage.setBiomeMaskPixels(batch);
+                        } else {
+                            ((android.graphics.Bitmap) batch[0]).recycle();
+                        }
+                    }));
+            return;
+        }
         renderPool.execute(() -> {
             Object[] mask = WorldMapRenderer.buildBiomeChunkMask(fMap);
+            android.util.Log.i("NbtViewer", "buildBiomeChunkMask="
+                    + (mask != null ? ("OK " + ((Integer) mask[3])
+                    + "x" + ((Integer) mask[4])) : "NULL"));
             if (mask == null) {
                 return;
             }

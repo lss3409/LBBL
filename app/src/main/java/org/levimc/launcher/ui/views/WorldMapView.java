@@ -1060,11 +1060,17 @@ public class WorldMapView extends View {
     }
 
     public void setLodAdaptive(boolean adaptive) {
+        android.util.Log.i("WorldMap", "setLodAdaptive " + adaptive
+                + " (was " + lodAdaptive + ", adaptEma=" + adaptEma + ")");
         lodAdaptive = adaptive;
         if (!adaptive) {
             adaptEma = 1f; // 关=恒定用户设定值
         }
-        invalidate();
+        // v0.4.125：切换立即清块图缓存——span 随开关变化，旧 span
+        // 块图继续命中会让"热切换"看起来无效（画面不变）；清掉后
+        // 按新 span 立即重建（渐进填充 1-2 秒，切换感知明显）
+        clearChunkLod();
+        invalidateFullRender();
     }
 
     /** onDraw 帧率测量（每帧开头调用）。 */
@@ -1778,6 +1784,27 @@ public class WorldMapView extends View {
         return bmp;
     }
 
+    /** v0.4.126：biome 独立扫描批次更新遮罩（UI 线程 setPixels 渐进）。
+     *  batch = {bmp, px快照, stride, w, h, cx0, cz0}（scanBiomeMaskAsync）。 */
+    public void setBiomeMaskPixels(Object[] batch) {
+        android.graphics.Bitmap bmp = (android.graphics.Bitmap) batch[0];
+        int[] px = (int[]) batch[1];
+        int stride = (Integer) batch[2];
+        int w = (Integer) batch[3];
+        int h = (Integer) batch[4];
+        if (biomeMaskBitmap != null && biomeMaskBitmap != bmp
+                && !biomeMaskBitmap.isRecycled()) {
+            biomeMaskBitmap.recycle();
+        }
+        biomeMaskBitmap = bmp;
+        bmp.setPixels(px, 0, stride, 0, 0, stride, h);
+        biomeMaskCx0 = (Integer) batch[5];
+        biomeMaskCz0 = (Integer) batch[6];
+        biomeMaskW = w;
+        biomeMaskH = h;
+        invalidate();
+    }
+
     /** v0.4.122：设置 biome 遮罩位图（Activity 层后台生成后回调）。
      *  mask 每像素 = 4×4 方块群系代表色（生成见 buildBiomeChunkMask）。 */
     public void setBiomeMask(android.graphics.Bitmap mask, int cx0, int cz0, int w, int h) {
@@ -1795,9 +1822,16 @@ public class WorldMapView extends View {
 
     /** v0.4.122：biome 遮罩绘制（slimeMask 同款变换——单次
      *  drawBitmap，任意倍率/全图纹理/chunk 路径都叠加）。 */
+    private boolean biomeMaskLogged = false;
+
     private void drawBiomeMask(android.graphics.Canvas canvas) {
         if (!showBiomeLayer || biomeMaskBitmap == null
                 || biomeMaskBitmap.isRecycled() || map == null) {
+            if (!biomeMaskLogged) {
+                biomeMaskLogged = true;
+                android.util.Log.i("WorldMap", "drawBiomeMask SKIP show="
+                        + showBiomeLayer + " bmp=" + (biomeMaskBitmap != null));
+            }
             return;
         }
         // 每遮罩像素 = 4 方块；世界坐标 = chunk 原点 + 像素×4

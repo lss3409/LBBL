@@ -6360,6 +6360,92 @@ public class WorldMapRenderer {
         return out;
     }
 
+    /** v0.4.126：biome-only 独立扫描——主世界大图无烘焙、缓存无
+     *  biome（chunkBiomeColors/biomeColors 全 null，"开生物群系不
+     *  显示"根治）时，直接从 LevelDB Data3D/Data2D 提取群系拼遮罩
+     *  位图。每 512 chunk 一批回调 {bmp, px快照, stride, w, h, cx0,
+     *  cz0}（UI 线程 setPixels 渐进铺开）。MIN_PRIORITY 不抢 UI。 */
+    public static Thread scanBiomeMaskAsync(final File dbDir, final int dimension,
+            final WorldMap map,
+            final java.util.function.Consumer<Object[]> onBatch) {
+        Thread t = new Thread(() -> {
+            try {
+                int cx0 = Math.floorDiv(map.minBlockX, 16);
+                int cz0 = Math.floorDiv(map.minBlockZ, 16);
+                int cw = Math.max(1, Math.floorDiv(map.minBlockX + map.width - 1, 16) - cx0 + 1);
+                int ch = Math.max(1, Math.floorDiv(map.minBlockZ + map.height - 1, 16) - cz0 + 1);
+                if ((long) cw * ch > 2_000_000L) {
+                    return;
+                }
+                final int S = 4;
+                android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                        cw * S, ch * S, android.graphics.Bitmap.Config.ARGB_8888);
+                int[] px = new int[cw * S * ch * S];
+                int stride = cw * S;
+                LevelDBReader reader = new LevelDBReader(dbDir);
+                java.util.List<LevelDBEntry> entries = reader.readEntries(k -> {
+                    int[] ck = parseChunkKey(k);
+                    return ck != null && ck[2] == dimension && isData2dKey(k);
+                });
+                reader.close();
+                Log.i(TAG, "biome 独立扫描: " + entries.size() + " 个高度图 chunk (dim="
+                        + dimension + ")");
+                int batch = 0;
+                int any = 0;
+                for (LevelDBEntry e : entries) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
+                    int[] ck = parseChunkKey(e.getKey().getRawKey());
+                    if (ck == null) {
+                        continue;
+                    }
+                    int[] hmap = extractData2d(e.getValue());
+                    if (hmap == null) {
+                        continue;
+                    }
+                    byte[] raw = e.getKey().getRawKey();
+                    int type = (raw.length == 13 ? raw[12] : raw[8]) & 0xFF;
+                    byte[] bm = type == KEY_TYPE_DATA_2D
+                            ? extractBiomes2d(e.getValue())
+                            : extractBiomes3d(e.getValue(), hmap);
+                    if (bm == null) {
+                        continue;
+                    }
+                    int lx = ck[0] - cx0;
+                    int lz = ck[1] - cz0;
+                    if (lx < 0 || lz < 0 || lx >= cw || lz >= ch) {
+                        continue;
+                    }
+                    for (int sy = 0; sy < S; sy++) {
+                        for (int sx = 0; sx < S; sx++) {
+                            int col = biomeGrassColor(bm[(sy * 4) * 16 + (sx * 4)] & 0xFF);
+                            if (col != 0) {
+                                px[(lz * S + sy) * stride + lx * S + sx] = col;
+                            }
+                        }
+                    }
+                    any++;
+                    if (++batch >= 512) {
+                        batch = 0;
+                        onBatch.accept(new Object[]{bmp, px.clone(), stride,
+                                cw * S, ch * S, cx0, cz0});
+                    }
+                }
+                if (any > 0) {
+                    onBatch.accept(new Object[]{bmp, px.clone(), stride,
+                            cw * S, ch * S, cx0, cz0});
+                } else {
+                    bmp.recycle();
+                }
+            } catch (Throwable ignored) {
+            }
+        }, "biome-scan");
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.start();
+        return t;
+    }
+
     /** biome id → 地图色（优先 bedrockmap 色表 rgb，回退 BTR 内置表）。 */
     /** 海洋/河流类 biome（无 grass/water tint 条目，biome 图层用默认水色）。 */
     /** 雪地类 biome（无 grass tint：地表被雪覆盖，biome 图层用雪白）。 */
