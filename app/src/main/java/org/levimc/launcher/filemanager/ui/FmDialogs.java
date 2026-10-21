@@ -375,8 +375,12 @@ public class FmDialogs {
     public static void showImagePreview(BaseActivity a, File file) {
         android.widget.ImageView imageView = new android.widget.ImageView(a);
         imageView.setAdjustViewBounds(true);
-        int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.55f);
+        // v0.4.147：宽度也设上限——此前只限高，横图按宽度撑开把弹窗
+        // 顶爆，取消按钮被挤出屏幕点不到（手机实测）
+        int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.45f);
         imageView.setMaxHeight(maxH);
+        int maxW = (int) (a.getResources().getDisplayMetrics().widthPixels * 0.85f);
+        imageView.setMaxWidth(maxW);
 
         // v0.4.142：解码期间显示转圈（大图解码有明确反馈）
         float density = a.getResources().getDisplayMetrics().density;

@@ -631,10 +631,18 @@ public class FileManagerActivity extends BaseActivity {
         }
         // 根名（包文件名）段：点击回根
         pathBar.addView(pathSegment(root.getName(), fmRootPath, false));
-        for (String seg : rel.split("/")) {
+        // v0.4.147：每段传各自对应的实际路径且只有末段是叶子——此前
+        // 所有段都传 currentPath+isLeaf=true（不可点），只有根段能点
+        // （「路径只能点父级，assets/minecraft/textures 点不了」根因）
+        String[] segs = rel.split("/");
+        String cur = fmRootPath;
+        for (int i = 0; i < segs.length; i++) {
+            String seg = segs[i];
             if (seg.isEmpty()) {
                 continue;
             }
+            cur += "/" + seg;
+            boolean leaf = (i == segs.length - 1);
             // 分隔符
             TextView slash = new TextView(this);
             slash.setText("/");
@@ -642,7 +650,7 @@ public class FileManagerActivity extends BaseActivity {
             slash.setTextSize(14);
             slash.setPadding((int) (2 * d), 0, (int) (2 * d), 0);
             pathBar.addView(slash);
-            pathBar.addView(pathSegment(seg, currentPath, true));
+            pathBar.addView(pathSegment(seg, cur, leaf));
         }
     }
 
