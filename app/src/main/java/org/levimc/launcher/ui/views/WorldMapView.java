@@ -1831,12 +1831,13 @@ public class WorldMapView extends View {
     private boolean biomeMaskLogged = false;
 
     private void drawBiomeMask(android.graphics.Canvas canvas) {
-        // v0.4.130：ppb≥1 不画遮罩——放大时 chunk tile 已直接显示
-        // 精细群系色（chunkBiomeColors），遮罩再叠=1px/chunk 色块
-        // 与方块级群系色两层冲突="斑点有深有浅漏底图"根因
+        // v0.4.130/131：ppb≥3 不画遮罩——chunk tile 路径（ppb≥3）
+        // 直接显示精细群系色；1-3 区间是块图路径（surface 色底图），
+        // 遮罩叠加无冲突（v0.4.130 的 ppb≥1 上限留了 1-3 空档=
+        // "0.96/1.17 倍群系失效"根因）
         if (!showBiomeLayer || biomeMaskBitmap == null
                 || biomeMaskBitmap.isRecycled() || map == null
-                || pixelsPerBlock >= 1f) {
+                || pixelsPerBlock >= 3f) {
             if (!biomeMaskLogged) {
                 biomeMaskLogged = true;
                 android.util.Log.i("WorldMap", "drawBiomeMask SKIP show="
