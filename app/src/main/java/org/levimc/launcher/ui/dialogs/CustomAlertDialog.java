@@ -35,6 +35,7 @@ public class CustomAlertDialog extends Dialog {
     private View.OnClickListener mNegativeListener;
     private View.OnClickListener mNeutralListener;
     private Button mPositiveButton;
+    private boolean mPositiveAutoDismiss = true;
     private String[] mItems;
     private DialogInterface.OnClickListener mItemClickListener;
     private View mCustomView;
@@ -75,6 +76,21 @@ public class CustomAlertDialog extends Dialog {
         this.mPositiveText = text;
         this.mPositiveListener = listener;
         return this;
+    }
+
+    /** v0.4.146：正按钮点击是否自动关闭弹窗（默认 true；更新弹窗
+     *  内嵌下载进度需要 false，由调用方自行控制）。 */
+    public CustomAlertDialog setPositiveButtonAutoDismiss(boolean autoDismiss) {
+        this.mPositiveAutoDismiss = autoDismiss;
+        return this;
+    }
+
+    /** v0.4.146：show 后动态改正按钮文字（下载中「下载并安装」→「隐藏」）。 */
+    public void setPositiveButtonText(String text) {
+        this.mPositiveText = text;
+        if (mPositiveButton != null) {
+            mPositiveButton.setText(text);
+        }
     }
 
     public CustomAlertDialog setNegativeButton(String text, View.OnClickListener listener) {
@@ -251,7 +267,10 @@ public class CustomAlertDialog extends Dialog {
 
         btnPositive.setOnClickListener(v -> {
             if (mPositiveListener != null) mPositiveListener.onClick(v);
-            dismiss();
+            // v0.4.146：可配置不自动关闭（更新弹窗内嵌进度用）
+            if (mPositiveAutoDismiss) {
+                dismiss();
+            }
         });
 
         btnNegative.setOnClickListener(v -> {

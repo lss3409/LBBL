@@ -2146,7 +2146,7 @@ public class WorldMapRenderer {
     //      （下界岩地表可见，说明书卫星图语义）。旧缓存是穿透渲染，
     //      必须失效
     // v23：v0.4.5 下界高度图无数据列透明化 + 四段彩色渐变
-    private static final int MAP_CACHE_VERSION = 24;
+    private static final int MAP_CACHE_VERSION = 25;
 
     /** 缓存根目录（应用私有，卸载即清——缓存可再生）。null 时回退旧路径。 */
     private static java.io.File sCacheBase;
@@ -2481,7 +2481,7 @@ public class WorldMapRenderer {
     //      必须失效
     // v5：v0.4.5 下界高度图无数据列透明化 + 四段彩色渐变（旧缓存是
     //      预测值米黄白/灰棕两段渐变渲染，必须失效）
-    private static final int SMALL_CACHE_VERSION = 6;
+    private static final int SMALL_CACHE_VERSION = 7;
 
     /** 小世界全图缓存文件（v395 新结构：<世界>/<维度>/small<suffix>.bin）。
      *  v413：阴影开关进文件名——切换后小世界缓存也作废。

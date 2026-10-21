@@ -93,9 +93,9 @@ public class WorldMapView extends View {
     private float tapScreenX = -1f;
     private float tapScreenY = -1f;
     // v0.4.139：指针显示模式（HUD 勾选开关）
-    private boolean tapPinEnabled = true;    // 指针始终显示（锚定屏幕）
+    // v0.4.146：删「指针始终显示」开关（用户拍板）——指针默认
+    // 屏幕锚定（始终显示同款逻辑），手势中隐藏
     private boolean tapCenterEnabled = false; // 指针固定地图查看器中心点
-    private final android.graphics.RectF pinRowRect = new android.graphics.RectF();
     private final android.graphics.RectF centerRowRect = new android.graphics.RectF();
     /** 连线模式 / 测距模式：高亮待选起点 */
     private boolean linkPickMode = false;
@@ -1191,8 +1191,7 @@ public class WorldMapView extends View {
             }
         }
         // v0.4.139：指针显示模式勾选（HUD 内点击切换）
-        lines.add((tapPinEnabled ? "☑" : "☐") + " "
-                + ctx.getString(R.string.hud_pin_always));
+        // v0.4.146：删「指针始终显示」行（用户拍板）
         lines.add((tapCenterEnabled ? "☑" : "☐") + " "
                 + ctx.getString(R.string.hud_pin_center));
         // v0.4.137：本帧实际绘制标点数（抽稀后的真实数量，直观看到
@@ -1229,16 +1228,13 @@ public class WorldMapView extends View {
         float ty = fpsBgRect.top + pad + lineH * 0.6f;
         // v0.4.139：记录勾选开关行的命中区域（HUD 内点击切换）
         // v0.4.144：按勾选行序计数（此前 contains("始终显示") 硬编码
-        // 中文，多语言后失效）
-        pinRowRect.setEmpty();
+        // 中文，多语言后失效）；v0.4.146 只剩「指针固定中心」一行
         centerRowRect.setEmpty();
-        int checkRow = 0;
         for (String s : lines) {
             canvas.drawText(s, fpsBgRect.left + pad, ty, fpsTextPaint);
             if (s.startsWith("☑") || s.startsWith("☐")) {
-                android.graphics.RectF row = checkRow == 0 ? pinRowRect : centerRowRect;
-                row.set(fpsBgRect.left, ty - lineH + 2f, fpsBgRect.right, ty + 2f);
-                checkRow++;
+                centerRowRect.set(fpsBgRect.left, ty - lineH + 2f,
+                        fpsBgRect.right, ty + 2f);
             }
             ty += lineH;
         }
@@ -2833,27 +2829,16 @@ public class WorldMapView extends View {
             // 换算中心世界坐标）
             sx = getWidth() / 2f;
             sy = getHeight() / 2f;
-        } else if (tapPinEnabled) {
-            // v0.4.144：指针始终显示——锚定屏幕坐标（缩放/拖动/
-            // 捏合中都不消失）；从未点击过地图时锚定屏幕中心
-            // （勾选即立即可见，此前 tapScreenX<0 不显示="点击才
-            // 显示"根因）
-            if (tapScreenX >= 0) {
-                sx = tapScreenX;
-                sy = tapScreenY;
-            } else {
-                sx = getWidth() / 2f;
-                sy = getHeight() / 2f;
-            }
-        } else if (tapBlockX >= 0 && tapBlockZ >= 0) {
-            // 跟随世界坐标（指针不固定模式）
-            // v0.4.140 用户澄清：取消勾选后滑动/捏合中不显示，
-            // 正常点击后显示（此前该守卫误放 pin 分支=死代码）
+        } else if (tapScreenX >= 0) {
+            // v0.4.146：默认屏幕锚定（始终显示同款逻辑——指针钉在
+            // 屏幕上，任何缩放都不跑出视口；此前 world-follow 世界
+            // 坐标在特定缩放下换算到屏幕外="老 bug 指针不显示"）。
+            // 用户澄清：滑动/捏合中隐藏，正常点击后显示
             if (scaling || panning) {
                 return;
             }
-            sx = worldToScreenX(tapBlockX + 0.5f);
-            sy = worldToScreenY(tapBlockZ + 0.5f);
+            sx = tapScreenX;
+            sy = tapScreenY;
         } else {
             return;
         }
@@ -3195,11 +3180,7 @@ public class WorldMapView extends View {
                 }
             }
             // v0.4.139：点击落在 HUD 勾选行上 → 切换指针模式
-            if (pinRowRect.contains(e.getX(), e.getY())) {
-                tapPinEnabled = !tapPinEnabled;
-                invalidate();
-                return true;
-            }
+            // v0.4.146：删「指针始终显示」行（用户拍板）
             if (centerRowRect.contains(e.getX(), e.getY())) {
                 tapCenterEnabled = !tapCenterEnabled;
                 invalidate();

@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -249,6 +250,9 @@ public final class UpdateChecker {
         android.widget.LinearLayout root = new android.widget.LinearLayout(activity);
         root.setOrientation(android.widget.LinearLayout.VERTICAL);
         root.setPadding(20 * dp, 8 * dp, 20 * dp, 0);
+        // v0.4.146：更新日志滚动区引用（下载时隐藏切换为进度区）
+        final android.widget.ScrollView[] logScrollHolder =
+                new android.widget.ScrollView[1];
 
         // 顶部：应用图标 + 标题/描述（readest 同款结构）
         android.widget.LinearLayout header = new android.widget.LinearLayout(activity);
@@ -355,15 +359,56 @@ public final class UpdateChecker {
                     (int) (activity.getResources().getDisplayMetrics().heightPixels * 0.36f));
             svlp.topMargin = 6 * dp;
             root.addView(sv, svlp);
+            logScrollHolder[0] = sv;
         }
+
+        // v0.4.146：内嵌下载进度（readest 同款——不新开弹窗，点击
+        // 「下载并安装」后更新日志区切换为波浪进度条）
+        org.levimc.launcher.ui.views.WaveProgressView wave =
+                new org.levimc.launcher.ui.views.WaveProgressView(activity);
+        wave.setWaveColor(accent);
+        wave.setProgress(0f);
+        TextView pct = new TextView(activity);
+        pct.setTextSize(13);
+        pct.setTextColor(textSec);
+        pct.setGravity(android.view.Gravity.CENTER);
+        pct.setText("0%");
+        LinearLayout progressBox = new LinearLayout(activity);
+        progressBox.setOrientation(LinearLayout.VERTICAL);
+        progressBox.setPadding(0, 10 * dp, 0, 0);
+        progressBox.setVisibility(View.GONE);
+        progressBox.addView(wave, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 22 * dp));
+        progressBox.addView(pct, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        android.widget.LinearLayout.LayoutParams pbLp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                (int) (activity.getResources().getDisplayMetrics().heightPixels * 0.36f));
+        pbLp.topMargin = 6 * dp;
+        root.addView(progressBox, pbLp);
 
         org.levimc.launcher.ui.dialogs.CustomAlertDialog dialog =
                 new org.levimc.launcher.ui.dialogs.CustomAlertDialog(activity);
         dialog.setTitleText(activity.getString(R.string.update_dialog_title));
         dialog.setCustomView(root);
         if (!u.apkUrls.isEmpty()) {
-            dialog.setPositiveButton(activity.getString(R.string.update_download_btn),
-                    d -> downloadAndInstall(activity, u));
+            final boolean[] downloadStarted = {false};
+            dialog.setPositiveButtonAutoDismiss(false);
+            dialog.setPositiveButton(activity.getString(R.string.update_download_btn), d -> {
+                if (downloadStarted[0]) {
+                    // 下载中：按钮文字已是「隐藏」——关闭弹窗静默下载
+                    dialog.dismiss();
+                    return;
+                }
+                downloadStarted[0] = true;
+                dialog.setPositiveButtonText(
+                        activity.getString(R.string.update_hide_btn));
+                if (logScrollHolder[0] != null) {
+                    logScrollHolder[0].setVisibility(View.GONE);
+                }
+                progressBox.setVisibility(View.VISIBLE);
+                startDownload(activity, u, dialog, wave, pct);
+            });
         } else if (u.cloudDriveLink != null && !u.cloudDriveLink.isEmpty()) {
             dialog.setPositiveButton(activity.getString(R.string.update_browser_btn), d -> {
                 try {
@@ -390,42 +435,19 @@ public final class UpdateChecker {
 
     /** v712：后台下载 APK → 系统安装器（FileProvider + 安装权限）。
      *  v0.0.1：多源顺序重试——GitHub 直链 → ghproxy 镜像，任一成功即停。
-     *  v0.0.4：进度弹窗（可隐藏静默下载）+ 通知栏进度 + 完成后自动安装。 */
-    private static void downloadAndInstall(Activity activity, Update u) {
+     *  v0.0.4：进度弹窗（可隐藏静默下载）+ 通知栏进度 + 完成后自动安装。
+     *  v0.4.146：进度内嵌检查更新弹窗（readest 同款）——不再新开弹窗，
+     *  直接更新传入的波浪条与百分比文字；弹窗仍显示时完成自动关闭。 */
+    private static void startDownload(Activity activity, Update u,
+            org.levimc.launcher.ui.dialogs.CustomAlertDialog dialog,
+            org.levimc.launcher.ui.views.WaveProgressView bar,
+            TextView pct) {
         final Context app = activity.getApplicationContext();
         final int accent = new org.levimc.launcher.util.PersonalizationManager(app)
                 .getAccentColor();
         createChannel(app);
-
-        // 进度弹窗（v0.4.143：心电图波浪线进度；「隐藏」= 关闭弹窗，
-        // 后台静默下载，通知栏可见进度）
-        org.levimc.launcher.ui.views.WaveProgressView bar =
-                new org.levimc.launcher.ui.views.WaveProgressView(activity);
-        bar.setWaveColor(accent);
-        bar.setProgress(0f);
-        TextView pct = new TextView(activity);
-        pct.setTextSize(13);
-        pct.setTextColor(activity.getResources().getColor(
-                R.color.on_surface, activity.getTheme()));
-        pct.setGravity(android.view.Gravity.CENTER);
-        pct.setText("0%");
-        LinearLayout box = new LinearLayout(activity);
-        box.setOrientation(LinearLayout.VERTICAL);
-        int pad = (int) (10 * activity.getResources().getDisplayMetrics().density);
-        box.setPadding(0, pad, 0, 0);
-        box.addView(bar, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, (int) (22 * activity.getResources().getDisplayMetrics().density)));
-        box.addView(pct, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        org.levimc.launcher.ui.dialogs.CustomAlertDialog dialog =
-                new org.levimc.launcher.ui.dialogs.CustomAlertDialog(activity);
-        dialog.setTitleText(activity.getString(R.string.update_downloading_title, u.version));
-        dialog.setCustomView(box);
-        dialog.setNegativeButton(activity.getString(R.string.update_hide_btn), null);
-        dialog.show();
-        final java.util.concurrent.atomic.AtomicBoolean dialogShown =
-                new java.util.concurrent.atomic.AtomicBoolean(true);
-        dialog.setOnDismissListener(d -> dialogShown.set(false));
+        // v0.4.146：波浪自身规律流动（相位动画）+ 按进度裁剪填充同时进行
+        bar.startWaving();
 
         pool.execute(() -> {
             File dir = new File(app.getFilesDir(), "updates");
@@ -436,7 +458,7 @@ public final class UpdateChecker {
             // v0.0.26：先竞速探测选最快源（直链被墙时镜像立即顶上，
             // 开 VPN 时直链胜出），失败再串行兜底
             ProgressListener listener =
-                    makeProgressListener(dialogShown, activity, bar, pct, app, accent);
+                    makeProgressListener(dialog, activity, bar, pct, app, accent);
             java.util.List<String> candidates = buildCandidatesForApk(u);
             String fast = pickFastestSource(candidates);
             boolean downloadedOk = false;
@@ -458,14 +480,11 @@ public final class UpdateChecker {
                 NotificationManagerCompat.from(app).cancel(NOTIF_DOWNLOAD_ID);
                 showDoneNotification(app, accent, apk);
                 main.post(() -> {
-                    if (dialogShown.get() && !activity.isFinishing()) {
-                        try {
-                            dialog.dismiss();
-                        } catch (Throwable ignored) {
-                        }
-                    }
                     if (!activity.isFinishing()) {
                         try {
+                            if (dialog.isShowing()) {
+                                dialog.dismiss();
+                            }
                             Uri uri = androidx.core.content.FileProvider.getUriForFile(
                                     activity, activity.getPackageName() + ".fileprovider", apk);
                             Intent install = new Intent(Intent.ACTION_VIEW);
@@ -486,13 +505,13 @@ public final class UpdateChecker {
             }
             NotificationManagerCompat.from(app).cancel(NOTIF_DOWNLOAD_ID);
             main.post(() -> {
-                if (dialogShown.get() && !activity.isFinishing()) {
+                if (!activity.isFinishing()) {
                     try {
-                        dialog.dismiss();
+                        if (dialog.isShowing()) {
+                            dialog.dismiss();
+                        }
                     } catch (Throwable ignored) {
                     }
-                }
-                if (!activity.isFinishing()) {
                     android.widget.Toast.makeText(activity,
                             R.string.update_download_all_failed,
                             android.widget.Toast.LENGTH_SHORT).show();
@@ -503,14 +522,14 @@ public final class UpdateChecker {
 
     /** 下载进度回调（弹窗 + 通知栏共用，500ms 通知节流）。 */
     private static ProgressListener makeProgressListener(
-            java.util.concurrent.atomic.AtomicBoolean dialogShown, Activity activity,
+            org.levimc.launcher.ui.dialogs.CustomAlertDialog dialog, Activity activity,
             org.levimc.launcher.ui.views.WaveProgressView bar, TextView pct,
             Context app, int accent) {
         return (downloaded, total) -> {
             // 弹窗进度（隐藏后跳过）
-            if (dialogShown.get() && !activity.isFinishing()) {
+            if (dialog.isShowing() && !activity.isFinishing()) {
                 main.post(() -> {
-                    if (!dialogShown.get() || activity.isFinishing()) {
+                    if (activity.isFinishing()) {
                         return;
                     }
                     if (total > 0) {
@@ -519,8 +538,7 @@ public final class UpdateChecker {
                         pct.setText(p + "%  " + fmtMB(downloaded)
                                 + "/" + fmtMB(total) + " MB");
                     } else {
-                        // 未知总量：无限波浪动画
-                        bar.startWaving();
+                        // 未知总量：无限波浪动画（startWaving 已在下载启动时调用）
                         pct.setText(fmtMB(downloaded) + " MB");
                     }
                 });
