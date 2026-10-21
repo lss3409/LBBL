@@ -6392,6 +6392,14 @@ public class WorldMapRenderer {
             final java.util.function.Consumer<Object[]> onBatch) {
         Thread t = new Thread(() -> {
             try {
+                // v0.4.143：低内存设备（手机 536MB heap）跳过独立扫描——
+                // 遮罩位图+px 数组+chunkBiomeColors 双写 ≈50MB+，
+                // 手机地图查看器 OOM 崩溃根因（tombstone 实测 331KB until OOM）
+                if (Runtime.getRuntime().maxMemory() < 768L * 1024 * 1024) {
+                    Log.i(TAG, "biome 独立扫描跳过：低内存设备 maxMemory="
+                            + Runtime.getRuntime().maxMemory());
+                    return;
+                }
                 int cx0 = Math.floorDiv(map.minBlockX, 16);
                 int cz0 = Math.floorDiv(map.minBlockZ, 16);
                 int cw = Math.max(1, Math.floorDiv(map.minBlockX + map.width - 1, 16) - cx0 + 1);
@@ -6415,6 +6423,7 @@ public class WorldMapRenderer {
                 int failHmap = 0;
                 int failBiome = 0;
                 int failBound = 0;
+                int scannedRows = 0; // v0.4.143：已扫行数（渐进 clone 只传已扫区间）
                 for (LevelDBEntry e : entries) {
                     if (Thread.currentThread().isInterrupted()) {
                         return;
@@ -6476,10 +6485,14 @@ public class WorldMapRenderer {
                                 | ((rs / n) << 16) | ((gs / n) << 8) | (bs / n);
                         any++;
                     }
+                    scannedRows = Math.max(scannedRows, lz + 1);
                     if (++batch >= 1024) {
                         batch = 0;
-                        onBatch.accept(new Object[]{bmp, px.clone(), cw,
-                                cw, ch, cx0, cz0});
+                        // v0.4.143：只 clone 已扫行（此前 clone 全数组=
+                        // 每批次 8MB 瞬时分配 ×1953 次，低内存设备 GC 风暴）
+                        onBatch.accept(new Object[]{bmp,
+                                java.util.Arrays.copyOf(px, cw * scannedRows), cw,
+                                cw, scannedRows, cx0, cz0});
                     }
                 }
                 // v0.4.138：膨胀填充——稀疏世界无数据 chunk 遮罩透明

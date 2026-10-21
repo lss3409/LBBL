@@ -1757,6 +1757,12 @@ public class NbtViewerActivity extends BaseActivity {
                 + (fMap.chunkBiomeColors != null ? fMap.chunkBiomeColors.size() : -1)
                 + " colorsArr=" + (fMap.biomeColors != null ? fMap.biomeColors.length : -1)
                 + " cacheHasBiome=" + fMap.cacheHasBiome);
+        // v0.4.143：低内存设备跳过遮罩与独立扫描（≈50MB+ 附加内存，
+        // 手机 OOM 根因）——群系层在放大路径仍由 tile 显示
+        if (lowMemDevice()) {
+            android.util.Log.i("NbtViewer", "refreshBiomeMask SKIP lowMem");
+            return;
+        }
         // v0.4.126：数据全无时启动 biome 独立扫描（主世界大图无烘焙、
         // 缓存无群系=adb 实测 TK 根因 chunkBiome=-1 colorsArr=-1）——
         // 直接从 LevelDB 提取群系渐进铺遮罩
@@ -2449,9 +2455,18 @@ public class NbtViewerActivity extends BaseActivity {
      *  此前静默放弃导致全图永不挂载（一直 chunk tile 缩小糊）。 */
     /** v0.4.98：全图纹理尺寸上限（compose 采样分辨率，用户可调）。 */
     private int composeMaxDim() {
+        // v0.4.143：低内存设备默认降为 2048（4096²=64MB 位图，
+        // 手机 536MB heap 叠加遮罩/缓存后 OOM——tombstone 实测）
+        int def = lowMemDevice() ? 2048 : 4096;
         return Math.max(128, Math.min(16384,
                 getSharedPreferences("nbt_viewer", MODE_PRIVATE)
-                        .getInt("compose_max_dim", 4096)));
+                        .getInt("compose_max_dim", def)));
+    }
+
+    /** v0.4.143：低内存设备（手机 536MB heap）——跳过遮罩扫描等
+     *  大内存附加功能，保住主渲染。 */
+    private boolean lowMemDevice() {
+        return Runtime.getRuntime().maxMemory() < 768L * 1024 * 1024;
     }
 
     private void composeFullMapAsync(WorldMapRenderer.WorldMap targetMap, int attempt) {
@@ -2486,6 +2501,11 @@ public class NbtViewerActivity extends BaseActivity {
                 // 默认 4096；大地图卡就调小如 2048）
                 full = org.levimc.launcher.core.content.worldmap.MapImageComposer
                         .compose(targetMap, composeMaxDim());
+            } catch (OutOfMemoryError oom) {
+                // v0.4.143：低内存设备全图位图分配失败不崩——
+                // 保持 chunk 路径渲染（手机 OOM tombstone 防护）
+                android.util.Log.w("NbtViewer", "compose OOM, keep chunk path", oom);
+                return;
             } catch (java.util.ConcurrentModificationException ignored) {
                 if (attempt < 3) {
                     final int next = attempt + 1;

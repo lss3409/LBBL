@@ -16,7 +16,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.core.app.NotificationCompat;
@@ -225,8 +224,9 @@ public final class UpdateChecker {
         return list;
     }
 
-    /** 新版弹窗（Levi 风格）：版本 + 更新日志 + 下载更新（直链下载安装/
-     *  网盘跳转）+ 稍后。 */
+    /** 更新弹窗（v0.4.143 readest 风格）：应用图标 + 粗体「发现新版本」+
+     *  版本/当前版本描述 + 灰底圆角更新日志卡片（版本号标题+圆点列表）+
+     *  下载并安装/稍后。 */
     public static void showUpdateDialog(Activity activity, Update u) {
         if (u == null || u.version.isEmpty()) {
             return;
@@ -236,8 +236,6 @@ public final class UpdateChecker {
         if (activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
-        // v0.4.141：更新弹窗重做（readest 风格——大圆角卡片、版本
-        // 徽章、更新日志分区列表、留白排版）
         float density = activity.getResources().getDisplayMetrics().density;
         int dp = (int) density;
         int accent = new org.levimc.launcher.util.PersonalizationManager(activity)
@@ -250,40 +248,53 @@ public final class UpdateChecker {
 
         android.widget.LinearLayout root = new android.widget.LinearLayout(activity);
         root.setOrientation(android.widget.LinearLayout.VERTICAL);
-        root.setPadding(4 * dp, 6 * dp, 4 * dp, 0);
+        root.setPadding(20 * dp, 8 * dp, 20 * dp, 0);
 
-        // 版本徽章（accent 圆角胶囊）
-        android.widget.TextView badge = new android.widget.TextView(activity);
-        badge.setText("v" + u.version);
-        badge.setTextSize(19);
-        badge.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        badge.setTextColor(accent);
-        badge.setGravity(android.view.Gravity.CENTER);
-        badge.setPadding(18 * dp, 7 * dp, 18 * dp, 7 * dp);
-        android.graphics.drawable.GradientDrawable badgeBg = new android.graphics.drawable.GradientDrawable();
-        badgeBg.setCornerRadius(16 * dp);
-        badgeBg.setColor((accent & 0x00FFFFFF) | 0x24000000);
-        badge.setBackground(badgeBg);
-        root.addView(badge, new android.widget.LinearLayout.LayoutParams(
+        // 顶部：应用图标 + 标题/描述（readest 同款结构）
+        android.widget.LinearLayout header = new android.widget.LinearLayout(activity);
+        header.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        header.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        android.widget.ImageView icon = new android.widget.ImageView(activity);
+        icon.setImageResource(org.levimc.launcher.R.mipmap.ic_launcher);
+        android.widget.LinearLayout.LayoutParams iconLp = new android.widget.LinearLayout.LayoutParams(
+                56 * dp, 56 * dp);
+        header.addView(icon, iconLp);
+
+        android.widget.LinearLayout headText = new android.widget.LinearLayout(activity);
+        headText.setOrientation(android.widget.LinearLayout.VERTICAL);
+        headText.setPadding(14 * dp, 0, 0, 0);
+
+        android.widget.TextView title = new android.widget.TextView(activity);
+        title.setText(activity.getString(R.string.update_new_available));
+        title.setTextSize(17);
+        title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        title.setTextColor(onSurface);
+        headText.addView(title);
+
+        android.widget.TextView verLine = new android.widget.TextView(activity);
+        verLine.setText(activity.getString(R.string.update_version_available,
+                u.version, currentVersionName(activity)));
+        verLine.setTextSize(13);
+        verLine.setTextColor(textSec);
+        android.widget.LinearLayout.LayoutParams verLp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        verLp.topMargin = 2 * dp;
+        headText.addView(verLine, verLp);
+
+        android.widget.TextView askLine = new android.widget.TextView(activity);
+        askLine.setText(activity.getString(R.string.update_ask_install));
+        askLine.setTextSize(13);
+        askLine.setTextColor(textSec);
+        headText.addView(askLine);
+
+        header.addView(headText, new android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+        root.addView(header);
 
-        // 副标题：当前版本
-        android.widget.TextView sub = new android.widget.TextView(activity);
-        try {
-            String cur = activity.getPackageManager().getPackageInfo(
-                    activity.getPackageName(), 0).versionName;
-            sub.setText(activity.getString(R.string.update_current_version, cur));
-        } catch (Throwable ignored) {
-        }
-        sub.setTextSize(12);
-        sub.setTextColor(textSec);
-        sub.setGravity(android.view.Gravity.CENTER);
-        root.addView(sub, new android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
-
-        // 更新日志区（readest 式分区列表）
+        // 更新日志区（readest 同款：标题 + 灰底圆角卡片，版本号粗体 + 圆点列表）
         if (u.body != null && !u.body.isEmpty()) {
             android.widget.TextView logTitle = new android.widget.TextView(activity);
             logTitle.setText(activity.getString(R.string.update_changelog_title));
@@ -298,19 +309,43 @@ public final class UpdateChecker {
 
             android.widget.LinearLayout logBox = new android.widget.LinearLayout(activity);
             logBox.setOrientation(android.widget.LinearLayout.VERTICAL);
+            logBox.setPadding(14 * dp, 10 * dp, 14 * dp, 10 * dp);
+            android.graphics.drawable.GradientDrawable cardBg =
+                    new android.graphics.drawable.GradientDrawable();
+            cardBg.setCornerRadius(12 * dp);
+            cardBg.setColor((onSurface & 0x00FFFFFF) | 0x14000000);
+            logBox.setBackground(cardBg);
+
+            boolean first = true;
             for (String line : u.body.split("\\r?\\n")) {
-                if (line.trim().isEmpty()) {
+                String t = line.trim();
+                if (t.isEmpty()) {
                     continue;
                 }
+                if (first) {
+                    // 首行「v0.4.143 更新日志」→ 版本号粗体标题（accent）
+                    String verTitle = t.split("\\s+")[0];
+                    android.widget.TextView ver = new android.widget.TextView(activity);
+                    ver.setText(verTitle);
+                    ver.setTextSize(15);
+                    ver.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+                    ver.setTextColor(accent);
+                    logBox.addView(ver);
+                    first = false;
+                    continue;
+                }
+                if (t.startsWith("•")) {
+                    t = t.substring(1).trim();
+                }
                 android.widget.TextView item = new android.widget.TextView(activity);
-                item.setText("•  " + line.trim());
+                item.setText("•  " + t);
                 item.setTextSize(13);
                 item.setTextColor(onSurface);
                 item.setLineSpacing(2 * dp, 1f);
                 android.widget.LinearLayout.LayoutParams ilp = new android.widget.LinearLayout.LayoutParams(
                         android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                         android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
-                ilp.topMargin = 4 * dp;
+                ilp.topMargin = 5 * dp;
                 logBox.addView(item, ilp);
             }
             android.widget.ScrollView sv = new android.widget.ScrollView(activity);
@@ -318,7 +353,7 @@ public final class UpdateChecker {
             android.widget.LinearLayout.LayoutParams svlp = new android.widget.LinearLayout.LayoutParams(
                     android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                     (int) (activity.getResources().getDisplayMetrics().heightPixels * 0.36f));
-            svlp.topMargin = 4 * dp;
+            svlp.topMargin = 6 * dp;
             root.addView(sv, svlp);
         }
 
@@ -344,6 +379,15 @@ public final class UpdateChecker {
         dialog.show();
     }
 
+    private static String currentVersionName(Activity activity) {
+        try {
+            return activity.getPackageManager().getPackageInfo(
+                    activity.getPackageName(), 0).versionName;
+        } catch (Throwable ignored) {
+            return "";
+        }
+    }
+
     /** v712：后台下载 APK → 系统安装器（FileProvider + 安装权限）。
      *  v0.0.1：多源顺序重试——GitHub 直链 → ghproxy 镜像，任一成功即停。
      *  v0.0.4：进度弹窗（可隐藏静默下载）+ 通知栏进度 + 完成后自动安装。 */
@@ -353,22 +397,24 @@ public final class UpdateChecker {
                 .getAccentColor();
         createChannel(app);
 
-        // 进度弹窗（「隐藏」= 关闭弹窗，后台静默下载，通知栏可见进度）
-        ProgressBar bar = new ProgressBar(activity, null,
-                android.R.attr.progressBarStyleHorizontal);
-        bar.setProgressTintList(ColorStateList.valueOf(accent));
-        bar.setMax(100);
+        // 进度弹窗（v0.4.143：心电图波浪线进度；「隐藏」= 关闭弹窗，
+        // 后台静默下载，通知栏可见进度）
+        org.levimc.launcher.ui.views.WaveProgressView bar =
+                new org.levimc.launcher.ui.views.WaveProgressView(activity);
+        bar.setWaveColor(accent);
+        bar.setProgress(0f);
         TextView pct = new TextView(activity);
         pct.setTextSize(13);
         pct.setTextColor(activity.getResources().getColor(
                 R.color.on_surface, activity.getTheme()));
+        pct.setGravity(android.view.Gravity.CENTER);
         pct.setText("0%");
         LinearLayout box = new LinearLayout(activity);
         box.setOrientation(LinearLayout.VERTICAL);
         int pad = (int) (10 * activity.getResources().getDisplayMetrics().density);
         box.setPadding(0, pad, 0, 0);
         box.addView(bar, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                LinearLayout.LayoutParams.MATCH_PARENT, (int) (22 * activity.getResources().getDisplayMetrics().density)));
         box.addView(pct, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
         org.levimc.launcher.ui.dialogs.CustomAlertDialog dialog =
@@ -458,7 +504,8 @@ public final class UpdateChecker {
     /** 下载进度回调（弹窗 + 通知栏共用，500ms 通知节流）。 */
     private static ProgressListener makeProgressListener(
             java.util.concurrent.atomic.AtomicBoolean dialogShown, Activity activity,
-            ProgressBar bar, TextView pct, Context app, int accent) {
+            org.levimc.launcher.ui.views.WaveProgressView bar, TextView pct,
+            Context app, int accent) {
         return (downloaded, total) -> {
             // 弹窗进度（隐藏后跳过）
             if (dialogShown.get() && !activity.isFinishing()) {
@@ -468,11 +515,12 @@ public final class UpdateChecker {
                     }
                     if (total > 0) {
                         int p = (int) (downloaded * 100 / total);
-                        bar.setProgress(p);
+                        bar.setProgress(p / 100f);
                         pct.setText(p + "%  " + fmtMB(downloaded)
                                 + "/" + fmtMB(total) + " MB");
                     } else {
-                        bar.setIndeterminate(true);
+                        // 未知总量：无限波浪动画
+                        bar.startWaving();
                         pct.setText(fmtMB(downloaded) + " MB");
                     }
                 });

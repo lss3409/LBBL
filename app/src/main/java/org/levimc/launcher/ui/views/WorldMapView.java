@@ -1267,7 +1267,11 @@ public class WorldMapView extends View {
                 protected boolean removeEldestEntry(java.util.Map.Entry<Long, Bitmap> eldest) {
                     // v0.4.102：span=16 全图预生成 ≈1400 块（64²×4=16KB/块
                     // → 2048 块=32MB），太小会被预生成自己挤爆
-                    if (size() > 2048) {
+                    // v0.4.143：低内存设备（手机 536MB heap）上限 512
+                    // （32MB→8MB，手机 OOM tombstone 防护）
+                    int cap = Runtime.getRuntime().maxMemory() < 768L * 1024 * 1024
+                            ? 512 : 2048;
+                    if (size() > cap) {
                         eldest.getValue().recycle();
                         return true;
                     }

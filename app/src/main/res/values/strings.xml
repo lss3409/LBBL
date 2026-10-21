@@ -324,6 +324,9 @@ Migration must complete before LBBL can continue.</string>
     <string name="update_msg_new_version">Update available: %1$s</string>
     <string name="update_msg_direct_download">Tap “Download Update” to download the installer directly</string>
     <string name="update_msg_browser_download">Tap “Download Page” to open the download page</string>
+<string name="update_new_available">A new version is available!</string>
+<string name="update_version_available">%1$s is available (installed version %2$s)</string>
+<string name="update_ask_install">Download and install now?</string>
     <string name="update_download_btn">Download Update</string>
     <string name="update_browser_btn">Download Page</string>
     <string name="update_ok_btn">OK</string>
@@ -2031,36 +2034,7 @@ Invite code: P/%1$s
     <!-- v0.4.89：文件管理器双击退出提示 -->
     <string name="fm_double_back_exit">Press back again to exit</string>
     <!-- v0.4.104：图片 OCR -->
-    <string name="fm_ocr_button">Recognize text</string>
-    <string name="fm_ocr_recognizing">Recognizing…</string>
-    <string name="fm_ocr_title">Text Recognition</string>
-    <string name="fm_ocr_empty">No text found</string>
-    <string name="fm_ocr_failed">Recognition failed</string>
-    <string name="fm_ocr_copy">Copy</string>
-    <string name="fm_ocr_copied">Copied</string>
     <!-- v0.4.105：图片信息面板 -->
-    <string name="fm_img_info_button">Info</string>
-    <string name="fm_img_info_title">Image Info</string>
-    <string name="fm_img_info_loading">Analyzing…</string>
-    <string name="fm_img_info_basic">Basic</string>
-    <string name="fm_img_info_name">Name</string>
-    <string name="fm_img_info_res">Resolution</string>
-    <string name="fm_img_info_size">Size</string>
-    <string name="fm_img_info_mtime">Modified</string>
-    <string name="fm_img_info_format">Format</string>
-    <string name="fm_img_info_fmt">File format</string>
-    <string name="fm_img_info_depth">Color depth</string>
-    <string name="fm_img_info_alpha">Alpha channel</string>
-    <string name="fm_img_alpha_yes">Yes (has transparency)</string>
-    <string name="fm_img_alpha_no">No</string>
-    <string name="fm_img_info_histogram">RGB Histogram</string>
-    <string name="fm_img_info_hash">Hash</string>
-    <string name="fm_img_info_sha256">SHA-256</string>
-    <string name="fm_img_info_mc">MC Texture Check</string>
-    <string name="fm_img_mc_ok">Standard MC texture ratio (%1$d×%1$d) ✓</string>
-    <string name="fm_img_mc_bad">⚠ Non-standard MC texture ratio (8×8, 16×16, 32×32, 64×64… expected)</string>
-    <string name="fm_img_mc_skip">Whitelisted (pack_icon / world_icon)</string>
-    <string name="fm_img_info_path">Path</string>
     <!-- v0.4.89：跳转弹窗子文件夹标题 -->
     <string name="fm_ui_subfolders">Subfolders</string>
 </resources>
