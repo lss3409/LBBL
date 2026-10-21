@@ -188,12 +188,12 @@ class EditorController(
         } catch (e: java.io.FileNotFoundException) {
             FmLog.warn(TAG, "File API 文件不可见，回退 MediaStore: $path")
         }
-        readViaMediaStore(path)?.let { return it }
+        readViaMediaStore(path, limit)?.let { return it }
         return readUpTo(path, limit) // 回退失败抛出原异常
     }
 
     /** 经 MediaStore 读取（列表可见但 File API 读被拒的目录）。 */
-    private fun readViaMediaStore(path: Path): ByteArray? {
+    private fun readViaMediaStore(path: Path, limit: Long): ByteArray? {
         val emu = android.os.Environment.getExternalStorageDirectory().absolutePath
         val full = path.toAbsolutePath().toString()
         if (!full.startsWith(emu)) {
