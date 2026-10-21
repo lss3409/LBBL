@@ -881,6 +881,80 @@ public class WorldMapView extends View {
     private String lastDrawPath = "-";
     private int dbgFrame;
 
+    // ---- v0.4.106：帧率自适应 LOD（3A 游戏同款）——帧率低自动
+    //      加大「N 方块=1 像素」（span 提升=块更粗=更流畅），恢复后
+    //      回落用户设定值；右上角 FPS HUD 实时显示。 ----
+    private boolean lodAdaptive = true;
+    /** 帧率 EMA（帧/秒）。 */
+    private float fpsEma = 60f;
+    /** 自适应系数 EMA（1=用户设定值，低帧率时升高）。 */
+    private float adaptEma = 1f;
+    private long lastFrameNanos = 0;
+    private long fpsWindowStart = 0;
+    private int fpsWindowFrames = 0;
+    private float lastFpsShown = -1f;
+    private final android.graphics.Paint fpsBgPaint = new android.graphics.Paint();
+    private final android.graphics.Paint fpsTextPaint = new android.graphics.Paint(
+            android.graphics.Paint.ANTI_ALIAS_FLAG);
+    private final android.graphics.RectF fpsBgRect = new android.graphics.RectF();
+    private final android.graphics.Rect fpsTextBounds = new android.graphics.Rect();
+
+    public void setLodAdaptive(boolean adaptive) {
+        lodAdaptive = adaptive;
+        if (!adaptive) {
+            adaptEma = 1f; // 关=恒定用户设定值
+        }
+        invalidate();
+    }
+
+    /** onDraw 帧率测量（每帧开头调用）。 */
+    private void measureFps() {
+        long now = System.nanoTime();
+        if (lastFrameNanos > 0) {
+            float fps = 1e9f / Math.max(1, now - lastFrameNanos);
+            // 帧率 EMA（alpha 0.08）
+            fpsEma = fpsEma + (fps - fpsEma) * 0.08f;
+            // 自适应系数：60fps→1.0，30fps→2.0，15fps→4.0（线性钳制）
+            if (lodAdaptive) {
+                float target = Math.max(1f, Math.min(4f, 60f / Math.max(8f, fpsEma)));
+                adaptEma = adaptEma + (target - adaptEma) * 0.05f;
+            }
+        }
+        lastFrameNanos = now;
+        // HUD 500ms 窗口更新
+        fpsWindowFrames++;
+        if (fpsWindowStart == 0) {
+            fpsWindowStart = now;
+        } else if (now - fpsWindowStart > 500_000_000L) {
+            lastFpsShown = fpsWindowFrames * 1e9f / (now - fpsWindowStart);
+            fpsWindowStart = now;
+            fpsWindowFrames = 0;
+        }
+    }
+
+    /** v0.4.106：右上角 FPS HUD（帧率 + 当前方块/像素比例）。 */
+    private void drawFpsHud(android.graphics.Canvas canvas) {
+        if (lastFpsShown < 0) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        String text = String.format(java.util.Locale.US, "FPS %.0f · %.1f方块/px",
+                lastFpsShown, 1f / Math.max(0.001f, pixelsPerBlock));
+        fpsTextPaint.setTextSize(11 * density);
+        fpsTextPaint.setColor(0xFFCCCCCC);
+        fpsTextPaint.getTextBounds(text, 0, text.length(), fpsTextBounds);
+        float pad = 6 * density;
+        fpsBgRect.set(getWidth() - fpsTextBounds.width() - pad * 2 - 8 * density,
+                8 * density,
+                getWidth() - 8 * density,
+                8 * density + fpsTextBounds.height() + pad * 2);
+        fpsBgPaint.setColor(0x99000000);
+        fpsBgPaint.setStyle(android.graphics.Paint.Style.FILL);
+        canvas.drawRoundRect(fpsBgRect, 8 * density, 8 * density, fpsBgPaint);
+        canvas.drawText(text, fpsBgRect.left + pad,
+                fpsBgRect.top + pad - fpsTextBounds.top, fpsTextPaint);
+    }
+
     // ---- v0.4.101：chunk LOD 动态梯度超级块——bs>1 世界缩小（ppb<3）
     //      时视口 chunk tile 数爆炸（ppb=0.67 时 8 万张/帧，日志实锤）。
     //      span（2 的幂 4-64）随 ppb 连续选级：块输出 64×64，块像素
@@ -909,9 +983,10 @@ public class WorldMapView extends View {
 
     /** v0.4.101：目标块像素显示尺寸（阈值映射：高阈值=流畅糊、
      *  低阈值=清晰块多）。v0.4.103：动画与静止同一目标（span 稳定=
-     *  缓存命中率高，杜绝 v0.4.102 的 span 抖动引发整链 miss）。 */
+     *  缓存命中率高，杜绝 v0.4.102 的 span 抖动引发整链 miss）。
+     *  v0.4.106：× 帧率自适应系数（低帧率自动放大目标=糊换流畅）。 */
     private float lodBlockPx() {
-        return 1f + (lodThreshold - 0.05f) / 0.9f * 2f;
+        return (1f + (lodThreshold - 0.05f) / 0.9f * 2f) * adaptEma;
     }
 
     /** v0.4.101：按 ppb 选 span——块像素 ≤ 目标 且 块屏 ≥96px（块数
@@ -931,6 +1006,7 @@ public class WorldMapView extends View {
     @Override
     protected void onDraw(android.graphics.Canvas canvas) {
         super.onDraw(canvas);
+        measureFps();
         // 大世界 bounds-only 地图只有 chunkColors（colors==null），
         // 必须放行 chunk 路径——否则首屏空白且视口按需渲染永不触发
         if (map == null || (map.colors == null && map.chunkColors == null)) {
@@ -1041,6 +1117,7 @@ public class WorldMapView extends View {
             drawVoxelSelection(canvas); // 3D 区域选择矩形（最上层）
         }
         drawMarkers(canvas); // 玩家/出生点标记画在最上层（不被实体贴图遮挡）
+        drawFpsHud(canvas); // v0.4.106：右上角帧率 HUD（最上层）
         // v0.4.99：节流诊断日志（32 帧一次≈0.27s@120Hz）——验证 LOD
         // 参数生效路径：path 显示本帧绘制分支，lod2/4/8=用了对应
         // 预降采样图，chunk/cached=全图路径根本没走（LOD 管不着）

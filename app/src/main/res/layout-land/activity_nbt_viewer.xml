@@ -547,6 +547,29 @@
                             android:textColor="@color/text_secondary"
                             android:textSize="10sp" />
 
+                        <!-- v0.4.106：帧率自适应（3A 游戏同款——低帧率自动降清晰度保流畅） -->
+                        <LinearLayout
+                            android:id="@+id/lod_adaptive_row"
+                            style="@style/NbtSwitchRow">
+
+                            <TextView
+                                style="@style/NbtSwitchLabel"
+                                android:text="@string/lod_adaptive" />
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/sw_lod_adaptive"
+                                style="@style/NbtSwitch" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:fontFamily="@font/misans"
+                            android:text="@string/lod_adaptive_hint"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="10sp" />
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"

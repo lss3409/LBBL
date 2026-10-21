@@ -49,25 +49,17 @@ public final class ImageInfoPanel {
 
     private ImageInfoPanel() {}
 
-    /** 两段式：先「分析中」弹窗，解析完成替换为信息面板。 */
-    public static void show(BaseActivity a, File file) {
-        CustomAlertDialog loading = new CustomAlertDialog(a)
-                .setTitleText(a.getString(R.string.fm_img_info_title))
-                .setMessage(a.getString(R.string.fm_img_info_loading))
-                .setNegativeButton(a.getString(R.string.close), v -> FmDialogs.dismissLast());
-        FmDialogs.trackShow(loading);
-
+    /** v0.4.106：后台解析（图片预览弹窗直接集成信息区调用）。 */
+    public static void analyzeAsync(BaseActivity a, File file,
+                                    java.util.function.Consumer<View> onDone) {
         new Thread(() -> {
             Info info = analyze(file);
-            a.runOnUiThread(() -> {
-                FmDialogs.dismissLast();
-                showPanel(a, info);
-            });
+            a.runOnUiThread(() -> onDone.accept(buildInfoView(a, info)));
         }, "fm-img-info").start();
     }
 
     /** 后台解析全部信息。 */
-    private static Info analyze(File file) {
+    static Info analyze(File file) {
         Info info = new Info();
         info.name = file.getName();
         info.path = file.getAbsolutePath();
@@ -249,8 +241,8 @@ public final class ImageInfoPanel {
         return String.format(Locale.US, "%.2f MB", bytes / (1024f * 1024f));
     }
 
-    /** 信息面板弹窗（分区卡片）。 */
-    private static void showPanel(BaseActivity a, Info info) {
+    /** 信息面板视图（分区卡片，可滚动；v0.4.106 预览弹窗直接嵌入）。 */
+    static View buildInfoView(BaseActivity a, Info info) {
         float density = a.getResources().getDisplayMetrics().density;
         int pad = (int) (14 * density);
         int small = (int) (6 * density);
@@ -318,16 +310,7 @@ public final class ImageInfoPanel {
 
         ScrollView sv = new ScrollView(a);
         sv.addView(root);
-        int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.62f);
-        FrameLayout fl = new FrameLayout(a);
-        fl.addView(sv, new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, maxH));
-
-        CustomAlertDialog dialog = new CustomAlertDialog(a)
-                .setTitleText(a.getString(R.string.fm_img_info_title) + " · " + info.name)
-                .setCustomView(fl)
-                .setNegativeButton(a.getString(R.string.close), v -> FmDialogs.dismissLast());
-        FmDialogs.trackShow(dialog);
+        return sv;
     }
 
     /** 分区卡片容器（圆角背景 + 内边距）。 */

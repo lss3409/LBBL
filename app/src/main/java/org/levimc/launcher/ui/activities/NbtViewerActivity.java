@@ -934,6 +934,16 @@ public class NbtViewerActivity extends BaseActivity {
             binding.worldMapImage.setLodEnabled(checked);
             prefs.edit().putBoolean("lod_enabled", checked).apply();
         });
+        // v0.4.106：帧率自适应 LOD（低帧率自动降清晰度保流畅）
+        if (binding.swLodAdaptive != null) {
+            boolean adaptive = prefs.getBoolean("lod_adaptive", true);
+            binding.swLodAdaptive.setChecked(adaptive);
+            binding.worldMapImage.setLodAdaptive(adaptive);
+            binding.swLodAdaptive.setOnCheckedChangeListener((btn, checked) -> {
+                binding.worldMapImage.setLodAdaptive(checked);
+                prefs.edit().putBoolean("lod_adaptive", checked).apply();
+            });
+        }
         // 级数自定义输入：2-256 任意值，应用时取 2 的幂
         binding.lodLevelApply.setOnClickListener(v -> applyLodLevelInput());
         DynamicAnim.applyPressScale(binding.lodLevelApply);

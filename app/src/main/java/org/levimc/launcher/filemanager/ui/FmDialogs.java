@@ -376,18 +376,40 @@ public class FmDialogs {
     public static void showImagePreview(BaseActivity a, File file) {
         android.widget.ImageView imageView = new android.widget.ImageView(a);
         imageView.setAdjustViewBounds(true);
-        int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.55f);
-        imageView.setMaxHeight(maxH);
+        int imgMaxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.32f);
+        imageView.setMaxHeight(imgMaxH);
+
+        // v0.4.106：信息直接显示——预览图 + 信息区合并同一弹窗
+        // （无二级菜单）；信息后台解析完成后原地替换「分析中」占位
+        android.widget.FrameLayout infoBox = new android.widget.FrameLayout(a);
+        int infoMaxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.38f);
+        infoBox.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, infoMaxH));
+        android.widget.TextView infoPlaceholder = new android.widget.TextView(a);
+        infoPlaceholder.setText(a.getString(R.string.fm_img_info_loading));
+        infoPlaceholder.setTextSize(12);
+        infoPlaceholder.setTextColor(a.getResources().getColor(
+                R.color.text_secondary, a.getTheme()));
+        infoPlaceholder.setGravity(android.view.Gravity.CENTER);
+        infoBox.addView(infoPlaceholder);
+        android.widget.LinearLayout root = new android.widget.LinearLayout(a);
+        root.setOrientation(android.widget.LinearLayout.VERTICAL);
+        root.addView(imageView);
+        root.addView(infoBox);
+        ImageInfoPanel.analyzeAsync(a, file, infoView -> {
+            if (infoView == null) {
+                return;
+            }
+            infoBox.removeAllViews();
+            infoBox.addView(infoView, new android.widget.FrameLayout.LayoutParams(
+                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT, infoMaxH));
+        });
 
         // v0.4.104：OCR 用——预览解码完成后填入（识别按钮防重入）
         final android.graphics.Bitmap[] previewBmp = new android.graphics.Bitmap[1];
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(file.getName())
-                .setCustomView(imageView)
-                .setNeutralButton(a.getString(R.string.fm_img_info_button), v -> {
-                    // v0.4.105：图片信息面板（直方图/哈希/贴图比例等）
-                    ImageInfoPanel.show(a, file);
-                })
+                .setCustomView(root)
                 .setPositiveButton(a.getString(R.string.fm_ocr_button), v -> {
                     android.graphics.Bitmap bmp = previewBmp[0];
                     if (bmp == null || bmp.isRecycled()) {
@@ -405,7 +427,7 @@ public class FmDialogs {
             opts.inJustDecodeBounds = true;
             android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
             int sample = 1;
-            while (opts.outHeight / sample > maxH * 2) sample *= 2;
+            while (opts.outHeight / sample > imgMaxH * 2) sample *= 2;
             opts.inJustDecodeBounds = false;
             opts.inSampleSize = sample;
             android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
