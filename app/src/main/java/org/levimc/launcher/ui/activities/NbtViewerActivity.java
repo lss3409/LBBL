@@ -170,7 +170,8 @@ public class NbtViewerActivity extends BaseActivity {
             case "ocean_monument": return "海底神殿";
             case "end_city": return "末地城";
             case "desert_temple": return "沙漠神殿";
-            case "outpost": return "掠夺者前哨站";
+            case "outpost":
+            case "pillager_outpost": return "掠夺者前哨站";
             default: return type != null ? type : "结构";
         }
     }
