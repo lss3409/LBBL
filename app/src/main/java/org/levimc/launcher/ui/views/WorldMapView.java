@@ -2537,9 +2537,12 @@ public class WorldMapView extends View {
         Paint labelPaint = pixelsPerBlock >= 0.9f ? structLabelPaint : null;
         Paint iconPaint = structIconPaint;
         for (WorldMapRenderer.StructureMarker m : structures) {
-            // 未渲染 chunk 上的结构不显示（与史莱姆区块同语义——
-            // v0.4.61：预测标记也不再豁免）
-            if (!chunkRendered(Math.floorDiv(m.x, 16), Math.floorDiv(m.z, 16))) {
+            // v0.4.136：SeedFinder 预测结构（predicted=true）不要求
+            // chunk 已渲染——预测位置本就允许未生成区域显示（恢复
+            // v0.4.57 设计；v0.4.61 收紧导致"丛林神殿/林地府邸/前哨
+            // 站不显示"根因）；db 实测结构仍要求渲染后显示
+            if (!m.predicted
+                    && !chunkRendered(Math.floorDiv(m.x, 16), Math.floorDiv(m.z, 16))) {
                 continue;
             }
             float sx = worldToScreenX(m.x + 0.5f);
@@ -2594,7 +2597,8 @@ public class WorldMapView extends View {
             case "desert_pyramid": return "sandstone_normal";
             case "desert_temple": return "sandstone_normal";
             case "outpost": return "stripped_dark_oak_log";
-            case "jungle_temple": return "cobblestone_mossy";
+            case "jungle_temple":
+            case "jungle_pyramid": return "cobblestone_mossy";
             case "swamp_hut": return "planks_spruce";
             case "igloo": return "snow";
             case "ocean_ruin": return "stonebrick_mossy";

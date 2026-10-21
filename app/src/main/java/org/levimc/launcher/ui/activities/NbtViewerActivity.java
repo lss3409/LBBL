@@ -172,6 +172,10 @@ public class NbtViewerActivity extends BaseActivity {
             case "desert_temple": return "沙漠神殿";
             case "outpost":
             case "pillager_outpost": return "掠夺者前哨站";
+            case "jungle_temple":
+            case "jungle_pyramid": return "丛林神庙";
+            case "woodland_mansion":
+            case "mansion": return "林地府邸";
             default: return type != null ? type : "结构";
         }
     }
@@ -2559,6 +2563,26 @@ public class NbtViewerActivity extends BaseActivity {
                             r.get("x").getAsInt(), r.get("z").getAsInt(),
                             name, null, true));
                     byType.merge(name, 1, Integer::sum);
+                }
+                // v0.4.136：前哨站补充扫描——300 上限常被村庄/矿井
+                // 等常见结构挤满，稀有结构（outpost/mansion）被挤出
+                // （"掠夺者前哨站不显示"根因）；outpost 单独再扫一遍
+                try {
+                    String json2 = SeedStructureFinder.scan(fSeed, px, pz,
+                            radius, 100, new int[]{SeedStructureFinder.PILLAGER_OUTPOST});
+                    if (json2 != null) {
+                        com.google.gson.JsonObject obj2 =
+                                com.google.gson.JsonParser.parseString(json2).getAsJsonObject();
+                        for (com.google.gson.JsonElement el : obj2.getAsJsonArray("results")) {
+                            com.google.gson.JsonObject r = el.getAsJsonObject();
+                            String name = r.get("name").getAsString();
+                            found.add(new WorldMapRenderer.StructureMarker(
+                                    r.get("x").getAsInt(), r.get("z").getAsInt(),
+                                    name, null, true));
+                            byType.merge(name, 1, Integer::sum);
+                        }
+                    }
+                } catch (Exception ignored) {
                 }
                 Log.i(TAG, "SeedFinder 结构查找: " + found.size() + " 个 "
                         + byType);
