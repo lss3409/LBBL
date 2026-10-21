@@ -320,6 +320,7 @@ Migration must complete before LBBL can continue.</string>
 <string name="check_update_failed">Update check failed. Check your network and try again.</string>
     <string name="update_current_version">Current version %1$s</string>
     <string name="update_dialog_title">Update Available</string>
+    <string name="update_changelog_title">Changelog</string>
     <string name="update_msg_new_version">Update available: %1$s</string>
     <string name="update_msg_direct_download">Tap “Download Update” to download the installer directly</string>
     <string name="update_msg_browser_download">Tap “Download Page” to open the download page</string>

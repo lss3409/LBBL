@@ -236,27 +236,96 @@ public final class UpdateChecker {
         if (activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
-        StringBuilder msg = new StringBuilder();
-        msg.append(activity.getString(R.string.update_msg_new_version, u.version)).append('\n');
+        // v0.4.141：更新弹窗重做（readest 风格——大圆角卡片、版本
+        // 徽章、更新日志分区列表、留白排版）
+        float density = activity.getResources().getDisplayMetrics().density;
+        int dp = (int) density;
+        int accent = new org.levimc.launcher.util.PersonalizationManager(activity)
+                .getAccentColor();
+        if (accent == 0) {
+            accent = activity.getResources().getColor(R.color.primary, activity.getTheme());
+        }
+        int onSurface = activity.getResources().getColor(R.color.on_surface, activity.getTheme());
+        int textSec = activity.getResources().getColor(R.color.text_secondary, activity.getTheme());
+
+        android.widget.LinearLayout root = new android.widget.LinearLayout(activity);
+        root.setOrientation(android.widget.LinearLayout.VERTICAL);
+        root.setPadding(4 * dp, 6 * dp, 4 * dp, 0);
+
+        // 版本徽章（accent 圆角胶囊）
+        android.widget.TextView badge = new android.widget.TextView(activity);
+        badge.setText("v" + u.version);
+        badge.setTextSize(19);
+        badge.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        badge.setTextColor(accent);
+        badge.setGravity(android.view.Gravity.CENTER);
+        badge.setPadding(18 * dp, 7 * dp, 18 * dp, 7 * dp);
+        android.graphics.drawable.GradientDrawable badgeBg = new android.graphics.drawable.GradientDrawable();
+        badgeBg.setCornerRadius(16 * dp);
+        badgeBg.setColor((accent & 0x00FFFFFF) | 0x24000000);
+        badge.setBackground(badgeBg);
+        root.addView(badge, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // 副标题：当前版本
+        android.widget.TextView sub = new android.widget.TextView(activity);
+        try {
+            String cur = activity.getPackageManager().getPackageInfo(
+                    activity.getPackageName(), 0).versionName;
+            sub.setText(activity.getString(R.string.update_current_version, cur));
+        } catch (Throwable ignored) {
+        }
+        sub.setTextSize(12);
+        sub.setTextColor(textSec);
+        sub.setGravity(android.view.Gravity.CENTER);
+        root.addView(sub, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // 更新日志区（readest 式分区列表）
         if (u.body != null && !u.body.isEmpty()) {
-            msg.append('\n').append(u.body);
+            android.widget.TextView logTitle = new android.widget.TextView(activity);
+            logTitle.setText(activity.getString(R.string.update_changelog_title));
+            logTitle.setTextSize(13);
+            logTitle.setTextColor(textSec);
+            logTitle.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = 14 * dp;
+            root.addView(logTitle, lp);
+
+            android.widget.LinearLayout logBox = new android.widget.LinearLayout(activity);
+            logBox.setOrientation(android.widget.LinearLayout.VERTICAL);
+            for (String line : u.body.split("\\r?\\n")) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                android.widget.TextView item = new android.widget.TextView(activity);
+                item.setText("•  " + line.trim());
+                item.setTextSize(13);
+                item.setTextColor(onSurface);
+                item.setLineSpacing(2 * dp, 1f);
+                android.widget.LinearLayout.LayoutParams ilp = new android.widget.LinearLayout.LayoutParams(
+                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+                ilp.topMargin = 4 * dp;
+                logBox.addView(item, ilp);
+            }
+            android.widget.ScrollView sv = new android.widget.ScrollView(activity);
+            sv.addView(logBox);
+            android.widget.LinearLayout.LayoutParams svlp = new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    (int) (activity.getResources().getDisplayMetrics().heightPixels * 0.36f));
+            svlp.topMargin = 4 * dp;
+            root.addView(sv, svlp);
         }
-        if (!u.apkUrls.isEmpty()) {
-            msg.append("\n\n").append(activity.getString(R.string.update_msg_direct_download));
-        } else if (u.cloudDriveLink != null && !u.cloudDriveLink.isEmpty()) {
-            msg.append("\n\n").append(activity.getString(R.string.update_msg_browser_download));
-        }
-        android.widget.TextView tv = new android.widget.TextView(activity);
-        tv.setText(msg.toString());
-        tv.setTextSize(14);
-        tv.setTextColor(activity.getResources().getColor(
-                R.color.on_surface, activity.getTheme()));
-        tv.setPadding(0, (int) (10 * activity.getResources().getDisplayMetrics().density),
-                0, 0);
+
         org.levimc.launcher.ui.dialogs.CustomAlertDialog dialog =
                 new org.levimc.launcher.ui.dialogs.CustomAlertDialog(activity);
         dialog.setTitleText(activity.getString(R.string.update_dialog_title));
-        dialog.setCustomView(tv);
+        dialog.setCustomView(root);
         if (!u.apkUrls.isEmpty()) {
             dialog.setPositiveButton(activity.getString(R.string.update_download_btn),
                     d -> downloadAndInstall(activity, u));
