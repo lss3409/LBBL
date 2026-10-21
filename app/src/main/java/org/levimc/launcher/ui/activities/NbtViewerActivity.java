@@ -1814,6 +1814,11 @@ public class NbtViewerActivity extends BaseActivity {
     
     protected void onDestroy() {
         super.onDestroy();
+        // v0.4.133：清空延迟任务队列——v0.4.117 把 renderPool 置 null
+        // 后，flushHandler 排队的 6 秒解析/重试任务在销毁后执行
+        // renderPool.execute → NPE 崩溃（tombstone lambda$loadData$93
+        // 根因；FileManagerActivity 同款 removeCallbacks 先例）
+        flushHandler.removeCallbacksAndMessages(null);
         // v0.4.114：释放地图大内存（连续进出世界 OOM 修复）
         if (binding != null) {
             binding.worldMapImage.release();
