@@ -598,12 +598,7 @@ public class WorldMapView extends View {
         }
         chunkTiles.clear();
         clearChunkLod();
-        // v0.4.115：biome 叠加层块图一并清（开关切换后重建）
-        for (Bitmap b : biomeLodCache.values()) {
-            b.recycle();
-        }
-        biomeLodCache.clear();
-        biomeLodPending.clear();
+        // v0.4.122：遮罩位图由 Activity 层按开关重新生成
         invalidateFullRender();
     }
 
@@ -996,13 +991,10 @@ public class WorldMapView extends View {
         chunkGen++; // 排队中的 LOD 任务开头检查直接丢弃
         chunkLodCache.clear();
         chunkLodPending.clear();
-        for (android.graphics.Bitmap b : biomeLodCache.values()) {
-            if (b != null && !b.isRecycled()) {
-                b.recycle();
-            }
+        if (biomeMaskBitmap != null && !biomeMaskBitmap.isRecycled()) {
+            biomeMaskBitmap.recycle();
         }
-        biomeLodCache.clear();
-        biomeLodPending.clear();
+        biomeMaskBitmap = null;
         for (android.graphics.Bitmap b : chunkTiles.values()) {
             if (b != null && !b.isRecycled()) {
                 b.recycle();
@@ -1160,20 +1152,14 @@ public class WorldMapView extends View {
                 }
             };
     private final java.util.Set<Long> chunkLodPending = new java.util.HashSet<>();
-    // v0.4.115：biome 叠加层块图缓存（独立于 surface 块图——biome
-    // 是叠加层，底图永远 surface 色；key 复用 lodKey）
-    private final java.util.LinkedHashMap<Long, Bitmap> biomeLodCache =
-            new java.util.LinkedHashMap<Long, Bitmap>(32, 0.75f, true) {
-                
-                protected boolean removeEldestEntry(java.util.Map.Entry<Long, Bitmap> eldest) {
-                    if (size() > 2048) {
-                        eldest.getValue().recycle();
-                        return true;
-                    }
-                    return false;
-                }
-            };
-    private final java.util.Set<Long> biomeLodPending = new java.util.HashSet<>();
+    // v0.4.122：biome 遮罩位图（slimeMask 同款：每 chunk 4×4 像素
+    // 群系色全图位图，单次 drawBitmap 任意倍率叠加）
+    private android.graphics.Bitmap biomeMaskBitmap;
+    private int biomeMaskCx0;
+    private int biomeMaskCz0;
+    private int biomeMaskW;
+    private int biomeMaskH;
+    private final android.graphics.RectF biomeMaskDst = new android.graphics.RectF();
     /** 换图代次——后台块生成结果跨图丢弃（防串污染）。 */
     // volatile：LOD 后台任务开头读它快速丢弃换图/退出后的无用任务
     // （v0.4.114——连续进出世界时静态线程池队列积压任务持有旧
@@ -1254,13 +1240,9 @@ public class WorldMapView extends View {
         if (map != null) {
             canvas.drawColor(launcherBackgroundColor());
         }
-        // v0.4.119：小世界（colors 数组路径）开 biome 时不走全图纹理
-        // ——小世界群系数据在 map.biomeColors（整图数组），叠加层
-        // 只认 chunkBiomeColors，全图纹理模式开 biome 不显示；退
-        // cachedBmp 路径（resampleRegion 混合 biome）。大图
-        // （chunkColors）继续全图纹理+biome 叠加层（性能好）
+        // v0.4.122：biome 遮罩位图叠加（v0.4.119 小世界禁用全图纹理
+        // 条件删除——遮罩画在全图纹理之上，全倍率显示群系）
         if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
-                && !(showBiomeLayer && map.colors != null)
                 && (fullMapBlockScale <= 1
                         ? (pixelsPerBlock < 3f || map.chunkColors == null)
                         : (pixelsPerBlock <= 2f / Math.max(1f, fullMapBlockScale)
@@ -1335,7 +1317,7 @@ public class WorldMapView extends View {
         // 史莱姆/网格不显示——拖拽视口大小不变，标点数不变，可画）
         // v0.4.110：捏合也全量绘制（用户要求缩放中信息不消失；
         // 大地图缩小时标点多性能有压力，但自适应 LOD 兜底流畅度）
-        drawBiomeLodLayer(canvas); // v0.4.115：biome 叠加层（底图之上网格之下）
+        drawBiomeMask(canvas); // v0.4.122：biome 遮罩叠加（底图之上网格之下）
         drawGrid(canvas);
         drawSlimeChunks(canvas);
         drawLinks(canvas);
@@ -1742,157 +1724,40 @@ public class WorldMapView extends View {
         return bmp;
     }
 
-    /** v0.4.115：biome 叠加层块图——span×span chunk 的群系色平均成
-     *  64×64（仅取 chunkBiomeColors，b==0 跳过；全无数据返回 null）。
-     *  biome 作为叠加层画在 surface 底图上，未渲染 chunk 区域透明
-     *  保持底图可见（开 biome 不再整图变背景色）。 */
-    private static Bitmap buildBiomeLod(WorldMapRenderer.WorldMap srcMap,
-                                        int bx, int bz, int span) {
-        int outPx = 64;
-        long[] rsum = new long[outPx * outPx];
-        long[] gsum = new long[outPx * outPx];
-        long[] bsum = new long[outPx * outPx];
-        int[] cnt = new int[outPx * outPx];
-        java.util.Map<Long, int[]> biomeColors = srcMap.chunkBiomeColors;
-        if (biomeColors == null) {
-            return null;
+    /** v0.4.122：设置 biome 遮罩位图（Activity 层后台生成后回调）。
+     *  mask 每像素 = 4×4 方块群系代表色（生成见 buildBiomeChunkMask）。 */
+    public void setBiomeMask(android.graphics.Bitmap mask, int cx0, int cz0, int w, int h) {
+        if (biomeMaskBitmap != null && biomeMaskBitmap != mask
+                && !biomeMaskBitmap.isRecycled()) {
+            biomeMaskBitmap.recycle();
         }
-        int step = span / 4;
-        for (int kz = 0; kz < span; kz++) {
-            for (int kx = 0; kx < span; kx++) {
-                int[] bc = biomeColors.get(packChunk(bx * span + kx, bz * span + kz));
-                if (bc == null) {
-                    continue;
-                }
-                for (int pz = 0; pz < 16; pz++) {
-                    int rowBase = pz * 16;
-                    for (int px = 0; px < 16; px++) {
-                        int b = bc[rowBase + px];
-                        if (b == 0) {
-                            continue;
-                        }
-                        int dx = (kx * 16 + px) / step;
-                        int dy = (kz * 16 + pz) / step;
-                        int idx = dy * outPx + dx;
-                        rsum[idx] += (b >> 16) & 0xFF;
-                        gsum[idx] += (b >> 8) & 0xFF;
-                        bsum[idx] += b & 0xFF;
-                        cnt[idx]++;
-                    }
-                }
-            }
-        }
-        int[] out = new int[outPx * outPx];
-        boolean any = false;
-        for (int i = 0; i < out.length; i++) {
-            if (cnt[i] == 0) {
-                out[i] = 0;
-                continue;
-            }
-            any = true;
-            out[i] = (0xFF << 24)
-                    | ((int) (rsum[i] / cnt[i]) << 16)
-                    | ((int) (gsum[i] / cnt[i]) << 8)
-                    | (int) (bsum[i] / cnt[i]);
-        }
-        if (!any) {
-            return null;
-        }
-        Bitmap bmp = Bitmap.createBitmap(outPx, outPx, Bitmap.Config.ARGB_8888);
-        bmp.setPixels(out, 0, outPx, 0, 0, outPx, outPx);
-        return bmp;
+        biomeMaskBitmap = mask;
+        biomeMaskCx0 = cx0;
+        biomeMaskCz0 = cz0;
+        biomeMaskW = w;
+        biomeMaskH = h;
+        invalidate();
     }
 
-    /** 请求生成 biome 叠加层块图（与 requestChunkLod 同款幂等/代次）。 */
-    private void requestBiomeLod(int bx, int bz) {
-        final int span = 64;
-        final long key = lodKey(span, bx, bz);
-        if (!biomeLodPending.add(key)) {
+    /** v0.4.122：biome 遮罩绘制（slimeMask 同款变换——单次
+     *  drawBitmap，任意倍率/全图纹理/chunk 路径都叠加）。 */
+    private void drawBiomeMask(android.graphics.Canvas canvas) {
+        if (!showBiomeLayer || biomeMaskBitmap == null
+                || biomeMaskBitmap.isRecycled() || map == null) {
             return;
         }
-        final int gen = chunkGen;
-        final WorldMapRenderer.WorldMap srcMap = map;
-        LOD_EXECUTOR.execute(() -> {
-            if (gen != chunkGen || map != srcMap) {
-                biomeLodPending.remove(key);
-                return;
-            }
-            Bitmap bmp = null;
-            try {
-                bmp = buildBiomeLod(srcMap, bx, bz, span);
-            } catch (Throwable ignored) {
-            }
-            final Bitmap out = bmp;
-            MAIN_HANDLER.post(() -> {
-                biomeLodPending.remove(key);
-                if (out == null || gen != chunkGen || map != srcMap) {
-                    if (out != null) {
-                        out.recycle();
-                    }
-                    return;
-                }
-                biomeLodCache.put(key, out);
-                invalidate();
-            });
-        });
-    }
-
-    /** v0.4.115：biome 叠加层绘制——ppb<1 时把已渲染 chunk 的群系
-     *  色块图（span 64）叠加在底图上；放大时 chunk tile 已自带群系
-     *  色（ensureChunkTile），本层不画。miss 限流请求。 */
-    private void drawBiomeLodLayer(android.graphics.Canvas canvas) {
-        if (!showBiomeLayer || map == null || map.chunkBiomeColors == null
-                || pixelsPerBlock >= 1f || getWidth() <= 0
-                // v0.4.116：下界/末地不叠加——biomeGrassColor 对下界/
-                // 末地 biome 无映射回退草绿，叠加=大片绿色块（"下界
-                // 糊"根因）；主世界群系色表才适用
-                || !"overworld".equals(dimension)) {
-            return;
-        }
-        final int span = 64;
-        double inv = 1.0 / (span * 16.0);
-        int firstBx = (int) Math.floor(((0 - offsetX) / pixelsPerBlock
-                + map.minBlockX) * inv);
-        int lastBx = (int) Math.floor(((getWidth() - offsetX) / pixelsPerBlock
-                + map.minBlockX) * inv);
-        int firstBz = (int) Math.floor(((0 - offsetY) / pixelsPerBlock
-                + map.minBlockZ) * inv);
-        int lastBz = (int) Math.floor(((getHeight() - offsetY) / pixelsPerBlock
-                + map.minBlockZ) * inv);
-        if (lastBx - firstBx > 512 || lastBz - firstBz > 512) {
-            return; // 视口块数异常（fit 未就绪等）不画
-        }
-        Paint lodPaint = new Paint();
-        lodPaint.setFilterBitmap(true);
-        android.graphics.RectF dst = new android.graphics.RectF();
-        java.util.List<long[]> missList = new java.util.ArrayList<>();
-        for (int bz = firstBz; bz <= lastBz; bz++) {
-            for (int bx = firstBx; bx <= lastBx; bx++) {
-                long key = lodKey(span, bx, bz);
-                Bitmap bmp = biomeLodCache.get(key);
-                if (bmp == null) {
-                    missList.add(new long[]{key, bx, bz});
-                    continue;
-                }
-                dst.set(worldToScreenX(bx * span * 16f),
-                        worldToScreenY(bz * span * 16f),
-                        worldToScreenX((bx + 1) * span * 16f),
-                        worldToScreenY((bz + 1) * span * 16f));
-                canvas.drawBitmap(bmp, null, dst, lodPaint);
-            }
-        }
-        if (!missList.isEmpty()) {
-            // 动画中限流（每帧最多 64 块）；队列超界清空重排
-            int budget = scaling ? 64 : missList.size();
-            if (biomeLodPending.size() > 512) {
-                biomeLodPending.clear();
-            }
-            for (long[] m : missList) {
-                if (budget-- <= 0) {
-                    break;
-                }
-                requestBiomeLod((int) m[1], (int) m[2]);
-            }
+        // 每遮罩像素 = 4 方块；世界坐标 = chunk 原点 + 像素×4
+        float scale = 4f * pixelsPerBlock;
+        float leftX = offsetX + (biomeMaskCx0 * 16L - map.minBlockX)
+                * pixelsPerBlock;
+        float topY = offsetY + (biomeMaskCz0 * 16L - map.minBlockZ)
+                * pixelsPerBlock;
+        biomeMaskDst.set(leftX, topY,
+                leftX + biomeMaskW * scale, topY + biomeMaskH * scale);
+        if (scale >= 1f) {
+            canvas.drawBitmap(biomeMaskBitmap, null, biomeMaskDst, fullMapPaint);
+        } else {
+            canvas.drawBitmap(biomeMaskBitmap, null, biomeMaskDst, fullMapLinearPaint);
         }
     }
 

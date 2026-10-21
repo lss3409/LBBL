@@ -423,6 +423,10 @@ public class NbtViewerActivity extends BaseActivity {
         binding.worldMapImage.setShowGrid(binding.layerGrid.isChecked());
         binding.layerBiome.setOnCheckedChangeListener((b, checked) -> {
             binding.worldMapImage.setShowBiomeLayer(checked);
+            // v0.4.122：开图层生成/刷新 biome 遮罩位图（后台）
+            if (checked) {
+                refreshBiomeMask();
+            }
             // v418：biome 数据延迟读（v20 拆分文件）——开启图层且
             // 内存无数据时后台读 biome 缓存
             if (checked && currentMap != null && currentWorldDir != null
@@ -674,6 +678,15 @@ public class NbtViewerActivity extends BaseActivity {
         if (bakeTotalCount > 0 && batch != null && !batch.isEmpty()) {
             bakeDoneCount.addAndGet(batch.size());
             updateBakeProgressHud();
+        }
+        // v0.4.122：烘焙渐进中每 3 秒刷新一次 biome 遮罩（群系色
+        // 随烘焙进度渐进铺开）
+        if (binding.layerBiome.isChecked()) {
+            long now = android.os.SystemClock.uptimeMillis();
+            if (now - lastBiomeMaskRefresh >= 3000) {
+                lastBiomeMaskRefresh = now;
+                refreshBiomeMask();
+            }
         }
     }
 
@@ -1675,7 +1688,35 @@ public class NbtViewerActivity extends BaseActivity {
         }
     }
 
-    
+    /** v0.4.122：生成/刷新 biome 遮罩位图（后台线程；烘焙增量
+     *  节流刷新由 onBakeBatch 调）。 */
+    private long lastBiomeMaskRefresh = 0;
+
+    private void refreshBiomeMask() {
+        if (currentMap == null || renderPool == null) {
+            return;
+        }
+        final WorldMapRenderer.WorldMap fMap = currentMap;
+        renderPool.execute(() -> {
+            Object[] mask = WorldMapRenderer.buildBiomeChunkMask(fMap);
+            if (mask == null) {
+                return;
+            }
+            runOnUiThread(() -> {
+                if (!isFinishing() && !isDestroyed() && currentMap == fMap
+                        && binding.layerBiome.isChecked()) {
+                    binding.worldMapImage.setBiomeMask(
+                            (android.graphics.Bitmap) mask[0],
+                            (Integer) mask[1], (Integer) mask[2],
+                            (Integer) mask[3], (Integer) mask[4]);
+                } else {
+                    ((android.graphics.Bitmap) mask[0]).recycle();
+                }
+            });
+        });
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
         saveMapViewMemory();

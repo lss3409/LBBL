@@ -2996,6 +2996,107 @@ public class WorldMapRenderer {
      *  预渲染一次，绘制时单次 drawBitmap GPU 变换，替代每帧几千次
      *  drawRect）。只画有地图数据的史莱姆 chunk（未渲染区域透明）。
      *  返回 {bitmap, cx0, cz0, w, h}；bounds 过大返回 null（回退逐块绘制）。 */
+    /** v0.4.122：biome 遮罩位图（slimeMask 同款架构）——每 chunk
+     *  4×4 像素采样群系色拼全图位图，单次 drawBitmap 叠加在任何
+     *  倍率/大小图/全图纹理路径都显示群系（此前叠加层只认已渲染
+     *  chunk 的块图，"开生物群系不显示"根治方案）。无 biome 数据
+     *  区域透明（底图可见）。返回 {bitmap, cx0, cz0, w, h}。 */
+    public static Object[] buildBiomeChunkMask(WorldMap map) {
+        java.util.Map<Long, int[]> biomeSrc = map != null ? map.chunkBiomeColors : null;
+        int[] colorsArr = map != null ? map.biomeColors : null;
+        if (map == null || (biomeSrc == null && colorsArr == null)) {
+            return null;
+        }
+        int cx0 = Math.floorDiv(map.minBlockX, 16);
+        int cz0 = Math.floorDiv(map.minBlockZ, 16);
+        int cw = Math.max(1, Math.floorDiv(map.minBlockX + map.width - 1, 16) - cx0 + 1);
+        int ch = Math.max(1, Math.floorDiv(map.minBlockZ + map.height - 1, 16) - cz0 + 1);
+        if ((long) cw * ch > 2_000_000L) {
+            return null; // 超限回退不叠加（与 slimeMask 同款保护）
+        }
+        final int S = 4; // 每 chunk 采样 4×4（16 方块→1 像素）
+        android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                cw * S, ch * S, android.graphics.Bitmap.Config.ARGB_8888);
+        int[] px = new int[cw * S * ch * S];
+        int stride = cw * S;
+        if (biomeSrc != null) {
+            for (java.util.Map.Entry<Long, int[]> e :
+                    new java.util.ArrayList<>(biomeSrc.entrySet())) {
+                int[] bc = e.getValue();
+                if (bc == null || bc.length < 256) {
+                    continue;
+                }
+                int cx = (int) (e.getKey() >> 32);
+                int cz = (int) (long) e.getKey();
+                int lx = cx - cx0;
+                int lz = cz - cz0;
+                if (lx < 0 || lz < 0 || lx >= cw || lz >= ch) {
+                    continue;
+                }
+                boolean any = false;
+                for (int v : bc) {
+                    if (v != 0) {
+                        any = true;
+                        break;
+                    }
+                }
+                if (!any) {
+                    continue;
+                }
+                int baseX = lx * S;
+                int baseY = lz * S;
+                for (int sy = 0; sy < S; sy++) {
+                    for (int sx = 0; sx < S; sx++) {
+                        // 16×16 → 4×4：取 4×4 方块块的左上角代表色
+                        int v = bc[(sy * 4) * 16 + (sx * 4)];
+                        if (v != 0) {
+                            px[(baseY + sy) * stride + baseX + sx] = v;
+                        }
+                    }
+                }
+            }
+        } else {
+            int bw = map.width;
+            for (int cz = 0; cz < ch; cz++) {
+                int bz0 = (cz0 + cz) * 16 - map.minBlockZ;
+                for (int cx = 0; cx < cw; cx++) {
+                    int bx0 = (cx0 + cx) * 16 - map.minBlockX;
+                    int baseX = cx * S;
+                    int baseY = cz * S;
+                    for (int sy = 0; sy < S; sy++) {
+                        int bz = bz0 + sy * 4;
+                        if (bz < 0 || bz >= map.height) {
+                            continue;
+                        }
+                        for (int sx = 0; sx < S; sx++) {
+                            int bx = bx0 + sx * 4;
+                            if (bx < 0 || bx >= bw) {
+                                continue;
+                            }
+                            int v = colorsArr[bz * bw + bx];
+                            if (v != 0) {
+                                px[(baseY + sy) * stride + baseX + sx] = v;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        boolean any = false;
+        for (int v : px) {
+            if (v != 0) {
+                any = true;
+                break;
+            }
+        }
+        if (!any) {
+            bmp.recycle();
+            return null;
+        }
+        bmp.setPixels(px, 0, stride, 0, 0, stride, ch * S);
+        return new Object[]{bmp, cx0, cz0, cw * S, ch * S};
+    }
+
     public static Object[] buildSlimeChunkMask(WorldMap map) {
         if (map == null || (map.chunkColors == null && map.colors == null)
                 || (map.chunkColors != null && map.chunkColors.isEmpty())) {

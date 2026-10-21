@@ -63,17 +63,8 @@ public class FmDialogs {
     private static CustomAlertDialog lastDialog;
 
     /** 弹窗前关闭上一个文件管理器对话框；点击屏幕外可关闭（与导入扫描弹窗一致）。 */
-    /** v0.4.105：改为 public——ImageInfoPanel 等工具类复用弹窗防叠加。 */
-    public static void trackShow(CustomAlertDialog dialog) {
+    private static void trackShow(CustomAlertDialog dialog) {
         dismissLast();
-        lastDialog = dialog;
-        dialog.setCanceledOnTouchOutside(true);
-        dialog.show();
-    }
-
-    /** v0.4.107：叠加显示（不关上一个——OCR 结果盖在图片预览上，
-     *  关结果回预览，不再「卡退到上一级」）。防重入由调用方保证。 */
-    public static void trackShowOver(CustomAlertDialog dialog) {
         lastDialog = dialog;
         dialog.setCanceledOnTouchOutside(true);
         dialog.show();
@@ -384,74 +375,12 @@ public class FmDialogs {
     public static void showImagePreview(BaseActivity a, File file) {
         android.widget.ImageView imageView = new android.widget.ImageView(a);
         imageView.setAdjustViewBounds(true);
-        android.util.DisplayMetrics dm = a.getResources().getDisplayMetrics();
-        // v0.4.120：横屏两栏布局——图左（42% 宽）信息右（弹性），
-        // 窗口拉长一页显示减少上下翻动（用户要求，UI 参考 github
-        // 图片查看器）；竖屏保持上下堆叠
-        final boolean landscape = dm.widthPixels > dm.heightPixels;
-        int imgMaxH = (int) (dm.heightPixels * (landscape ? 0.6f : 0.32f));
-        imageView.setMaxHeight(imgMaxH);
+        int maxH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.55f);
+        imageView.setMaxHeight(maxH);
 
-        // v0.4.106：信息直接显示——预览图 + 信息区合并同一弹窗
-        // （无二级菜单）；信息后台解析完成后原地替换「分析中」占位
-        android.widget.FrameLayout infoBox = new android.widget.FrameLayout(a);
-        int infoMaxH = (int) (dm.heightPixels * (landscape ? 0.62f : 0.38f));
-        infoBox.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
-                landscape ? 0 : android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                landscape ? android.widget.LinearLayout.LayoutParams.MATCH_PARENT : infoMaxH,
-                landscape ? 1f : 0f));
-        android.widget.TextView infoPlaceholder = new android.widget.TextView(a);
-        infoPlaceholder.setText(a.getString(R.string.fm_img_info_loading));
-        infoPlaceholder.setTextSize(12);
-        infoPlaceholder.setTextColor(a.getResources().getColor(
-                R.color.text_secondary, a.getTheme()));
-        infoPlaceholder.setGravity(android.view.Gravity.CENTER);
-        infoBox.addView(infoPlaceholder);
-        android.widget.LinearLayout root = new android.widget.LinearLayout(a);
-        if (landscape) {
-            root.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-            // v0.4.121：总高固定 62% 屏高——此前 MATCH_PARENT 弹窗
-            // 拉满屏高（"变得更长"）、图片按弹窗高度拉伸显示不全
-            int rowH = (int) (dm.heightPixels * 0.62f);
-            infoBox.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
-                    0, rowH, 1f));
-            root.addView(imageView, new android.widget.LinearLayout.LayoutParams(
-                    (int) (dm.widthPixels * 0.42f), rowH));
-            root.addView(infoBox);
-        } else {
-            root.setOrientation(android.widget.LinearLayout.VERTICAL);
-            root.addView(imageView);
-            root.addView(infoBox);
-        }
-        ImageInfoPanel.analyzeAsync(a, file, infoView -> {
-            if (infoView == null) {
-                return;
-            }
-            infoBox.removeAllViews();
-            infoBox.addView(infoView, new android.widget.FrameLayout.LayoutParams(
-                    android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                    landscape ? android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-                            : infoMaxH));
-        });
-
-        // v0.4.104：OCR 用——预览解码完成后填入（识别按钮防重入）
-        final android.graphics.Bitmap[] previewBmp = new android.graphics.Bitmap[1];
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(file.getName())
-                .setCustomView(root)
-                .setPositiveButton(a.getString(R.string.fm_ocr_button), v -> {
-                    android.graphics.Bitmap bmp = previewBmp[0];
-                    if (bmp == null || bmp.isRecycled()) {
-                        return; // 还没解码完
-                    }
-                    v.setEnabled(false);
-                    if (v instanceof android.widget.TextView) {
-                        // v0.4.107：识别中提示（模型加载需数秒）
-                        ((android.widget.TextView) v).setText(
-                                a.getString(R.string.fm_ocr_recognizing));
-                    }
-                    ImageOcrHelper.recognize(a, bmp, text -> showOcrResult(a, text));
-                })
+                .setCustomView(imageView)
                 .setNegativeButton(a.getString(R.string.close), v -> dismissLast())
                 ;
         trackShow(dialog);
@@ -461,7 +390,7 @@ public class FmDialogs {
             opts.inJustDecodeBounds = true;
             android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
             int sample = 1;
-            while (opts.outHeight / sample > imgMaxH * 2) sample *= 2;
+            while (opts.outHeight / sample > maxH * 2) sample *= 2;
             opts.inJustDecodeBounds = false;
             opts.inSampleSize = sample;
             android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeFile(file.getAbsolutePath(), opts);
@@ -469,88 +398,9 @@ public class FmDialogs {
             // ImageView 默认双线性放大把像素图糊成单色块
             android.graphics.Bitmap finalBitmap = upscaleNearest(bitmap);
             a.runOnUiThread(() -> {
-                if (finalBitmap != null) {
-                    previewBmp[0] = finalBitmap;
-                    imageView.setImageBitmap(finalBitmap);
-                }
+                if (finalBitmap != null) imageView.setImageBitmap(finalBitmap);
             });
         }).start();
-    }
-
-    /** v0.4.104：OCR 结果弹窗（文本可选中滚动 + 复制）。 */
-    private static void showOcrResult(BaseActivity a, String text) {
-        if (text == null) {
-            CustomAlertDialog failed = new CustomAlertDialog(a)
-                    .setTitleText(a.getString(R.string.fm_ocr_title))
-                    .setMessage(a.getString(R.string.fm_ocr_failed))
-                    .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
-            trackShowOver(failed);
-            return;
-        }
-        if (text.isEmpty()) {
-            CustomAlertDialog empty = new CustomAlertDialog(a)
-                    .setTitleText(a.getString(R.string.fm_ocr_title))
-                    .setMessage(a.getString(R.string.fm_ocr_empty))
-                    .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
-            trackShowOver(empty);
-            return;
-        }
-        // v0.4.120：按行渲染可点击条目——点一行复制该行
-        // （Windows 式"点击文字复制"；中文无空格分词，行粒度最
-        // 自然，长按仍可划选任意片段）
-        android.widget.LinearLayout list = new android.widget.LinearLayout(a);
-        list.setOrientation(android.widget.LinearLayout.VERTICAL);
-        String[] lines = text.split("\r?\n");
-        int pad = (int) (10 * a.getResources().getDisplayMetrics().density);
-        for (String line : lines) {
-            if (line.trim().isEmpty()) {
-                continue;
-            }
-            android.widget.TextView row = new android.widget.TextView(a);
-            row.setText(line);
-            row.setTextIsSelectable(true);
-            row.setTextSize(13);
-            row.setTextColor(a.getResources().getColor(
-                    org.levimc.launcher.R.color.on_surface, a.getTheme()));
-            row.setPadding(pad, pad, pad, pad);
-            row.setBackgroundResource(
-                    android.R.drawable.list_selector_background);
-            row.setOnClickListener(v -> {
-                android.content.ClipboardManager cm = (android.content.ClipboardManager)
-                        a.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                if (cm != null) {
-                    cm.setPrimaryClip(android.content.ClipData.newPlainText(
-                            "ocr", line));
-                }
-                android.widget.Toast.makeText(a,
-                        a.getString(org.levimc.launcher.R.string.fm_ocr_copied),
-                        android.widget.Toast.LENGTH_SHORT).show();
-            });
-            list.addView(row, new android.widget.LinearLayout.LayoutParams(
-                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT));
-        }
-        android.widget.ScrollView sv = new android.widget.ScrollView(a);
-        sv.addView(list);
-        // ScrollView 无 setMaxHeight：外层固定高度容器限高（长文可滚动）
-        int maxSvH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.5f);
-        android.widget.FrameLayout fl = new android.widget.FrameLayout(a);
-        fl.addView(sv, new android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT, maxSvH));
-        CustomAlertDialog result = new CustomAlertDialog(a)
-                .setTitleText(a.getString(R.string.fm_ocr_title))
-                .setCustomView(fl)
-                .setPositiveButton(a.getString(R.string.fm_ocr_copy), v -> {
-                    android.content.ClipboardManager cm = (android.content.ClipboardManager)
-                            a.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
-                    if (cm != null) {
-                        cm.setPrimaryClip(android.content.ClipData.newPlainText("ocr", text));
-                    }
-                    android.widget.Toast.makeText(a, a.getString(R.string.fm_ocr_copied),
-                            android.widget.Toast.LENGTH_SHORT).show();
-                })
-                .setNegativeButton(a.getString(R.string.close), v -> dismissLast());
-        trackShowOver(result);
     }
 
     /** v0.4.75：低像素图整数倍最近邻预放大（长边到 ≤2048），

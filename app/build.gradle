@@ -178,7 +178,6 @@ dependencies {
     implementation libs.bedrock.connection
     implementation libs.xcrash
     // v0.4.104：文件管理器图片 OCR（中英混合识别，模型约 47MB 内置）
-    implementation files("libs/tess-two-9.1.0.jar")
     implementation libs.play.services.games.v2
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
