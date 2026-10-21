@@ -1227,6 +1227,12 @@ public class WorldMapView extends View {
      *  缩到 1.0 及以下暴跌 70-80 帧；低倍率即使帧率高也预先
      *  降质（effectiveAdapt floor 1.6），掉帧时照常跟随。 */
     private float effectiveAdapt() {
+        // v0.4.124：开关热切换且差异可感知——关=用户设定质量（清晰
+        // 但低倍率掉帧）；开=帧率实时跟随+低倍率保底降质（流畅）。
+        // 此前 floor 与开关无关，开/关块图糊度相同="开关无感"根因
+        if (!lodAdaptive) {
+            return 1f;
+        }
         return Math.max(adaptEma, pixelsPerBlock <= 1f ? 1.6f : 1f);
     }
 

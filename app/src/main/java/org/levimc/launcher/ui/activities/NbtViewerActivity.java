@@ -1840,6 +1840,12 @@ public class NbtViewerActivity extends BaseActivity {
                                 binding.worldMapImage.setWorldMap(fQuick);
                                 // v0.4.113：RLE 秒开路径同样恢复视图记忆
                                 restoreMapViewMemory();
+                                // v0.4.124：biome 开关持久化开着时进图
+                                // 补生成遮罩（监听器只在切换时触发，
+                                // 初始勾选状态不会调 refresh）
+                                if (binding.layerBiome.isChecked()) {
+                                    refreshBiomeMask();
+                                }
                             });
                         }
                     }
@@ -2185,6 +2191,10 @@ public class NbtViewerActivity extends BaseActivity {
                     // 覆盖 initialFitAll 的 fit/默认起步）
                     if (!(fKeepView || skeletonShown)) {
                         restoreMapViewMemory();
+                    }
+                    // v0.4.124：biome 补生成（同 fQuick 路径）
+                    if (binding.layerBiome.isChecked()) {
+                        refreshBiomeMask();
                     }
                     // v0.4.52：后台拼全图纹理（HTML 同款渲染——拼完自动
                     // 切全图模式，拖动/缩放 GPU 化；未拼完前走原 chunk 路径）
@@ -3045,6 +3055,10 @@ public class NbtViewerActivity extends BaseActivity {
             // （骨架已显示则保持视角不跳）
             if (!skeletonShown) {
                 restoreMapViewMemory();
+            }
+            // v0.4.124：biome 补生成（onDataLoaded 路径同款）
+            if (binding.layerBiome.isChecked()) {
+                refreshBiomeMask();
             }
             // v0.4.55：主世界首开/缓存加载完成后拼全图+史莱姆遮罩
             // （此前漏接——遮罩永远不生成，开史莱姆回退逐块绘制卡死）
