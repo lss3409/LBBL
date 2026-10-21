@@ -2602,6 +2602,15 @@ public class WorldMapRenderer {
         if (!in.isFile()) {
             return null;
         }
+        // v0.4.114：内存不足时跳过缓存读取（连续进出世界时旧图
+        // 未回收，读 20MB 位图直接 OOM——tombstone readLargePalette
+        // 根因）；回退全量重渲染路径（流式分配更省内存）
+        Runtime rt = Runtime.getRuntime();
+        long avail = rt.maxMemory() - (rt.totalMemory() - rt.freeMemory());
+        if (avail < 80L * 1024 * 1024) {
+            Log.w(TAG, "内存不足(" + avail / 1048576 + "MB)，跳过小世界缓存读取");
+            return null;
+        }
         try (java.io.DataInputStream dis = new java.io.DataInputStream(
                 new java.io.BufferedInputStream(new java.io.FileInputStream(in)))) {
             if (dis.readInt() != SMALL_CACHE_MAGIC || dis.readInt() != SMALL_CACHE_VERSION) {
@@ -2635,8 +2644,13 @@ public class WorldMapRenderer {
             Log.i(TAG, "小世界缓存已加载: " + w + "x" + h + " (dim=" + dimension
                     + (stale ? ", 旧图待刷新" : "") + ")");
             return map;
-        } catch (Exception e) {
+        // v0.4.114：catch Throwable——OOM 是 Error 不是 Exception
+        // （v0.4.73 教训：catch Exception 捕获不到 OOM 直接崩溃）
+        } catch (Throwable e) {
             Log.w(TAG, "小世界缓存加载失败", e);
+            if (e instanceof OutOfMemoryError) {
+                System.gc(); // 尽可能回收后回退重渲染路径
+            }
             return null;
         }
     }

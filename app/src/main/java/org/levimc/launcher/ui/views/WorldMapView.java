@@ -974,6 +974,32 @@ public class WorldMapView extends View {
         invalidate();
     }
 
+    /** v0.4.114：释放全部大内存资源（Activity onDestroy 调用）——
+     *  连续进出世界时旧图不回收 + 静态 LOD 线程池任务积压持有旧
+     *  WorldMap = 新世界加载 20MB 位图 OOM 的根因链（tombstone
+     *  readLargePalette 崩溃）。 */
+    public void release() {
+        map = null;
+        chunkGen++; // 排队中的 LOD 任务开头检查直接丢弃
+        chunkLodCache.clear();
+        chunkLodPending.clear();
+        for (android.graphics.Bitmap b : chunkTiles.values()) {
+            if (b != null && !b.isRecycled()) {
+                b.recycle();
+            }
+        }
+        chunkTiles.clear();
+        if (cachedBmp != null && !cachedBmp.isRecycled()) {
+            cachedBmp.recycle();
+        }
+        cachedBmp = null;
+        clearFullMapImage();
+        if (slimeMaskBitmap != null && !slimeMaskBitmap.isRecycled()) {
+            slimeMaskBitmap.recycle();
+        }
+        slimeMaskBitmap = null;
+    }
+
     public void setLodAdaptive(boolean adaptive) {
         lodAdaptive = adaptive;
         if (!adaptive) {
@@ -1110,7 +1136,10 @@ public class WorldMapView extends View {
             };
     private final java.util.Set<Long> chunkLodPending = new java.util.HashSet<>();
     /** 换图代次——后台块生成结果跨图丢弃（防串污染）。 */
-    private int chunkGen = 0;
+    // volatile：LOD 后台任务开头读它快速丢弃换图/退出后的无用任务
+    // （v0.4.114——连续进出世界时静态线程池队列积压任务持有旧
+    // WorldMap 无法回收 → 新世界加载 OOM 的根因链）
+    private volatile int chunkGen = 0;
 
     /** v0.4.101：本帧 chunk LOD 选中的 span（诊断日志用）。 */
     private int curLodSpan = 0;
@@ -1176,7 +1205,11 @@ public class WorldMapView extends View {
         if (map != null) {
             canvas.drawColor(launcherBackgroundColor());
         }
-        if (fullMapBitmap != null && !fullMapBitmap.isRecycled()
+        // v0.4.114：showBiomeLayer 时不走全图纹理——全图是 surface
+        // 色拼图无 biome 叠加（"开了生物群系不显示"根因）；大图退
+        // chunk LOD 路径（块图带 biome 色）、小世界退 cachedBmp
+        // 路径（resampleRegion 混合 biome），两条路径都有 biome
+        if (fullMapBitmap != null && !fullMapBitmap.isRecycled() && !showBiomeLayer
                 && (fullMapBlockScale <= 1
                         ? (pixelsPerBlock < 3f || map.chunkColors == null)
                         : (pixelsPerBlock <= 2f / Math.max(1f, fullMapBlockScale)
@@ -1292,6 +1325,24 @@ public class WorldMapView extends View {
         if (pixelsPerBlock < 0.5f) {
             return;
         }
+        // v0.4.114：0.5-1.5 区间抽稀（用户实测 0.9 倍仍二三十帧——
+        // 0.9 倍视口覆盖全图、2 万标点仍全画；实体结构都没开，
+        // 矿石就是主犯）。视口内超过 1200 个按比例跳画，与实体
+        // 抽稀同款（低倍率下稀疏后仍均匀分布）
+        int oreStride = 1;
+        if (pixelsPerBlock < 1.5f) {
+            int oreInView = 0;
+            for (WorldMapRenderer.OreMarker m : map.oreMarkers) {
+                float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
+                float sy = offsetY + (m.blockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
+                if (sx < -20 || sx > getWidth() + 20 || sy < -20 || sy > getHeight() + 20) {
+                    continue;
+                }
+                oreInView++;
+            }
+            oreStride = Math.max(1, oreInView / 1200);
+        }
+        int oreCount = 0;
         float r = Math.max(3.5f, pixelsPerBlock * 0.9f);
         android.graphics.Path p = new android.graphics.Path();
         android.graphics.Paint texPaint = new android.graphics.Paint(
@@ -1300,6 +1351,9 @@ public class WorldMapView extends View {
             float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
             float sy = offsetY + (m.blockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
             if (sx < -20 || sx > getWidth() + 20 || sy < -20 || sy > getHeight() + 20) {
+                continue;
+            }
+            if ((oreCount++ % oreStride) != 0) {
                 continue;
             }
             android.graphics.Bitmap tex = oreTexture(m.name);
@@ -1551,9 +1605,15 @@ public class WorldMapView extends View {
         final int gen = chunkGen;
         final WorldMapRenderer.WorldMap srcMap = map;
         LOD_EXECUTOR.execute(() -> {
+            // v0.4.114：换图/退出后丢弃排队任务（span 64 块图生成
+            // 单任务数十 ms，几千任务积压=旧图内存长期不可回收）
+            if (gen != chunkGen || map != srcMap) {
+                chunkLodPending.remove(key);
+                return;
+            }
             Bitmap bmp = null;
             try {
-                bmp = buildChunkLod(srcMap, bx, bz, span);
+                bmp = buildChunkLod(srcMap, bx, bz, span, showBiomeLayer);
             } catch (Throwable ignored) {
                 // 数据并发修改/换图：丢弃，下帧重试
             }
@@ -1575,7 +1635,7 @@ public class WorldMapView extends View {
     /** 后台生成超级块：span×span chunk 平均成 64×64（每输出像素 =
      *  span/4 方块均值；透明像素不参与平均，全透明输出 0）。 */
     private static Bitmap buildChunkLod(WorldMapRenderer.WorldMap srcMap,
-                                        int bx, int bz, int span) {
+                                        int bx, int bz, int span, boolean useBiome) {
         int outPx = 64;
         long[] rsum = new long[outPx * outPx];
         long[] gsum = new long[outPx * outPx];
@@ -1585,6 +1645,10 @@ public class WorldMapView extends View {
         if (colors == null) {
             return null;
         }
+        // v0.4.114：biome 图层开时块图用群系色平均（全图/缩小场景
+        // 群系可见；开关切换时 setShowBiomeLayer 已清块图缓存）
+        java.util.Map<Long, int[]> biomeColors =
+                useBiome ? srcMap.chunkBiomeColors : null;
         int step = span / 4; // 每输出像素 = step×step 方块（span≥4 恒整除）
         for (int kz = 0; kz < span; kz++) {
             for (int kx = 0; kx < span; kx++) {

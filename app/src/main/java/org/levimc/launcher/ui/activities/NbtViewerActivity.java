@@ -1576,6 +1576,15 @@ public class NbtViewerActivity extends BaseActivity {
         saveMapViewMemory();
     }
 
+    
+    protected void onDestroy() {
+        super.onDestroy();
+        // v0.4.114：释放地图大内存（连续进出世界 OOM 修复）
+        if (binding != null) {
+            binding.worldMapImage.release();
+        }
+    }
+
     /** keepView=true 时重载后保留当前视角（y 轴偏移等原地刷新场景）。 */
     private void loadMapForDimension(String dim, boolean keepView) {
         binding.nbtLoading.setVisibility(View.VISIBLE);
@@ -1661,7 +1670,11 @@ public class NbtViewerActivity extends BaseActivity {
                                 skeletonShown = true;
                                 binding.nbtLoading.setVisibility(View.GONE);
                                 binding.worldMapPlaceholder.setVisibility(View.GONE);
-                                binding.worldMapImage.initialFitAll = false;
+                                // v0.4.114：RLE 秒开路径此前写死 false→主世界
+                                // 大图也走最大倍率起步（"大地图默认还是最大
+                                // 倍率"根因）；按维度区分，主世界 fit 全图
+                                binding.worldMapImage.initialFitAll =
+                                        "overworld".equals(dim);
                                 currentMap = fQuick;
                                 binding.worldMapImage.setWorldMap(fQuick);
                                 // v0.4.113：RLE 秒开路径同样恢复视图记忆
@@ -2846,8 +2859,9 @@ public class NbtViewerActivity extends BaseActivity {
 
         // 世界地图：占满全屏（PRD 布局），缩放/平移时按比例重采样方块颜色
         if (worldMap != null) {
-            // v418：骨架已显示则保留视图（不跳不闪）
-            binding.worldMapImage.initialFitAll = false;
+            // v418：骨架已显示则保留视图（不跳不闪）；
+            // v0.4.114：initialFitAll 按维度（主世界大图 fit 起步）
+            binding.worldMapImage.initialFitAll = "overworld".equals(mapDimension);
             binding.worldMapImage.setWorldMap(worldMap, skeletonShown);
             // v0.4.113：普通世界打开恢复视图记忆
             // （骨架已显示则保持视角不跳）
