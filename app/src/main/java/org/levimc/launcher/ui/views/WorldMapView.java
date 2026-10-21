@@ -45,7 +45,9 @@ import java.util.Map;
 public class WorldMapView extends View {
 
     /** 每 block 的最大屏幕像素（BTR 1.0x 缩放级 = 16px/block） */
-    private static final float MAX_PIXELS_PER_BLOCK = 1000000f; // v0.4.109：用户要求无限缩放（原 24 倍上限解锁）
+    // v0.4.110：最大缩放倍率用户可调（默认 36，档位含无限）
+    private float maxPixelsPerBlock = 36f;
+    private static final float UNLIMITED_PPB = 1000000f;
     /** 每 block 的最小屏幕像素（避免整数运算下采样失真） */
     private static final float MIN_PIXELS_PER_BLOCK = 0.05f;
 
@@ -769,7 +771,7 @@ public class WorldMapView extends View {
 
         // v416：无论大小地图，打开默认最大倍率 24（用户要求——打开
         // 只渲染视口一两个区块，秒显示不黑屏）
-        setPpb(MAX_PIXELS_PER_BLOCK);
+        setPpb(maxPixelsPerBlock);
         // 目标点：出生点 > 玩家（打开地图停在出生点，用户要求）；
         // 若该处未生成（透明），螺旋找最近的有数据位置
         int targetX = map.spawnBlockX >= 0 ? map.spawnBlockX
@@ -822,7 +824,7 @@ public class WorldMapView extends View {
         // v0.4.63：缩放上限统一恢复 24 px/块（用户线索「不糊的时候
         // 就是 24 的倍率」——512 无限拉大即全图模式糊状态的标志）。
         // 放大路径走 tile/cachedBmp 1px/块原分辨率，24 上限内锐利
-        float max = MAX_PIXELS_PER_BLOCK;
+        float max = maxPixelsPerBlock;
         return Math.max(min, Math.min(max, v));
     }
 
@@ -929,6 +931,12 @@ public class WorldMapView extends View {
             android.graphics.Paint.ANTI_ALIAS_FLAG);
     private final android.graphics.RectF fpsBgRect = new android.graphics.RectF();
     private final android.graphics.Rect fpsTextBounds = new android.graphics.Rect();
+
+    /** v0.4.110：最大缩放倍率（0=无限）。 */
+    public void setMaxPixelsPerBlock(float maxPpb) {
+        maxPixelsPerBlock = maxPpb <= 0 ? UNLIMITED_PPB : maxPpb;
+        invalidate();
+    }
 
     public void setLodAdaptive(boolean adaptive) {
         lodAdaptive = adaptive;
@@ -1194,16 +1202,16 @@ public class WorldMapView extends View {
         // 主因（LOD 只优化了底图那一下）；onScaleEnd 全量补画
         // v0.4.109：拖拽恢复叠加层（用户反馈滑动不松手时实体/矿石/
         // 史莱姆/网格不显示——拖拽视口大小不变，标点数不变，可画）
-        if (!scaling) {
-            drawGrid(canvas);
-            drawSlimeChunks(canvas);
-            drawLinks(canvas);
-            drawPoints(canvas);
-            drawOreMarkers(canvas); // v413：矿石标点（色块菱形）
-            drawEntities(canvas);
-            drawStructures(canvas);
-            drawVoxelSelection(canvas); // 3D 区域选择矩形（最上层）
-        }
+        // v0.4.110：捏合也全量绘制（用户要求缩放中信息不消失；
+        // 大地图缩小时标点多性能有压力，但自适应 LOD 兜底流畅度）
+        drawGrid(canvas);
+        drawSlimeChunks(canvas);
+        drawLinks(canvas);
+        drawPoints(canvas);
+        drawOreMarkers(canvas); // v413：矿石标点（色块菱形）
+        drawEntities(canvas);
+        drawStructures(canvas);
+        drawVoxelSelection(canvas); // 3D 区域选择矩形（最上层）
         drawTapMarker(canvas); // v0.4.109：十字标记移出跳过块（缩放中不消失）
         drawMarkers(canvas); // 玩家/出生点标记画在最上层（不被实体贴图遮挡）
         drawFpsHud(canvas); // v0.4.106：右上角帧率 HUD（最上层）

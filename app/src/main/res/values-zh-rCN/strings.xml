@@ -1846,6 +1846,7 @@
     <string name="lod_threshold_hint">阈值越高越流畅，越低越清晰</string>
     <string name="lod_apply">应用</string>
     <string name="lod_adaptive">帧率自适应 LOD</string>
+    <string name="lod_max_zoom">最大缩放倍率</string>
     <string name="lod_adaptive_hint">帧率低时自动降低清晰度保证缩放流畅（3A 游戏同款机制），帧率恢复后自动回到设定值</string>
     <string name="lod_compose_title">全图纹理尺寸上限</string>
     <string name="lod_compose_hint">全图采样分辨率（256-16384）。大地图缩放卡就调小（如 2048）；应用后重新烘焙</string>

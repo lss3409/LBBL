@@ -536,6 +536,38 @@
                                 android:id="@+id/sw_lod_adaptive"
                                 style="@style/NbtSwitch" />
                         </LinearLayout>
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:fontFamily="@font/misans"
+                            android:text="@string/lod_max_zoom"
+                            android:textColor="@color/on_surface"
+                            android:textSize="12sp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <SeekBar
+                                android:id="@+id/lod_max_zoom_seek"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:max="8" />
+
+                            <TextView
+                                android:id="@+id/lod_max_zoom_value"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:fontFamily="@font/misans"
+                                android:textColor="@color/on_surface"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+
 
                     </LinearLayout>
 

@@ -649,9 +649,9 @@ public class FileManagerActivity extends BaseActivity {
         if (isLeaf) {
             tv.setTypeface(null, android.graphics.Typeface.BOLD);
         }
-        tv.setBackgroundResource(org.levimc.launcher.R.drawable.bg_search_box);
+        // v0.4.110：删除圆角描边背景——纯路径文本显示（系统文件管理器同款）
         float d = getResources().getDisplayMetrics().density;
-        tv.setPadding((int) (6 * d), (int) (3 * d), (int) (6 * d), (int) (3 * d));
+        tv.setPadding((int) (2 * d), 0, (int) (2 * d), 0);
         // 叶子段（当前目录）不跳自己；其它段点击跳转
         if (!isLeaf) {
             tv.setOnClickListener(v -> {

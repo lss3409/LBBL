@@ -920,6 +920,46 @@ public class NbtViewerActivity extends BaseActivity {
             binding.worldMapImage.setLodAdaptive(checked);
             prefs.edit().putBoolean("lod_adaptive", checked).apply();
         });
+        // v0.4.110：最大缩放倍率滑块（档位 8/16/24/36/64/128/256/512/∞，
+        // 默认 36；用户反馈"20 多稍微放大就到 80 多"——捏合本就是等比
+        // 乘法，上限限制避免误触放大过头）
+        final int[] zoomLevels = {8, 16, 24, 36, 64, 128, 256, 512, 0};
+        if (binding.lodMaxZoomSeek != null) {
+            int saved = prefs.getInt("lod_max_ppb", 36);
+            int idx = 3;
+            for (int i = 0; i < zoomLevels.length; i++) {
+                if (zoomLevels[i] == saved) {
+                    idx = i;
+                    break;
+                }
+            }
+            final int startIdx = idx;
+            binding.lodMaxZoomSeek.setProgress(idx);
+            binding.lodMaxZoomValue.setText(
+                    zoomLevels[idx] == 0 ? "∞" : zoomLevels[idx] + "×");
+            binding.worldMapImage.setMaxPixelsPerBlock(zoomLevels[idx]);
+            binding.lodMaxZoomSeek.setOnSeekBarChangeListener(
+                    new android.widget.SeekBar.OnSeekBarChangeListener() {
+                        @Override
+                        public void onProgressChanged(android.widget.SeekBar sb,
+                                                      int progress, boolean fromUser) {
+                            int lv = zoomLevels[Math.max(0, Math.min(8, progress))];
+                            binding.lodMaxZoomValue.setText(lv == 0 ? "∞" : lv + "×");
+                            if (fromUser) {
+                                binding.worldMapImage.setMaxPixelsPerBlock(lv);
+                            }
+                        }
+
+                        @Override
+                        public void onStartTrackingTouch(android.widget.SeekBar sb) {}
+
+                        @Override
+                        public void onStopTrackingTouch(android.widget.SeekBar sb) {
+                            int lv = zoomLevels[Math.max(0, Math.min(8, sb.getProgress()))];
+                            prefs.edit().putInt("lod_max_ppb", lv).apply();
+                        }
+                    });
+        }
     }
 
     /** 应用下界 y 范围并刷新分段高亮（个性化主题色贯通）。 */
