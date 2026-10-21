@@ -550,6 +550,8 @@ public class NbtViewerActivity extends BaseActivity {
         setupNetherExclude();
         // v0.4.95：LOD 金字塔渲染设置（开关/级数/阈值，持久化）
         setupLodSettings();
+        // v0.4.148：重新烘焙地图（清除当前世界烘焙缓存后重载）
+        setupRebakeMap();
 
         // 左栏标点搜索 → 列表过滤
         binding.pointSearchInput.addTextChangedListener(new android.text.TextWatcher() {
@@ -1568,6 +1570,81 @@ public class NbtViewerActivity extends BaseActivity {
     /** v413：阴影开关等渲染参数变化后重载当前维度（缓存后缀变了
      *  → 换缓存直接读秒生效；miss 则烘焙。比 force 重烘焙快得多，
      *  且旧阴影渲染立即消失）。 */
+    /** v0.4.148：重新烘焙地图——清除当前世界烘焙缓存后重载
+     *  （修复闪烁+绿色色块等缓存损坏渲染问题）。 */
+    private void setupRebakeMap() {
+        android.view.View btn = findViewById(R.id.btn_rebake_map);
+        if (btn == null) {
+            return;
+        }
+        org.levimc.launcher.util.AccentStyler.stylePrimary(this, btn);
+        btn.setOnClickListener(v -> {
+            if (currentWorldDir == null) {
+                return;
+            }
+            final java.io.File worldDir = currentWorldDir;
+            new Thread(() -> {
+                final int removed = clearWorldBakeCaches(worldDir);
+                runOnUiThread(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        Toast.makeText(this,
+                                getString(R.string.rebake_map_done, removed),
+                                Toast.LENGTH_SHORT).show();
+                        // 重载触发重新烘焙（保留视图位置）
+                        reloadMapForCurrentDimension();
+                    }
+                });
+            }, "rebake-map").start();
+        });
+    }
+
+    /** 世界目录烘焙缓存白名单删除（不碰世界数据 db/level.dat 与实体结构数据）。 */
+    private static int clearWorldBakeCaches(java.io.File worldDir) {
+        int removed = 0;
+        String wn = worldDir.getName();
+        java.io.File[] entries = worldDir.listFiles();
+        if (entries == null) {
+            return 0;
+        }
+        for (java.io.File f : entries) {
+            String n = f.getName();
+            if (f.isDirectory()) {
+                if (n.equals("map_cache") || n.equals("overworld")
+                        || n.equals("nether") || n.equals("end")) {
+                    removed += deleteBinsRecursive(f);
+                }
+            } else if (n.endsWith(".bin")
+                    && (n.startsWith("map_cache_")
+                    || n.startsWith("map_small_")
+                    || n.startsWith("map_ore_")
+                    || n.startsWith(wn + "_map_")
+                    || n.startsWith("world_map_cache_"))) {
+                if (f.delete()) {
+                    removed++;
+                }
+            }
+        }
+        return removed;
+    }
+
+    private static int deleteBinsRecursive(java.io.File dir) {
+        int removed = 0;
+        java.io.File[] fs = dir.listFiles();
+        if (fs == null) {
+            return 0;
+        }
+        for (java.io.File f : fs) {
+            if (f.isDirectory()) {
+                removed += deleteBinsRecursive(f);
+            } else if (f.getName().endsWith(".bin")) {
+                if (f.delete()) {
+                    removed++;
+                }
+            }
+        }
+        return removed;
+    }
+
     private void reloadMapForCurrentDimension() {
         if (currentWorldDir == null || mapDimension == null) {
             return;

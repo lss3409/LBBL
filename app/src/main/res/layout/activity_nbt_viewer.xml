@@ -552,6 +552,34 @@
                                 android:id="@+id/sw_precache"
                                 style="@style/NbtSwitch" />
                         </LinearLayout>
+                        <!-- v0.4.148：重新烘焙地图（清除当前世界烘焙缓存） -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                style="@style/NbtSwitchLabel"
+                                android:text="@string/rebake_map" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_rebake_map"
+                                style="@style/Widget.MaterialComponents.Button"
+                                android:layout_width="wrap_content"
+                                android:layout_height="36dp"
+                                android:backgroundTint="@color/primary"
+                                android:fontFamily="@font/misans"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                android:minHeight="0dp"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="0dp"
+                                android:text="@string/rebake_map"
+                                android:textAllCaps="false"
+                                android:textColor="@color/on_primary"
+                                android:textSize="12sp" />
+                        </LinearLayout>
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
