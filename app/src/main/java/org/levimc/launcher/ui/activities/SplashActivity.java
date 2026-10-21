@@ -324,8 +324,10 @@ public class SplashActivity extends BaseActivity {
             .translationY(ty)
             .scaleX(0.4f)
             .scaleY(0.4f)
-            .setDuration(550)
-            .setInterpolator(new FastOutSlowInInterpolator())
+            .setDuration(650)
+            // v0.4.133：Overshoot 回弹插值器——图标过渡 Q 弹
+            // （弹簧过冲效果，落位后轻微回弹）
+            .setInterpolator(new android.view.animation.OvershootInterpolator(1.35f))
             .withEndAction(() -> {
                 Intent intent = new Intent(SplashActivity.this, MainActivity.class);
                 startActivity(intent);

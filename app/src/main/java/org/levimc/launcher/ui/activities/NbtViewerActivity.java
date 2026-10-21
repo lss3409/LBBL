@@ -951,6 +951,15 @@ public class NbtViewerActivity extends BaseActivity {
             binding.worldMapImage.setLodAdaptive(checked);
             prefs.edit().putBoolean("lod_adaptive", checked).apply();
         });
+        // v0.4.133：进图预缓存开关（群系扫描/实体结构预解析）；
+        // 关=进图不预读，开图层时才读（弱机/在意 IO 时关闭）
+        if (binding.swPrecache != null) {
+            boolean precache = prefs.getBoolean("precache_on_enter", true);
+            binding.swPrecache.setChecked(precache);
+            binding.swPrecache.setOnCheckedChangeListener((btn, checked) -> {
+                prefs.edit().putBoolean("precache_on_enter", checked).apply();
+            });
+        }
         // v0.4.110：最大缩放倍率滑块（档位 8/16/24/36/64/128/256/512/∞，
         // 默认 36；用户反馈"20 多稍微放大就到 80 多"——捏合本就是等比
         // 乘法，上限限制避免误触放大过头）
@@ -1692,11 +1701,27 @@ public class NbtViewerActivity extends BaseActivity {
      *  图层时数据已就绪立即显示（"首次打开要等几秒再慢慢出现"
      *  修复；扫描 4 秒 IO 期间用户通常还在浏览地图）。 */
     private void scheduleBiomePrescan(WorldMapRenderer.WorldMap target) {
+        // v0.4.133：预缓存开关关时不预扫描（开图层时才扫）
+        if (!getSharedPreferences("nbt_viewer", MODE_PRIVATE)
+                .getBoolean("precache_on_enter", true)) {
+            return;
+        }
         flushHandler.postDelayed(() -> {
             if (!isFinishing() && !isDestroyed() && currentMap == target
                     && target.chunkBiomeColors == null
                     && target.biomeColors == null) {
+                // v0.4.133：读取状态提示（HUD 气泡+状态行）
+                binding.worldMapImage.showHudToast(
+                        getString(R.string.reading_biome_data));
+                binding.worldMapImage.setReadStatus(
+                        getString(R.string.reading_biome_data));
                 refreshBiomeMask();
+                // 保险：8 秒后清读取状态（扫描通常 4-6 秒完成）
+                flushHandler.postDelayed(() -> {
+                    if (!isFinishing() && !isDestroyed()) {
+                        binding.worldMapImage.setReadStatus(null);
+                    }
+                }, 8000);
             }
         }, 2000);
     }
@@ -1745,6 +1770,12 @@ public class NbtViewerActivity extends BaseActivity {
                             if (now - self.lastBiomeTileRefresh >= 2000) {
                                 self.lastBiomeTileRefresh = now;
                                 self.binding.worldMapImage.clearChunkData();
+                            }
+                            // v0.4.133：最后一字节判断——扫描线程已死=
+                            // 批次全部到达，读取状态清除
+                            if (self.biomeScanThread == null
+                                    || !self.biomeScanThread.isAlive()) {
+                                self.binding.worldMapImage.setReadStatus(null);
                             }
                         } else {
                             ((android.graphics.Bitmap) batch[0]).recycle();

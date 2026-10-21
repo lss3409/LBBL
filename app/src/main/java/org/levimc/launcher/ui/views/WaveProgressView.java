@@ -10,19 +10,21 @@ import android.view.View;
 import android.view.animation.LinearInterpolator;
 
 /**
- * v0.4.132：谷歌风波浪加载进度条（Splash「Preparing to launch」）。
- * 两条错相位正弦波叠加成水面起伏，随进度填充；颜色支持个性化
- * 强调色（铁律：UI 兼容个性化强调色）。
+ * v0.4.132/133：心电图式波浪加载进度条（Splash「Preparing to launch」）。
+ * 一条水平中线上的规律正弦波（波峰波谷平滑流动），进度=已读部分
+ * accent 色高亮，未读部分淡色轨道波；相位无限左流（系统更新界面
+ * 同款观感）。颜色支持个性化强调色。
  */
 public class WaveProgressView extends View {
 
-    private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Paint highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint trackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint progressPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint dotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path wavePath = new Path();
 
     private float progress = 0f;      // 0..1
-    private float phase = 0f;         // 波浪相位 0..1
+    private float phase = 0f;         // 波形相位 0..1（左流）
     private int waveColor = 0xFF4CAF50;
     private ValueAnimator phaseAnimator;
 
@@ -37,13 +39,16 @@ public class WaveProgressView extends View {
     }
 
     private void init() {
-        highlightPaint.setStyle(Paint.Style.STROKE);
-        highlightPaint.setStrokeWidth(dp(1f));
-        highlightPaint.setColor(Color.argb(90, 255, 255, 255));
-        trackPaint.setColor(Color.argb(26, 0, 0, 0));
+        trackPaint.setStyle(Paint.Style.STROKE);
+        trackPaint.setStrokeCap(Paint.Cap.ROUND);
+        trackPaint.setStrokeJoin(Paint.Join.ROUND);
+        progressPaint.setStyle(Paint.Style.STROKE);
+        progressPaint.setStrokeCap(Paint.Cap.ROUND);
+        progressPaint.setStrokeJoin(Paint.Join.ROUND);
+        glowPaint.setColor(Color.argb(60, 255, 255, 255));
     }
 
-    /** 个性化强调色（MaterialButton/AccentStyler 同源 accent）。 */
+    /** 个性化强调色。 */
     public void setWaveColor(int color) {
         waveColor = color;
         invalidate();
@@ -58,13 +63,13 @@ public class WaveProgressView extends View {
         return progress;
     }
 
-    /** 开始波浪起伏动画（无限循环）。 */
+    /** 波形相位无限左流。 */
     public void startWaving() {
         if (phaseAnimator != null) {
             return;
         }
         phaseAnimator = ValueAnimator.ofFloat(0f, 1f);
-        phaseAnimator.setDuration(1400);
+        phaseAnimator.setDuration(900);
         phaseAnimator.setRepeatCount(ValueAnimator.INFINITE);
         phaseAnimator.setInterpolator(new LinearInterpolator());
         phaseAnimator.addUpdateListener(a -> {
@@ -83,11 +88,19 @@ public class WaveProgressView extends View {
         }
     }
 
-    private float waveAt(float x, float waveLength, float amplitude) {
+    /** 波形函数：中线上的规律正弦波（顺滑波峰波谷）。 */
+    private float waveY(float x, float waveLength, float amplitude, float centerY) {
         double k = Math.PI * 2 / waveLength;
-        double a1 = Math.sin(k * x + phase * Math.PI * 2) * amplitude;
-        double a2 = Math.sin(k * x * 1.7 - phase * Math.PI * 3.2) * amplitude * 0.55;
-        return (float) (Math.max(a1, a2) * 0.75);
+        return centerY + (float) Math.sin(k * x - phase * Math.PI * 2) * amplitude;
+    }
+
+    private void buildWave(float fromX, float toX, float waveLength,
+                           float amplitude, float centerY) {
+        wavePath.reset();
+        wavePath.moveTo(fromX, waveY(fromX, waveLength, amplitude, centerY));
+        for (float x = fromX + 2f; x <= toX + 2f; x += 2f) {
+            wavePath.lineTo(x, waveY(x, waveLength, amplitude, centerY));
+        }
     }
 
     @Override
@@ -98,47 +111,37 @@ public class WaveProgressView extends View {
         if (w <= 0 || h <= 0) {
             return;
         }
+        float density = getResources().getDisplayMetrics().density;
+        float centerY = h / 2f;
+        float amplitude = Math.min(h * 0.36f, 12f * density);
+        float waveLength = Math.max(28f, 46f * density);
+        float strokeW = Math.max(2f, 2.4f * density);
+
+        // 轨道：完整波形淡色（未读部分可见，无长框背景）
+        trackPaint.setStrokeWidth(strokeW);
+        trackPaint.setColor((waveColor & 0x00FFFFFF) | 0x32000000);
+        buildWave(0f, w, waveLength, amplitude, centerY);
+        canvas.drawPath(wavePath, trackPaint);
+
         float filledW = w * progress;
-        float baseY = h * 0.5f;
-        float amplitude = Math.max(2f, h * 0.22f);
-        float waveLength = Math.max(24f, w * 0.3f);
-
-        // 轨道底（进度未覆盖区域，微透明黑槽）
-        trackPaint.setColor(Color.argb(isNightMode() ? 60 : 30, 0, 0, 0));
-        canvas.drawRoundRect(0f, baseY - amplitude, w, baseY + amplitude,
-                h / 2f, h / 2f, trackPaint);
-
         if (filledW <= 0) {
             return;
         }
-        // 波浪填充路径：上边缘 = 波浪线，下边缘 = 槽底
-        wavePath.reset();
-        wavePath.moveTo(0f, h);
-        wavePath.lineTo(0f, baseY + waveAt(0f, waveLength, amplitude));
-        for (float x = 4f; x <= filledW + 4f; x += 4f) {
-            wavePath.lineTo(x, baseY + waveAt(x, waveLength, amplitude));
-        }
-        wavePath.lineTo(filledW, h);
-        wavePath.close();
-        fillPaint.setColor(waveColor);
-        canvas.drawPath(wavePath, fillPaint);
-        canvas.drawPath(wavePath, highlightPaint);
+        // 已读：accent 波形（clip 到进度位置）
+        progressPaint.setStrokeWidth(strokeW);
+        progressPaint.setColor(waveColor);
+        canvas.save();
+        canvas.clipRect(0f, 0f, filledW, h);
+        buildWave(-waveLength, w + waveLength, waveLength, amplitude, centerY);
+        canvas.drawPath(wavePath, progressPaint);
+        canvas.restore();
 
-        // 进度末端光点（谷歌风小亮点）
-        if (filledW < w - 1) {
-            fillPaint.setColor(Color.argb(220,
-                    Color.red(waveColor), Color.green(waveColor), Color.blue(waveColor)));
-            canvas.drawCircle(filledW, baseY, dp(1.6f), fillPaint);
-        }
-    }
-
-    private boolean isNightMode() {
-        int mode = getResources().getConfiguration().uiMode
-                & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-        return mode == android.content.res.Configuration.UI_MODE_NIGHT_YES;
-    }
-
-    private float dp(float v) {
-        return Math.max(1f, v * getResources().getDisplayMetrics().density);
+        // 进度末端光点（带光晕，心电图读数点）
+        float dotY = waveY(filledW, waveLength, amplitude, centerY);
+        dotPaint.setColor(Color.argb(255,
+                Color.red(waveColor), Color.green(waveColor), Color.blue(waveColor)));
+        canvas.drawCircle(filledW, dotY, 3f * density, dotPaint);
+        glowPaint.setColor((waveColor & 0x00FFFFFF) | 0x50000000);
+        canvas.drawCircle(filledW, dotY, 7f * density, glowPaint);
     }
 }

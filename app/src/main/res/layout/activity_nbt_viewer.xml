@@ -536,6 +536,22 @@
                                 android:id="@+id/sw_lod_adaptive"
                                 style="@style/NbtSwitch" />
                         </LinearLayout>
+
+                        <!-- v0.4.133：进图预缓存开关（群系/实体/结构预读取） -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                style="@style/NbtSwitchLabel"
+                                android:text="@string/precache_on_enter" />
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/sw_precache"
+                                style="@style/NbtSwitch" />
+                        </LinearLayout>
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"

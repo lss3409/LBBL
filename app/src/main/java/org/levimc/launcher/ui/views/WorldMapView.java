@@ -995,6 +995,13 @@ public class WorldMapView extends View {
     private float fpsEma = 60f;
     /** 自适应系数 EMA（1=用户设定值，低帧率时升高）。 */
     private float adaptEma = 1f;
+    // v0.4.133：读取状态（FPS HUD 附加行，读取完成置 null）
+    private volatile String readStatus = null;
+
+    public void setReadStatus(String status) {
+        readStatus = status;
+        invalidate();
+    }
     private long lastFrameNanos = 0;
     private long fpsWindowStart = 0;
     private int fpsWindowFrames = 0;
@@ -1121,12 +1128,16 @@ public class WorldMapView extends View {
             return;
         }
         float density = getResources().getDisplayMetrics().density;
-        // 多行内容：帧率 / 缩放（px·方块）/ 中心群系
+        // 多行内容：帧率 / 缩放（px·方块）/ 读取状态 / 中心群系
         java.util.List<String> lines = new java.util.ArrayList<>();
         lines.add(String.format(java.util.Locale.US, "FPS %.0f  ·  缩放 %.3f px",
                 lastFpsShown, pixelsPerBlock));
         lines.add(String.format(java.util.Locale.US, "%.2f 方块/像素",
                 1f / Math.max(0.001f, pixelsPerBlock)));
+        // v0.4.133：读取状态行（"正在读取群系数据…"等，读取完成清空）
+        if (readStatus != null && !readStatus.isEmpty()) {
+            lines.add(readStatus);
+        }
         if (map != null && getWidth() > 0 && getHeight() > 0) {
             int biomeId = biomeIdAt(getWidth() / 2f, getHeight() / 2f);
             if (biomeId > 0) {

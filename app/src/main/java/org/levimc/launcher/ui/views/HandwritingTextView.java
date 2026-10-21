@@ -101,8 +101,11 @@ public class HandwritingTextView extends View {
         glyphPath.reset();
         float w = textPaint.measureText(text);
         float x = (getWidth() - w) / 2f;
-        float baseline = (getHeight() - (textPaint.descent() + textPaint.ascent())) / 2f
-                - textPaint.ascent();
+        // v0.4.133：基线修正——字形高度 = descent - ascent（此前误用
+        // descent + ascent，"LBBL 底部被遮挡显示不全"根因），并留
+        // 4dp 边距防 descender 裁切
+        float textH = textPaint.descent() - textPaint.ascent();
+        float baseline = (getHeight() - textH) / 2f - textPaint.ascent() - dp(2f);
         textPaint.getTextPath(text, 0, text.length(), x, baseline, glyphPath);
         measure.setPath(glyphPath, false);
         pathBuilt = true;
