@@ -995,6 +995,10 @@ public class WorldMapView extends View {
     private float fpsEma = 60f;
     /** 自适应系数 EMA（1=用户设定值，低帧率时升高）。 */
     private float adaptEma = 1f;
+    // v0.4.137：本帧实际绘制标点计数（HUD 显示，直观看到抽稀效果）
+    private int drawnEntities = 0;
+    private int drawnOres = 0;
+    private int drawnStructures = 0;
     // v0.4.133：读取状态（FPS HUD 附加行，读取完成置 null）
     private volatile String readStatus = null;
 
@@ -1163,6 +1167,10 @@ public class WorldMapView extends View {
                 }
             }
         }
+        // v0.4.137：本帧实际绘制标点数（抽稀后的真实数量，直观看到
+        // 哪个图层在吃性能）
+        lines.add("标点 实体" + drawnEntities + " 矿石" + drawnOres
+                + " 结构" + drawnStructures);
         // v0.4.133：读取状态行（"正在读取群系数据…"等，读取完成清空）
         if (readStatus != null && !readStatus.isEmpty()) {
             lines.add(readStatus);
@@ -1474,6 +1482,7 @@ public class WorldMapView extends View {
             oreStride = Math.max(1, oreInView / 1200);
         }
         int oreCount = 0;
+        drawnOres = 0;
         float r = Math.max(3.5f, pixelsPerBlock * 0.9f);
         // v0.4.123：Path/Paint/RectF 字段复用（每帧新建=GC 抖动）
         android.graphics.Path p = orePath;
@@ -1488,6 +1497,7 @@ public class WorldMapView extends View {
             if ((oreCount++ % oreStride) != 0) {
                 continue;
             }
+            drawnOres++;
             android.graphics.Bitmap tex = oreTexture(m.name);
             if (tex != null) {
                 float ts = Math.max(r * 2.2f, pixelsPerBlock * 1.5f);
@@ -2357,6 +2367,7 @@ public class WorldMapView extends View {
             entStride = Math.max(1, inView / 1200);
         }
         int entCount = 0;
+        drawnEntities = 0;
         for (WorldMapRenderer.EntityPos e : entities) {
             // 未渲染 chunk 上的实体不显示（视口按需渲染出来后才出现）
             if (!chunkRendered(Math.floorDiv((int) e.x, 16), Math.floorDiv((int) e.z, 16))) {
@@ -2370,6 +2381,7 @@ public class WorldMapView extends View {
             if (sx < -40 || sx > getWidth() + 40 || sy < -40 || sy > getHeight() + 40) {
                 continue;
             }
+            drawnEntities++;
             Bitmap icon = useIcons ? iconBitmap(e.name) : null;
             if (icon != null) {
                 // v0.4.123：RectF 字段复用（此前每实体 new 一个）
@@ -2536,6 +2548,7 @@ public class WorldMapView extends View {
         stroke.setColor(0xCC000000);
         Paint labelPaint = pixelsPerBlock >= 0.9f ? structLabelPaint : null;
         Paint iconPaint = structIconPaint;
+        drawnStructures = 0;
         for (WorldMapRenderer.StructureMarker m : structures) {
             // v0.4.136：SeedFinder 预测结构（predicted=true）不要求
             // chunk 已渲染——预测位置本就允许未生成区域显示（恢复
@@ -2550,6 +2563,7 @@ public class WorldMapView extends View {
             if (sx < -60 || sx > getWidth() + 60 || sy < -60 || sy > getHeight() + 60) {
                 continue;
             }
+            drawnStructures++;
             float r = Math.max(7f, pixelsPerBlock * 0.9f);
             // 结构贴图（游戏原版方块贴图），失败回退白底圆+自绘形状
             String iconName = structureIconName(m.type);
