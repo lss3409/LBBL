@@ -1546,7 +1546,7 @@
 <string name="nether_exclude_default">默认：基岩 + 下界岩 + 灵魂沙</string>
 <string name="layer_grid">区块网格</string>
 <string name="layer_biome">生物群系</string>
-<string name="layer_ore">矿石标点</string>
+<string name="layer_ore">矿石</string>
 <string name="layer_shading">坡度阴影（立体感）</string>
 <string name="layer_entity">实体</string>
 <string name="layer_structure">结构</string>

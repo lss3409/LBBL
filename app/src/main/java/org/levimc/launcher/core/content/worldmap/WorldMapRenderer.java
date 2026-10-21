@@ -6482,6 +6482,25 @@ public class WorldMapRenderer {
                                 cw, ch, cx0, cz0});
                     }
                 }
+                // v0.4.138：膨胀填充——稀疏世界无数据 chunk 遮罩透明
+                // =透出底图（"2.31-0.62 倍透底图"根因）；左→右、上→下
+                // 两次传播用相邻群系色填满空洞（群系地域连续性）
+                for (int fy = 0; fy < ch; fy++) {
+                    for (int fx = 1; fx < cw; fx++) {
+                        int fi = fy * cw + fx;
+                        if (px[fi] == 0 && px[fi - 1] != 0) {
+                            px[fi] = px[fi - 1];
+                        }
+                    }
+                }
+                for (int fy = 1; fy < ch; fy++) {
+                    for (int fx = 0; fx < cw; fx++) {
+                        int fi = fy * cw + fx;
+                        if (px[fi] == 0 && px[fi - cw] != 0) {
+                            px[fi] = px[fi - cw];
+                        }
+                    }
+                }
                 Log.i(TAG, "biome 扫描完成: any=" + any + " failHmap=" + failHmap
                         + " failBiome=" + failBiome + " failBound=" + failBound);
                 if (any > 0) {

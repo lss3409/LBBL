@@ -1590,7 +1590,7 @@ Invite code: P/%1$s
 <string name="nether_exclude_default">Default: bedrock + netherrack + soul sand</string>
 <string name="layer_grid">Chunk grid</string>
 <string name="layer_biome">Biomes</string>
-<string name="layer_ore">Ore markers</string>
+<string name="layer_ore">Ore</string>
 <string name="layer_shading">Slope shading (3D feel)</string>
 <string name="layer_entity">Entities</string>
 <string name="layer_structure">Structures</string>

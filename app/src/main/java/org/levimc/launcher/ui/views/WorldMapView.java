@@ -89,6 +89,9 @@ public class WorldMapView extends View {
     /** 单击显示坐标：点击处十字标记（-1 = 无） */
     private int tapBlockX = -1;
     private int tapBlockZ = -1;
+    // v0.4.138：十字标记屏幕锚定坐标（显示层；tapBlock 为读取层）
+    private float tapScreenX = -1f;
+    private float tapScreenY = -1f;
     /** 连线模式 / 测距模式：高亮待选起点 */
     private boolean linkPickMode = false;
     private long highlightPointId = -1;
@@ -999,6 +1002,8 @@ public class WorldMapView extends View {
     private int drawnEntities = 0;
     private int drawnOres = 0;
     private int drawnStructures = 0;
+    // v0.4.138：矿石抽稀步长记忆（手势动画中冻结防闪烁）
+    private int lastOreStride = 1;
     // v0.4.133：读取状态（FPS HUD 附加行，读取完成置 null）
     private volatile String readStatus = null;
 
@@ -1470,16 +1475,23 @@ public class WorldMapView extends View {
         // 全量列表与绘制无关。视口内超过 1200 个按比例跳画
         int oreStride = 1;
         if (pixelsPerBlock < 16f && map.oreMarkers.size() > 1500) {
-            int oreInView = 0;
-            for (WorldMapRenderer.OreMarker m : map.oreMarkers) {
-                float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
-                float sy = offsetY + (m.blockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
-                if (sx < -20 || sx > getWidth() + 20 || sy < -20 || sy > getHeight() + 20) {
-                    continue;
+            if (scaling || panning) {
+                // v0.4.138：手势动画中冻结抽稀步长——stride 随视口
+                // 计数每帧跳变=矿石点集合变化=闪烁根因；手势结束重算
+                oreStride = Math.max(1, lastOreStride);
+            } else {
+                int oreInView = 0;
+                for (WorldMapRenderer.OreMarker m : map.oreMarkers) {
+                    float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
+                    float sy = offsetY + (m.blockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
+                    if (sx < -60 || sx > getWidth() + 60 || sy < -60 || sy > getHeight() + 60) {
+                        continue;
+                    }
+                    oreInView++;
                 }
-                oreInView++;
+                oreStride = Math.max(1, oreInView / 1200);
+                lastOreStride = oreStride;
             }
-            oreStride = Math.max(1, oreInView / 1200);
         }
         int oreCount = 0;
         drawnOres = 0;
@@ -1491,7 +1503,9 @@ public class WorldMapView extends View {
         for (WorldMapRenderer.OreMarker m : map.oreMarkers) {
             float sx = offsetX + (m.blockX - map.minBlockX + 0.5f) * pixelsPerBlock;
             float sy = offsetY + (m.blockZ - map.minBlockZ + 0.5f) * pixelsPerBlock;
-            if (sx < -20 || sx > getWidth() + 20 || sy < -20 || sy > getHeight() + 20) {
+            // v0.4.138：边缘缓冲 20→60——滑动时矿石点进出边界突然
+            // 出现/消失=闪烁的另一半根因
+            if (sx < -60 || sx > getWidth() + 60 || sy < -60 || sy > getHeight() + 60) {
                 continue;
             }
             if ((oreCount++ % oreStride) != 0) {
@@ -2779,18 +2793,18 @@ public class WorldMapView extends View {
     private boolean entitiesLogged = false;
 
     private void drawTapMarker(Canvas canvas) {
-        if (tapBlockX < 0 || tapBlockZ < 0 || map == null) {
+        if (tapScreenX < 0 || tapScreenY < 0 || map == null) {
             return;
         }
-        float sx = worldToScreenX(tapBlockX + 0.5f);
-        float sy = worldToScreenY(tapBlockZ + 0.5f);
-        if (sx < 0 || sx > getWidth() || sy < 0 || sy > getHeight()) {
-            return;
-        }
+        // v0.4.138：十字锚定屏幕坐标（缩放/拖动不消失）；坐标标签
+        // 实时从屏幕位置换算世界坐标（读取层）——显示与读取分离
+        float sx = tapScreenX;
+        float sy = tapScreenY;
+        int[] live = screenToBlock(sx, sy);
         Paint line = new Paint();
         line.setAntiAlias(true);
         line.setStrokeWidth(2f);
-        float arm = Math.max(10f, pixelsPerBlock * 0.8f);
+        float arm = Math.max(12f, pixelsPerBlock * 1.2f);
         line.setColor(0x99000000);
         canvas.drawLine(sx - arm, sy, sx + arm, sy, line);
         canvas.drawLine(sx, sy - arm, sx, sy + arm, line);
@@ -2798,8 +2812,8 @@ public class WorldMapView extends View {
         line.setColor(0xFFFFFFFF);
         canvas.drawLine(sx - arm, sy, sx + arm, sy, line);
         canvas.drawLine(sx, sy - arm, sx, sy + arm, line);
-        // 坐标标签
-        String text = "(" + tapBlockX + ", " + tapBlockZ + ")";
+        // 坐标标签（实时世界坐标）
+        String text = "(" + live[0] + ", " + live[1] + ")";
         Paint labelPaint = new Paint();
         labelPaint.setAntiAlias(true);
         labelPaint.setTextSize(11f);
@@ -3079,6 +3093,8 @@ public class WorldMapView extends View {
             // 长按 → 地图坐标回调（添加标点）
             tapBlockX = -1;
             tapBlockZ = -1;
+            tapScreenX = -1f;
+            tapScreenY = -1f;
             if (listener != null && map != null) {
                 int[] b = screenToBlock(e.getX(), e.getY());
                 listener.onLongPress(b[0], b[1]);
@@ -3123,9 +3139,14 @@ public class WorldMapView extends View {
                 }
             }
             // 单击空地 → 显示该处坐标（十字标记 + 标签，HTML 原型行为）
+            // v0.4.138：显示/读取分离——十字锚定屏幕坐标（缩放时
+            // 纹丝不动，不再随地图移出屏幕="缩放到一定比例后消失"
+            // 根因）；世界坐标在绘制时实时从屏幕坐标换算（读取层）
             int[] b = screenToBlock(e.getX(), e.getY());
             tapBlockX = b[0];
             tapBlockZ = b[1];
+            tapScreenX = e.getX();
+            tapScreenY = e.getY();
             invalidate();
             if (listener != null) {
                 listener.onMapTap(b[0], b[1]);
@@ -3159,6 +3180,8 @@ public class WorldMapView extends View {
             // 双击缩放时清除单击坐标标记
             tapBlockX = -1;
             tapBlockZ = -1;
+            tapScreenX = -1f;
+            tapScreenY = -1f;
             // 整图适配 ↔ 2 倍放大（相对当前）
             float fit = Math.min(getWidth() / (float) map.width, getHeight() / (float) map.height);
             if (pixelsPerBlock > fit * 1.5f) {
