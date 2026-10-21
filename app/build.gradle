@@ -67,7 +67,9 @@ android {
         viewBinding true
     }
     buildFeatures {
-        prefab true
+        // v0.4.105：prefab 关闭——CMakeLists 无 find_package 使用，
+        // 且开启时 tess-two 等无 prefab 元数据的 AAR 转换失败
+        prefab false
     }
     buildFeatures {
         buildConfig true
@@ -175,6 +177,8 @@ dependencies {
     implementation libs.androidx.browser
     implementation libs.bedrock.connection
     implementation libs.xcrash
+    // v0.4.104：文件管理器图片 OCR（中英混合识别，模型约 47MB 内置）
+    implementation files("libs/tess-two-9.1.0.jar")
     implementation libs.play.services.games.v2
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit

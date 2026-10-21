@@ -2030,6 +2030,29 @@ Invite code: P/%1$s
     <string name="fm_ocr_failed">Recognition failed</string>
     <string name="fm_ocr_copy">Copy</string>
     <string name="fm_ocr_copied">Copied</string>
+    <!-- v0.4.105：图片信息面板 -->
+    <string name="fm_img_info_button">Info</string>
+    <string name="fm_img_info_title">Image Info</string>
+    <string name="fm_img_info_loading">Analyzing…</string>
+    <string name="fm_img_info_basic">Basic</string>
+    <string name="fm_img_info_name">Name</string>
+    <string name="fm_img_info_res">Resolution</string>
+    <string name="fm_img_info_size">Size</string>
+    <string name="fm_img_info_mtime">Modified</string>
+    <string name="fm_img_info_format">Format</string>
+    <string name="fm_img_info_fmt">File format</string>
+    <string name="fm_img_info_depth">Color depth</string>
+    <string name="fm_img_info_alpha">Alpha channel</string>
+    <string name="fm_img_alpha_yes">Yes (has transparency)</string>
+    <string name="fm_img_alpha_no">No</string>
+    <string name="fm_img_info_histogram">RGB Histogram</string>
+    <string name="fm_img_info_hash">Hash</string>
+    <string name="fm_img_info_sha256">SHA-256</string>
+    <string name="fm_img_info_mc">MC Texture Check</string>
+    <string name="fm_img_mc_ok">Standard MC texture ratio (%1$d×%1$d) ✓</string>
+    <string name="fm_img_mc_bad">⚠ Non-standard MC texture ratio (8×8, 16×16, 32×32, 64×64… expected)</string>
+    <string name="fm_img_mc_skip">Whitelisted (pack_icon / world_icon)</string>
+    <string name="fm_img_info_path">Path</string>
     <!-- v0.4.89：跳转弹窗子文件夹标题 -->
     <string name="fm_ui_subfolders">Subfolders</string>
 </resources>

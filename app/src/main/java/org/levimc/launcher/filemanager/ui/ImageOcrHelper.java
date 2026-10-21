@@ -1,78 +1,106 @@
 package org.levimc.launcher.filemanager.ui;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 
 import androidx.annotation.Nullable;
 
+import org.levimc.launcher.ui.activities.BaseActivity;
+
 /**
- * v0.4.104：图片 OCR 文字识别（ML Kit 中英混合，on-device）。
- * 单例识别器 + 防重入；识别结果按块/行拼接文本。
+ * v0.4.104/105：图片 OCR 文字识别（Tesseract 本地引擎，模型随 APK
+ * 打包——tessdata_fast chi_sim+eng，无网络依赖）。
+ * v0.4.105：ML Kit（模型需 GMS 动态下载）换 tess-two 本地模型。
  */
 public final class ImageOcrHelper {
 
-    private static volatile com.google.mlkit.vision.text.TextRecognizer recognizer;
+    private static final String DATA_DIR = "tesseract";
+    private static final String[] MODELS = {"chi_sim.traineddata", "eng.traineddata"};
+    private static final String LANG = "chi_sim+eng";
+
+    private static com.googlecode.tesseract.android.TessBaseAPI api;
     private static volatile boolean busy = false;
 
     private ImageOcrHelper() {}
 
-    /**
-     * 识别位图文字（中英混合）。onDone 在主线程回调：成功传文本、
-     * 失败传 null；忙碌中（上一次未完成）直接忽略。
-     */
+    /** 首次初始化：assets 模型拷到私有目录 + 加载引擎（后台线程）。 */
+    private static synchronized void ensureInit(Context ctx) {
+        if (api != null) {
+            return;
+        }
+        try {
+            java.io.File tessDir = new java.io.File(ctx.getFilesDir(), DATA_DIR);
+            java.io.File modelDir = new java.io.File(tessDir, "tessdata");
+            if (!modelDir.exists()) {
+                modelDir.mkdirs();
+            }
+            for (String m : MODELS) {
+                java.io.File dst = new java.io.File(modelDir, m);
+                if (!dst.exists()) {
+                    try (java.io.InputStream in = ctx.getAssets().open("tessdata/" + m);
+                         java.io.OutputStream out = new java.io.FileOutputStream(dst)) {
+                        byte[] buf = new byte[64 * 1024];
+                        int n;
+                        while ((n = in.read(buf)) > 0) {
+                            out.write(buf, 0, n);
+                        }
+                    }
+                }
+            }
+            com.googlecode.tesseract.android.TessBaseAPI a =
+                    new com.googlecode.tesseract.android.TessBaseAPI();
+            if (a.init(tessDir.getAbsolutePath(), LANG)) {
+                api = a;
+            } else {
+                a.end();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** 识别位图文字（本地模型，后台线程）。onDone 在主线程回调。 */
     public static void recognize(BaseActivity activity, Bitmap bitmap,
                                  @Nullable java.util.function.Consumer<String> onDone) {
         if (busy || bitmap == null || bitmap.isRecycled()) {
             return;
         }
         busy = true;
-        if (recognizer == null) {
-            synchronized (ImageOcrHelper.class) {
-                if (recognizer == null) {
-                    recognizer = com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
-                            .Builder().build();
+        new Thread(() -> {
+            // lambda effectively final：识别结果抽静态方法返回
+            final String result = runRecognition(activity, bitmap);
+            busy = false;
+            activity.runOnUiThread(() -> {
+                if (onDone != null) {
+                    onDone.accept(result);
                 }
-            }
-        }
-        com.google.mlkit.vision.common.InputImage image =
-                com.google.mlkit.vision.common.InputImage.fromBitmap(bitmap, 0);
-        recognizer.process(image)
-                .addOnSuccessListener(result -> {
-                    busy = false;
-                    StringBuilder sb = new StringBuilder();
-                    for (com.google.mlkit.vision.text.Text.TextBlock block : result.getTextBlocks()) {
-                        for (com.google.mlkit.vision.text.Text.Line line : block.getLines()) {
-                            if (sb.length() > 0) {
-                                sb.append('\n');
-                            }
-                            sb.append(line.getText());
-                        }
-                    }
-                    String text = sb.toString();
-                    activity.runOnUiThread(() -> {
-                        if (onDone != null) {
-                            onDone.accept(text);
-                        }
-                    });
-                })
-                .addOnFailureListener(e -> {
-                    busy = false;
-                    activity.runOnUiThread(() -> {
-                        if (onDone != null) {
-                            onDone.accept(null);
-                        }
-                    });
-                });
+            });
+        }, "fm-ocr").start();
     }
 
-    /** 释放识别器（模型驻留内存较大，文件管理器退出时调用）。 */
+    /** 后台识别（可能耗时数秒），失败返回 null。 */
+    private static String runRecognition(Context activity, Bitmap bitmap) {
+        try {
+            ensureInit(activity);
+            if (api != null) {
+                api.setImage(bitmap);
+                String text = api.getUTF8Text();
+                api.clear();
+                return text;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    /** 释放引擎（文件管理器退出时调用）。 */
     public static void release() {
         busy = false;
-        if (recognizer != null) {
+        if (api != null) {
             try {
-                recognizer.close();
+                api.end();
             } catch (Throwable ignored) {
             }
-            recognizer = null;
+            api = null;
         }
     }
 }

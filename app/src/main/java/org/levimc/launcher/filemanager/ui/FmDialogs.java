@@ -63,7 +63,8 @@ public class FmDialogs {
     private static CustomAlertDialog lastDialog;
 
     /** 弹窗前关闭上一个文件管理器对话框；点击屏幕外可关闭（与导入扫描弹窗一致）。 */
-    private static void trackShow(CustomAlertDialog dialog) {
+    /** v0.4.105：改为 public——ImageInfoPanel 等工具类复用弹窗防叠加。 */
+    public static void trackShow(CustomAlertDialog dialog) {
         dismissLast();
         lastDialog = dialog;
         dialog.setCanceledOnTouchOutside(true);
@@ -383,6 +384,10 @@ public class FmDialogs {
         CustomAlertDialog dialog = new CustomAlertDialog(a)
                 .setTitleText(file.getName())
                 .setCustomView(imageView)
+                .setNeutralButton(a.getString(R.string.fm_img_info_button), v -> {
+                    // v0.4.105：图片信息面板（直方图/哈希/贴图比例等）
+                    ImageInfoPanel.show(a, file);
+                })
                 .setPositiveButton(a.getString(R.string.fm_ocr_button), v -> {
                     android.graphics.Bitmap bmp = previewBmp[0];
                     if (bmp == null || bmp.isRecycled()) {
@@ -442,12 +447,15 @@ public class FmDialogs {
         int pad = (int) (12 * a.getResources().getDisplayMetrics().density);
         tv.setPadding(pad, pad, pad, pad);
         android.widget.ScrollView sv = new android.widget.ScrollView(a);
-        int maxSvH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.5f);
-        sv.setMaxHeight(maxSvH);
         sv.addView(tv);
+        // ScrollView 无 setMaxHeight：外层固定高度容器限高（长文可滚动）
+        int maxSvH = (int) (a.getResources().getDisplayMetrics().heightPixels * 0.5f);
+        android.widget.FrameLayout fl = new android.widget.FrameLayout(a);
+        fl.addView(sv, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT, maxSvH));
         CustomAlertDialog result = new CustomAlertDialog(a)
                 .setTitleText(a.getString(R.string.fm_ocr_title))
-                .setCustomView(sv)
+                .setCustomView(fl)
                 .setPositiveButton(a.getString(R.string.fm_ocr_copy), v -> {
                     android.content.ClipboardManager cm = (android.content.ClipboardManager)
                             a.getSystemService(android.content.Context.CLIPBOARD_SERVICE);

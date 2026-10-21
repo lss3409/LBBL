@@ -1867,6 +1867,29 @@
     <string name="fm_ocr_failed">识别失败</string>
     <string name="fm_ocr_copy">复制</string>
     <string name="fm_ocr_copied">已复制</string>
+    <!-- v0.4.105：图片信息面板 -->
+    <string name="fm_img_info_button">信息</string>
+    <string name="fm_img_info_title">图片信息</string>
+    <string name="fm_img_info_loading">分析中…</string>
+    <string name="fm_img_info_basic">基本信息</string>
+    <string name="fm_img_info_name">文件名</string>
+    <string name="fm_img_info_res">分辨率</string>
+    <string name="fm_img_info_size">大小</string>
+    <string name="fm_img_info_mtime">修改时间</string>
+    <string name="fm_img_info_format">格式信息</string>
+    <string name="fm_img_info_fmt">文件格式</string>
+    <string name="fm_img_info_depth">色彩深度</string>
+    <string name="fm_img_info_alpha">透明通道</string>
+    <string name="fm_img_alpha_yes">有透明通道</string>
+    <string name="fm_img_alpha_no">无透明通道</string>
+    <string name="fm_img_info_histogram">RGB 直方图</string>
+    <string name="fm_img_info_hash">哈希值</string>
+    <string name="fm_img_info_sha256">SHA-256</string>
+    <string name="fm_img_info_mc">MC 贴图检测</string>
+    <string name="fm_img_mc_ok">标准 MC 贴图比例（%1$d×%1$d）✓</string>
+    <string name="fm_img_mc_bad">⚠ 非标准 MC 贴图比例（应为 8×8、16×16、32×32、64×64 等）</string>
+    <string name="fm_img_mc_skip">白名单豁免（pack_icon / world_icon）</string>
+    <string name="fm_img_info_path">路径</string>
     <!-- v0.4.89：跳转弹窗子文件夹标题 -->
     <string name="fm_ui_subfolders">子文件夹</string>
 </resources>
