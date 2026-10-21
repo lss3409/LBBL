@@ -1691,6 +1691,8 @@ public class NbtViewerActivity extends BaseActivity {
     /** v0.4.122：生成/刷新 biome 遮罩位图（后台线程；烘焙增量
      *  节流刷新由 onBakeBatch 调）。 */
     private long lastBiomeMaskRefresh = 0;
+    // v0.4.129：扫描批次后 tile 重建节流
+    private long lastBiomeTileRefresh = 0;
     // v0.4.126：biome 独立扫描线程（进行中则跳过重复启动）
     private volatile Thread biomeScanThread = null;
 
@@ -1722,6 +1724,15 @@ public class NbtViewerActivity extends BaseActivity {
                                 && self.currentMap == fMap
                                 && self.binding.layerBiome.isChecked()) {
                             self.binding.worldMapImage.setBiomeMaskPixels(batch);
+                            // v0.4.129：扫描批次到达时节流重建 chunk
+                            // tile——chunkBiomeColors 已填充，放大路径
+                            // tile 直接显示精细群系（不再是 1px/chunk
+                            // 蒙版马赛克）
+                            long now = android.os.SystemClock.uptimeMillis();
+                            if (now - self.lastBiomeTileRefresh >= 2000) {
+                                self.lastBiomeTileRefresh = now;
+                                self.binding.worldMapImage.clearChunkData();
+                            }
                         } else {
                             ((android.graphics.Bitmap) batch[0]).recycle();
                         }

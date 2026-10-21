@@ -6443,14 +6443,21 @@ public class WorldMapRenderer {
                         failBound++;
                         continue;
                     }
-                    // 每 chunk 1 像素：16 个采样点（每 4 方块）RGB 平均
+                    // v0.4.129：双写——①填 chunkBiomeColors（每方块群系
+                    // 色，放大时 chunk tile 直接显示=用户要的"直接显示"
+                    // 精细群系，不再是蒙版马赛克）；②1px 遮罩采样
+                    // （低倍率全图状态用）。内存 24844×256×4≈25MB
+                    // 仅在群系图层开启时发生
+                    int[] biomeCols = new int[256];
                     int rs = 0;
                     int gs = 0;
                     int bs = 0;
                     int n = 0;
-                    for (int sy = 0; sy < 4; sy++) {
-                        for (int sx = 0; sx < 4; sx++) {
-                            int col = biomeGrassColor(bm[(sy * 4) * 16 + (sx * 4)] & 0xFF);
+                    for (int i = 0; i < 256; i++) {
+                        int col = biomeGrassColor(bm[i] & 0xFF);
+                        biomeCols[i] = col;
+                        if ((i & 3) == 0 && ((i >> 4) & 3) == 0) {
+                            // 每 4 方块取 1 个采样（16 点）
                             if (col != 0) {
                                 rs += (col >> 16) & 0xFF;
                                 gs += (col >> 8) & 0xFF;
@@ -6459,6 +6466,11 @@ public class WorldMapRenderer {
                             }
                         }
                     }
+                    if (map.chunkBiomeColors == null) {
+                        map.chunkBiomeColors =
+                                new java.util.concurrent.ConcurrentHashMap<>();
+                    }
+                    map.chunkBiomeColors.put(pack(ck[0], ck[1]), biomeCols);
                     if (n > 0) {
                         px[lz * cw + lx] = (0xFF << 24)
                                 | ((rs / n) << 16) | ((gs / n) << 8) | (bs / n);
