@@ -397,7 +397,9 @@ public class WorldMapView extends View {
         // v0.4.111：阈值×帧率自适应系数——小地图全图路径也吃自适应
         // （低帧率更早切级=糊换流畅，覆盖 chunk 路径之外的小地图）
         int level = 1;
-        while (scalePx * level < lodThreshold * adaptEma && level < lodMaxLevel) {
+        // v0.4.116：静止不吃帧率自适应（与 chunk 路径一致）
+        float adapt = scaling ? adaptEma : 1f;
+        while (scalePx * level < lodThreshold * adapt && level < lodMaxLevel) {
             level *= 2;
         }
         Bitmap lodBmp = lodLevels[Integer.numberOfTrailingZeros(level)];
@@ -1174,9 +1176,13 @@ public class WorldMapView extends View {
     /** v0.4.101：目标块像素显示尺寸（阈值映射：高阈值=流畅糊、
      *  低阈值=清晰块多）。v0.4.103：动画与静止同一目标（span 稳定=
      *  缓存命中率高，杜绝 v0.4.102 的 span 抖动引发整链 miss）。
-     *  v0.4.106：× 帧率自适应系数（低帧率自动放大目标=糊换流畅）。 */
+     *  v0.4.106：× 帧率自适应系数（低帧率自动放大目标=糊换流畅）。
+     *  v0.4.116：自适应只在缩放动画中生效——静止时回 1（高质量
+     *  级）；此前静止也吃激进系数，下界等低帧率场景停手后块图
+     *  一直糊（3A LOD 惯例：运动降质、静止全质）。 */
     private float lodBlockPx() {
-        return (1f + (lodThreshold - 0.05f) / 0.9f * 2f) * adaptEma;
+        return (1f + (lodThreshold - 0.05f) / 0.9f * 2f)
+                * (scaling ? adaptEma : 1f);
     }
 
     /** v0.4.101：按 ppb 选 span——块像素 ≤ 目标 且 块屏 ≥96px（块数
@@ -1815,7 +1821,11 @@ public class WorldMapView extends View {
      *  色（ensureChunkTile），本层不画。miss 限流请求。 */
     private void drawBiomeLodLayer(android.graphics.Canvas canvas) {
         if (!showBiomeLayer || map == null || map.chunkBiomeColors == null
-                || pixelsPerBlock >= 1f || getWidth() <= 0) {
+                || pixelsPerBlock >= 1f || getWidth() <= 0
+                // v0.4.116：下界/末地不叠加——biomeGrassColor 对下界/
+                // 末地 biome 无映射回退草绿，叠加=大片绿色块（"下界
+                // 糊"根因）；主世界群系色表才适用
+                || !"overworld".equals(dimension)) {
             return;
         }
         final int span = 64;
